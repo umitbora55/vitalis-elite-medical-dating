@@ -1,0 +1,8 @@
+{
+  "name": "Vitalis - Elite Medical Dating",
+  "description": "An exclusive, premium dating and networking platform designed specifically for verified healthcare professionals.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
