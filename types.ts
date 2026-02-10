@@ -211,6 +211,7 @@ export interface Profile {
   referralData?: ReferralData; // New: Referral system data
   themePreference?: ThemePreference; // New: App theme preference
   verificationStatus?: VerificationStatus;
+  email?: string;
 }
 
 export interface CallInfo {
