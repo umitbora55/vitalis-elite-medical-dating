@@ -4,7 +4,7 @@ import { signInWithEmail } from '../services/authService';
 
 interface LoginViewProps {
   onBack: () => void;
-  onSuccess: (email: string) => void;
+  onSuccess: () => void;
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onBack, onSuccess }) => {
@@ -24,7 +24,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onSuccess }) => {
       return;
     }
 
-    onSuccess(email);
+    onSuccess();
   };
 
   return (

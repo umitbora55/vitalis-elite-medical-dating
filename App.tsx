@@ -270,7 +270,6 @@ const App: React.FC = () => {
             hospital: data.institution || userProfile.hospital,
             verificationStatus:
                 verification.method === 'EMAIL' ? 'VERIFIED' : 'PENDING_VERIFICATION',
-            email,
         };
 
         updateUserProfile(nextProfile);
@@ -299,10 +298,9 @@ const App: React.FC = () => {
         showToast("Application Approved! Welcome.");
     }, [setAuthStep, showToast, updateUserProfile, userProfile]);
 
-    const handleLoginSuccess = useCallback((email?: string) => {
-        if (email) updateUserProfile({ email });
+    const handleLoginSuccess = useCallback(() => {
         setAuthStep('APP');
-    }, [setAuthStep, updateUserProfile]);
+    }, [setAuthStep]);
 
     const handleOnboardingComplete = useCallback(() => {
         setAuthStep('APP');
@@ -804,8 +802,8 @@ const App: React.FC = () => {
                         onClick={handleBoostClick}
                         disabled={!!boostEndTime}
                         className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all ${boostEndTime
-                            ? 'bg-purple-900/80 border border-purple-500/50 text-purple-200 cursor-default'
-                            : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:scale-105 active:scale-95'
+                            ? 'bg-purple-90 border border-purple-500/50 text-purple-200 cursor-default'
+                            : 'bg-gradient- from-purple-600 to-pink-600 text-white hover:scale-105 active:scale-95'
                             }`}
                     >
                         <Zap size={16} className={boostEndTime ? 'text-purple-400 fill-purple-400 animate-pulse' : 'fill-white'} />
@@ -945,7 +943,27 @@ const App: React.FC = () => {
 
     // --- RENDER LANDING PAGE ---
     if (authStep === 'LANDING') {
-        return <LandingView onEnter={handleStartApplication} onLogin={handleStartLogin} />;
+        return (
+            <LandingView
+                onEnter={handleStartApplication}
+                onLogin={handleStartLogin}
+                onDevBypass={() => {
+                    updateUserProfile({
+                        ...userProfile,
+                        name: 'Dev User',
+                        age: 30,
+                        role: MedicalRole.DOCTOR,
+                        specialty: Specialty.CARDIOLOGY,
+                        hospital: 'Test Hospital',
+                        bio: 'Development test account',
+                        verificationStatus: 'VERIFIED',
+                    });
+                    localStorage.setItem('vitalis_onboarding_seen', 'true');
+                    setAuthStep('APP');
+                    showToast('DEV: Logged in as test user');
+                }}
+            />
+        );
     }
 
     // --- RENDER LOGIN ---
@@ -979,9 +997,7 @@ const App: React.FC = () => {
         );
     }
 
-    const isBypassAccount = userProfile.email === 'test@vitalis.com';
-
-    if (authStep === 'APP' && userProfile.verificationStatus && userProfile.verificationStatus !== 'VERIFIED' && !isBypassAccount) {
+    if (authStep === 'APP' && userProfile.verificationStatus && userProfile.verificationStatus !== 'VERIFIED') {
         return (
             <PendingVerificationView
                 status={userProfile.verificationStatus}

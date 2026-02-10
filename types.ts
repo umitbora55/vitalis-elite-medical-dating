@@ -155,9 +155,9 @@ export interface ReferralData {
   joinedCount: number;
   totalRewardsEarned: number; // in days
   referrals: {
-      name: string;
-      status: 'PENDING' | 'VERIFIED';
-      timestamp: number;
+    name: string;
+    status: 'PENDING' | 'VERIFIED';
+    timestamp: number;
   }[];
 }
 
@@ -198,10 +198,10 @@ export interface Profile {
   isLocationHidden: boolean;
   lastActive: number;
   isOnlineHidden: boolean;
-  isAvailable: boolean; 
-  availabilityExpiresAt?: number; 
+  isAvailable: boolean;
+  availabilityExpiresAt?: number;
   readReceiptsEnabled: boolean;
-  stories: Story[]; 
+  stories: Story[];
   storyPrivacy: StoryPrivacy;
   notificationSettings?: NotificationSettings;
   privacySettings?: PrivacySettings;
@@ -211,7 +211,6 @@ export interface Profile {
   referralData?: ReferralData; // New: Referral system data
   themePreference?: ThemePreference; // New: App theme preference
   verificationStatus?: VerificationStatus;
-  email?: string;
 }
 
 export interface CallInfo {
