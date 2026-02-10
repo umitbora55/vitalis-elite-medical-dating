@@ -7,7 +7,7 @@ interface NotificationsViewProps {
   onNotificationClick: (notification: Notification) => void;
 }
 
-export const NotificationsView: React.FC<NotificationsViewProps> = ({ notifications, onNotificationClick }) => {
+const NotificationsViewComponent: React.FC<NotificationsViewProps> = ({ notifications, onNotificationClick }) => {
   
   const formatTimeAgo = (timestamp: number) => {
     const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -130,3 +130,5 @@ export const NotificationsView: React.FC<NotificationsViewProps> = ({ notificati
     </div>
   );
 };
+
+export const NotificationsView = React.memo(NotificationsViewComponent);

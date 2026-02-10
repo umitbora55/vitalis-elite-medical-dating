@@ -1,19 +1,28 @@
 import React, { useState } from 'react';
 import { Check, X, Crown, Star, Zap, Heart, RotateCcw, Infinity, TrendingUp } from 'lucide-react';
+import { createCheckoutSession } from '../services/checkoutService';
 
 interface PremiumViewProps {
   onClose: () => void;
-  onUpgrade: () => void;
 }
 
-export const PremiumView: React.FC<PremiumViewProps> = ({ onClose, onUpgrade }) => {
+export const PremiumView: React.FC<PremiumViewProps> = ({ onClose }) => {
   const [selectedPlan, setSelectedPlan] = useState<'GOLD' | 'PLATINUM'>('GOLD');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handlePurchase = () => {
-    // Simulation alert as requested
-    alert("Satın alma simülasyonu başarılı!");
-    onUpgrade(); // Notify parent app to unlock features
-    onClose();
+  const handlePurchase = async () => {
+    setErrorMessage(null);
+    setIsProcessing(true);
+
+    const { sessionUrl, error } = await createCheckoutSession(selectedPlan);
+    if (error || !sessionUrl) {
+      setErrorMessage(error?.message || 'Checkout could not be started.');
+      setIsProcessing(false);
+      return;
+    }
+
+    window.location.assign(sessionUrl);
   };
 
   const features = [
@@ -120,14 +129,20 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onClose, onUpgrade }) 
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-slate-950/90 border-t border-slate-800 backdrop-blur-md z-20">
          <button 
            onClick={handlePurchase}
+           disabled={isProcessing}
            className={`w-full py-4 rounded-full font-bold uppercase tracking-widest shadow-lg transition-all transform active:scale-95 ${
                selectedPlan === 'GOLD' 
                ? 'bg-gradient-to-r from-gold-600 to-gold-400 text-black hover:brightness-110'
                : 'bg-gradient-to-r from-slate-200 via-white to-slate-200 text-black hover:brightness-110'
            }`}
          >
-           {selectedPlan === 'GOLD' ? 'Get Gold' : 'Get Platinum'}
+           {isProcessing ? 'Redirecting...' : selectedPlan === 'GOLD' ? 'Get Gold' : 'Get Platinum'}
          </button>
+         {errorMessage && (
+            <p className="text-[10px] text-center text-red-400 mt-2">
+              {errorMessage}
+            </p>
+         )}
          <p className="text-[10px] text-center text-slate-600 mt-3">
             Recurring billing. Cancel anytime.
          </p>

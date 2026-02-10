@@ -4,8 +4,10 @@ import { AlertTriangle, CheckCheck, Download, FileText, PauseCircle, Settings, T
 interface AccountSettingsProps {
   isOpen: boolean;
   dataRequestStatus: 'IDLE' | 'PROCESSING' | 'DONE';
+  pushStatus: 'IDLE' | 'ENABLED' | 'ERROR';
   onClose: () => void;
   onRequestData: () => void;
+  onEnablePush: () => void;
   onShowFreezeModal: () => void;
   onShowDeleteConfirm: () => void;
 }
@@ -13,8 +15,10 @@ interface AccountSettingsProps {
 export const AccountSettings: React.FC<AccountSettingsProps> = ({
   isOpen,
   dataRequestStatus,
+  pushStatus,
   onClose,
   onRequestData,
+  onEnablePush,
   onShowFreezeModal,
   onShowDeleteConfirm,
 }) => {
@@ -70,6 +74,28 @@ export const AccountSettings: React.FC<AccountSettingsProps> = ({
               </button>
             )}
           </div>
+        </div>
+
+        <div>
+          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Settings size={14} /> Bildirimler
+          </h4>
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center justify-between">
+            <div>
+              <h5 className="text-white font-bold text-sm">Push Bildirimleri</h5>
+              <p className="text-slate-400 text-xs mt-1">Yeni match ve mesajlar icin aninda bildirim.</p>
+            </div>
+            <button
+              onClick={onEnablePush}
+              disabled={pushStatus === 'ENABLED'}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-60"
+            >
+              {pushStatus === 'ENABLED' ? 'Aktif' : 'Etkinlestir'}
+            </button>
+          </div>
+          {pushStatus === 'ERROR' && (
+            <p className="text-xs text-red-400 mt-2">Bildirim izni alinmadi.</p>
+          )}
         </div>
 
         <div>

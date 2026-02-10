@@ -7,7 +7,7 @@ interface LikesYouViewProps {
   onUpgradeClick: () => void;
 }
 
-export const LikesYouView: React.FC<LikesYouViewProps> = ({ profiles, onUpgradeClick }) => {
+const LikesYouViewComponent: React.FC<LikesYouViewProps> = ({ profiles, onUpgradeClick }) => {
   return (
     <div className="w-full h-full max-w-md mx-auto pt-20 px-4 pb-4 flex flex-col">
       {/* Header */}
@@ -74,3 +74,5 @@ export const LikesYouView: React.FC<LikesYouViewProps> = ({ profiles, onUpgradeC
     </div>
   );
 };
+
+export const LikesYouView = React.memo(LikesYouViewComponent);

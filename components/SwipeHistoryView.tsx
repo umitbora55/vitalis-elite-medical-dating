@@ -13,7 +13,7 @@ interface SwipeHistoryViewProps {
 type FilterType = 'ALL' | 'LIKES' | 'PASSES';
 type TimeFilter = 'ALL' | '24H' | 'WEEK' | 'MONTH';
 
-export const SwipeHistoryView: React.FC<SwipeHistoryViewProps> = ({ 
+const SwipeHistoryViewComponent: React.FC<SwipeHistoryViewProps> = ({ 
     history, 
     isPremium, 
     onUpgradeClick,
@@ -200,3 +200,5 @@ export const SwipeHistoryView: React.FC<SwipeHistoryViewProps> = ({
     </div>
   );
 };
+
+export const SwipeHistoryView = React.memo(SwipeHistoryViewComponent);

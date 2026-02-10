@@ -1,21 +1,17 @@
 import { Profile } from "../types";
+import { supabase } from "../src/lib/supabase";
 
 export const generateMedicalIcebreaker = async (
   myProfile: Profile,
   matchProfile: Profile
 ): Promise<string> => {
   try {
-    const response = await fetch('/api/generate-icebreaker', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ myProfile, matchProfile }),
+    const { data, error } = await supabase.functions.invoke('generate-icebreaker', {
+      body: { myProfile, matchProfile },
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      if (typeof data?.text === 'string' && data.text.trim()) {
-        return data.text.trim();
-      }
+    if (!error && typeof data?.text === 'string' && data.text.trim()) {
+      return data.text.trim();
     }
   } catch (error) {
     return "I seem to have lost my train of thought, but your profile is stunning.";

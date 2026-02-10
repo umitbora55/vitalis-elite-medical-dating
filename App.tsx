@@ -1,26 +1,17 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import { MOCK_PROFILES, MOCK_LIKES_YOU_PROFILES, DAILY_SWIPE_LIMIT, DEFAULT_MESSAGE_TEMPLATES } from './constants';
-import { SwipeDirection, Match, Profile, FilterPreferences, Specialty, MedicalRole, Notification, NotificationType, ReportReason, SwipeHistoryItem, MessageTemplate, ChatTheme, ThemePreference } from './types';
+import { SwipeDirection, Match, Profile, FilterPreferences, Specialty, MedicalRole, Notification, NotificationType, ReportReason, SwipeHistoryItem, MessageTemplate, ChatTheme } from './types';
 import { AppHeader } from './components/AppHeader';
 import { ProfileCard } from './components/ProfileCard';
 import { ControlPanel } from './components/ControlPanel';
 import { MatchOverlay } from './components/MatchOverlay';
-import { MatchesView } from './components/MatchesView';
-import { ChatView } from './components/ChatView';
-import { ProfileDetailView } from './components/ProfileDetailView';
 import { FilterView } from './components/FilterView';
-import { MyProfileView } from './components/MyProfileView'; 
-import { NotificationsView } from './components/NotificationsView';
-import { LikesYouView } from './components/LikesYouView';
-import { PremiumView } from './components/PremiumView';
 import { LandingView } from './components/LandingView';
-import { OnboardingView } from './components/OnboardingView';
-import { RegistrationFlow } from './components/RegistrationFlow';
-import { SwipeHistoryView } from './components/SwipeHistoryView';
 import { Tooltip } from './components/Tooltip';
 import { StoryRail } from './components/StoryRail'; 
 import { StoryViewer } from './components/StoryViewer'; 
 import { NearbyView } from './components/NearbyView';
+import { LoginView } from './components/LoginView';
 import { ShieldCheck, FilterX, Star, Zap, Crown, Heart, CheckCircle2, Lock, Hourglass, Ghost, Snowflake, Play } from 'lucide-react';
 import { useAuthStore } from './stores/authStore';
 import { useUserStore } from './stores/userStore';
@@ -28,10 +19,40 @@ import { useUiStore } from './stores/uiStore';
 import { useDiscoveryStore } from './stores/discoveryStore';
 import { useMatchStore } from './stores/matchStore';
 import { useNotificationStore } from './stores/notificationStore';
+import { useTheme } from './hooks/useTheme';
+import { useBoost } from './hooks/useBoost';
+import { useSwipeLimit } from './hooks/useSwipeLimit';
+import { signUpWithEmail, signOut } from './services/authService';
+import { upsertProfile } from './services/profileService';
+import { getActiveSubscription } from './services/subscriptionService';
+import { initAnalytics, trackEvent } from './src/lib/analytics';
+import { PendingVerificationView } from './components/PendingVerificationView';
+import { createVerificationRequest, saveVerifiedEmail, updateProfileVerificationStatus } from './services/verificationService';
+import { supabase } from './src/lib/supabase';
+
+const MatchesView = lazy(() => import('./components/MatchesView').then((m) => ({ default: m.MatchesView })));
+const ChatView = lazy(() => import('./components/ChatView').then((m) => ({ default: m.ChatView })));
+const ProfileDetailView = lazy(() => import('./components/ProfileDetailView').then((m) => ({ default: m.ProfileDetailView })));
+const MyProfileView = lazy(() => import('./components/MyProfileView').then((m) => ({ default: m.MyProfileView })));
+const NotificationsView = lazy(() => import('./components/NotificationsView').then((m) => ({ default: m.NotificationsView })));
+const LikesYouView = lazy(() => import('./components/LikesYouView').then((m) => ({ default: m.LikesYouView })));
+const PremiumView = lazy(() => import('./components/PremiumView').then((m) => ({ default: m.PremiumView })));
+const OnboardingView = lazy(() => import('./components/OnboardingView').then((m) => ({ default: m.OnboardingView })));
+const RegistrationFlow = lazy(() => import('./components/RegistrationFlow').then((m) => ({ default: m.RegistrationFlow })));
+const SwipeHistoryView = lazy(() => import('./components/SwipeHistoryView').then((m) => ({ default: m.SwipeHistoryView })));
+
+type VerificationPayload = {
+  method: 'EMAIL' | 'DOCUMENT';
+  workEmail?: string;
+  tier?: number;
+  domain?: string;
+};
 
 type RegistrationData = {
   name?: string;
   age?: string | number;
+  email?: string;
+  password?: string;
   role?: MedicalRole | string;
   specialty?: Specialty | string;
   institution?: string;
@@ -84,46 +105,13 @@ const App: React.FC = () => {
   const notifications = useNotificationStore((state) => state.notifications);
   const markAllNotificationsRead = useNotificationStore((state) => state.markAllRead);
 
-  // --- Theme Management ---
-  // If 'SYSTEM', we listen to prefers-color-scheme. 
-  // If 'LIGHT' or 'DARK', we enforce it.
-  const [themePreference, setThemePreference] = useState<ThemePreference>(
-    userProfile.themePreference || 'SYSTEM',
-  );
+  const { syncProfileTheme } = useTheme(userProfile.themePreference || 'SYSTEM');
 
-  useEffect(() => {
-      const applyTheme = () => {
-          const root = document.documentElement;
-          const isDark = 
-              themePreference === 'DARK' || 
-              (themePreference === 'SYSTEM' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-          if (isDark) {
-              root.classList.add('dark');
-          } else {
-              root.classList.remove('dark');
-          }
-      };
-
-      applyTheme();
-
-      // Listen for system changes if preference is SYSTEM
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = () => {
-          if (themePreference === 'SYSTEM') applyTheme();
-      };
-
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [themePreference]);
-
-  const handleUpdateProfile = (updatedProfile: Profile) => {
+  const handleUpdateProfile = useCallback((updatedProfile: Profile) => {
       setUserProfile(updatedProfile);
-      // If theme changed in profile settings, update local state
-      if (updatedProfile.themePreference && updatedProfile.themePreference !== themePreference) {
-          setThemePreference(updatedProfile.themePreference);
-      }
-  };
+      syncProfileTheme(updatedProfile);
+      void upsertProfile(updatedProfile);
+  }, [setUserProfile, syncProfileTheme]);
 
   // Tips State
   const [closedTips, setClosedTips] = useState<Set<string>>(new Set());
@@ -132,18 +120,18 @@ const App: React.FC = () => {
   // Message Templates State
   const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>(DEFAULT_MESSAGE_TEMPLATES);
 
-  const handleAddTemplate = (text: string) => {
+  const handleAddTemplate = useCallback((text: string) => {
       const newTemplate: MessageTemplate = {
           id: `custom_${Date.now()}`,
           text,
           isCustom: true
       };
       setMessageTemplates(prev => [...prev, newTemplate]);
-  };
+  }, []);
 
-  const handleDeleteTemplate = (id: string) => {
+  const handleDeleteTemplate = useCallback((id: string) => {
       setMessageTemplates(prev => prev.filter(t => t.id !== id));
-  };
+  }, []);
 
   // Initialize Matches with some mock data that contains stories for demonstration
   useEffect(() => {
@@ -175,29 +163,99 @@ const App: React.FC = () => {
   }, []);
 
   // Swipe Limit State
-  const [timeToReset, setTimeToReset] = useState<string>('');
+  const { timeToReset } = useSwipeLimit({
+    dailyLimit: DAILY_SWIPE_LIMIT,
+    onReset: () => setDailySwipesRemaining(DAILY_SWIPE_LIMIT),
+  });
 
   // Super Like State
   // Animation state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // --- BOOST STATE ---
-  const [boostCount, setBoostCount] = useState(1); // 1 Free boost per month
-  const [boostEndTime, setBoostEndTime] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(0);
   const [showBoostConfirm, setShowBoostConfirm] = useState(false);
   const [showPremiumAlert, setShowPremiumAlert] = useState(false);
+
+  const LoadingScreen = () => (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-300 text-sm">
+          Loading...
+      </div>
+  );
+
+  const showToast = useCallback((msg: string) => {
+      setToastMessage(msg);
+      setTimeout(() => setToastMessage(null), 2500);
+  }, []);
+
+  const refreshSubscriptionStatus = useCallback(async () => {
+      const { isPremium: hasPremium } = await getActiveSubscription();
+      setIsPremium(hasPremium);
+  }, [setIsPremium]);
+
+  useEffect(() => {
+      initAnalytics(userProfile);
+  }, [userProfile]);
+
+  useEffect(() => {
+      if (authStep !== 'APP') return;
+      void refreshSubscriptionStatus();
+  }, [authStep, refreshSubscriptionStatus]);
+
+  useEffect(() => {
+      if (currentView === 'premium') {
+          trackEvent('premium_view', { source: 'nav' });
+      }
+  }, [currentView]);
+
+  useEffect(() => {
+      const params = new URLSearchParams(window.location.search);
+      const checkoutStatus = params.get('checkout');
+      if (!checkoutStatus) return;
+
+      if (checkoutStatus === 'success') {
+          void refreshSubscriptionStatus();
+          showToast('Welcome to Vitalis Elite!');
+      }
+      if (checkoutStatus === 'cancel') {
+          showToast('Checkout canceled.');
+      }
+
+      params.delete('checkout');
+      const nextUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+      window.history.replaceState({}, '', nextUrl);
+  }, [refreshSubscriptionStatus, showToast]);
 
   // Logic to handle Login from Landing
   const handleStartApplication = () => {
       setAuthStep('REGISTRATION');
   };
 
-  const handleRegistrationComplete = (data: RegistrationData) => {
+  const handleStartLogin = () => {
+      setAuthStep('LOGIN');
+  };
+
+  const handleRegistrationComplete = useCallback(async (data: RegistrationData, verification: VerificationPayload) => {
+      const email = data.email?.trim();
+      const password = data.password;
+
+      if (email && password) {
+          const { error } = await signUpWithEmail(email, password, {
+              name: data.name,
+              role: data.role,
+              specialty: data.specialty,
+          });
+
+          if (error) {
+              showToast(error.message);
+              return;
+          }
+      }
+
       const parsedAge = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
 
       // Update user profile with registered data
-      updateUserProfile({
+      const nextProfile: Profile = {
+          ...userProfile,
           name: data.name || userProfile.name,
           age: Number.isFinite(parsedAge) ? (parsedAge as number) : userProfile.age,
           role:
@@ -210,8 +268,25 @@ const App: React.FC = () => {
                   ? (data.specialty as Specialty)
                   : userProfile.specialty,
           hospital: data.institution || userProfile.hospital,
-          // In a real app, email/phone would be handled by auth provider
-      });
+          verificationStatus:
+              verification.method === 'EMAIL' ? 'VERIFIED' : 'PENDING_VERIFICATION',
+      };
+
+      updateUserProfile(nextProfile);
+      void upsertProfile(nextProfile);
+      if (verification.method === 'EMAIL' && email && verification.domain && verification.tier) {
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData?.user?.id) {
+              await saveVerifiedEmail(authData.user.id, email, verification.domain, verification.tier);
+              await updateProfileVerificationStatus(authData.user.id, 'VERIFIED');
+          }
+      } else {
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData?.user?.id) {
+              await createVerificationRequest(authData.user.id, 'DOCUMENT');
+              await updateProfileVerificationStatus(authData.user.id, 'PENDING_VERIFICATION');
+          }
+      }
 
       // Check for onboarding status (simulated)
       const hasSeen = localStorage.getItem('vitalis_onboarding_seen');
@@ -221,19 +296,23 @@ const App: React.FC = () => {
           setAuthStep('APP');
       }
       showToast("Application Approved! Welcome.");
-  };
+  }, [setAuthStep, showToast, updateUserProfile, userProfile]);
 
-  const handleOnboardingComplete = () => {
+  const handleLoginSuccess = useCallback(() => {
+      setAuthStep('APP');
+  }, [setAuthStep]);
+
+  const handleOnboardingComplete = useCallback(() => {
       setAuthStep('APP');
       localStorage.setItem('vitalis_onboarding_seen', 'true');
-  };
+  }, [setAuthStep]);
 
-  const resetTutorial = () => {
+  const resetTutorial = useCallback(() => {
       localStorage.removeItem('vitalis_onboarding_seen');
       setClosedTips(new Set()); // Reset tips
       setAuthStep('ONBOARDING');
       setCurrentView('home');
-  };
+  }, [setAuthStep, setCurrentView]);
 
   // Logic for Contextual Tips
   useEffect(() => {
@@ -262,68 +341,18 @@ const App: React.FC = () => {
       return () => clearTimeout(timer);
   }, [currentView, closedTips, authStep]);
 
-  const closeTip = () => {
+  const closeTip = useCallback(() => {
       if (activeTip) {
           setClosedTips(prev => new Set(prev).add(activeTip.id));
           setActiveTip(null);
       }
-  };
+  }, [activeTip]);
 
-  // Boost Timer Logic
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined;
-    if (boostEndTime) {
-      interval = setInterval(() => {
-        const now = Date.now();
-        const remaining = boostEndTime - now;
-        
-        if (remaining <= 0) {
-          setBoostEndTime(null);
-          setTimeLeft(0);
-          if (interval) clearInterval(interval);
-        } else {
-          setTimeLeft(remaining);
-        }
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [boostEndTime]);
+  const { boostCount, boostEndTime, timeLeft, activateBoost: startBoost } = useBoost({
+    initialCount: 1,
+  });
 
-  // Daily Swipe Limit Reset Logic & Countdown
-  useEffect(() => {
-      const updateCountdown = () => {
-          const now = new Date();
-          const midnight = new Date();
-          midnight.setHours(24, 0, 0, 0);
-          const diff = midnight.getTime() - now.getTime();
-
-          const hours = Math.floor(diff / (1000 * 60 * 60));
-          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-          
-          setTimeToReset(`${hours}h ${minutes}m`);
-
-          // Simple reset check simulation
-          // In a real app, you'd check a stored timestamp
-          if (diff <= 1000) {
-              setDailySwipesRemaining(DAILY_SWIPE_LIMIT);
-          }
-      };
-
-      updateCountdown(); // Initial call
-      const timer = setInterval(updateCountdown, 60000); // Update every minute
-      
-      return () => clearInterval(timer);
-  }, []);
-
-
-  const showToast = (msg: string) => {
-      setToastMessage(msg);
-      setTimeout(() => setToastMessage(null), 2500);
-  };
-
-  const handleBoostClick = () => {
+  const handleBoostClick = useCallback(() => {
     if (boostEndTime) return; // Already active
 
     if (boostCount > 0) {
@@ -331,17 +360,17 @@ const App: React.FC = () => {
     } else {
       setShowPremiumAlert(true);
     }
-  };
+  }, [boostCount, boostEndTime]);
 
-  const activateBoost = () => {
-    const duration = 30 * 60 * 1000; // 30 minutes
-    setBoostEndTime(Date.now() + duration);
-    setBoostCount(prev => prev - 1);
+  const handleActivateBoost = useCallback(() => {
+    const activated = startBoost();
     setShowBoostConfirm(false);
-    showToast("Boost Activated! 🚀");
-  };
+    if (activated) {
+      showToast("Boost Activated! 🚀");
+    }
+  }, [showToast, startBoost]);
 
-  const handleAddStory = () => {
+  const handleAddStory = useCallback(() => {
       // Simulation of adding a story
       showToast("Story Uploaded! 📸");
       setUserProfile({
@@ -357,9 +386,9 @@ const App: React.FC = () => {
               },
           ],
       });
-  };
+  }, [setUserProfile, showToast, userProfile]);
 
-  const handleStoryReply = (_text: string) => {
+  const handleStoryReply = useCallback((_text: string) => {
       if (!viewingStoryProfile) return;
       
       // Ideally this would add a message to the chat
@@ -372,11 +401,11 @@ const App: React.FC = () => {
           setActiveChatMatch(match);
       }
       setViewingStoryProfile(null);
-  };
+  }, [matches, setActiveChatMatch, setViewingStoryProfile, showToast, viewingStoryProfile]);
 
-  const handleStoryReaction = (emoji: string) => {
+  const handleStoryReaction = useCallback((emoji: string) => {
       showToast(`Sent ${emoji} to ${viewingStoryProfile?.name}`);
-  };
+  }, [showToast, viewingStoryProfile?.name]);
 
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -492,7 +521,7 @@ const App: React.FC = () => {
       showToast("Unmatched successfully");
   };
 
-  const handleUpdateMatchTheme = (matchId: string, theme: ChatTheme) => {
+  const handleUpdateMatchTheme = useCallback((matchId: string, theme: ChatTheme) => {
       setMatches(
         matches.map((m) => (m.profile.id === matchId ? { ...m, theme } : m)),
       );
@@ -500,10 +529,10 @@ const App: React.FC = () => {
       if (activeChatMatch && activeChatMatch.profile.id === matchId) {
           setActiveChatMatch({ ...activeChatMatch, theme });
       }
-  };
+  }, [activeChatMatch, matches, setActiveChatMatch, setMatches]);
 
   // --- Nearby Logic ---
-  const handleSayHiToNearby = (profile: Profile) => {
+  const handleSayHiToNearby = useCallback((profile: Profile) => {
       // Create a match if not exists and open chat, OR just toast
       // For demo, we'll treat it like a "Wave" notification or start a chat if matched
       
@@ -517,9 +546,9 @@ const App: React.FC = () => {
           showToast(`Waved at ${profile.name}! 👋`);
           // In real app, this sends a notification
       }
-  };
+  }, [matches, setActiveChatMatch, setCurrentView, showToast]);
 
-  const handleUpdatePrivacy = (showInNearby: boolean) => {
+  const handleUpdatePrivacy = useCallback((showInNearby: boolean) => {
       setUserProfile({
           ...userProfile,
           privacySettings: {
@@ -527,7 +556,7 @@ const App: React.FC = () => {
               showInNearby,
           },
       });
-  };
+  }, [setUserProfile, userProfile]);
 
   const handleSwipe = (direction: SwipeDirection) => {
     // 0. Check daily limit if not premium
@@ -552,6 +581,7 @@ const App: React.FC = () => {
         decrementSwipe();
     }
 
+    trackEvent('swipe', { direction, isPremium });
     setSwipeDirection(direction);
 
     // Wait for animation to finish before updating logic
@@ -599,6 +629,7 @@ const App: React.FC = () => {
                 };
                 addMatch(newMatch);
                 setCurrentMatch(newMatch); // Triggers the overlay
+                trackEvent('match', { profileId: currentProfile.id });
             }
         }
         
@@ -912,22 +943,50 @@ const App: React.FC = () => {
 
   // --- RENDER LANDING PAGE ---
   if (authStep === 'LANDING') {
-    return <LandingView onEnter={handleStartApplication} />;
+    return <LandingView onEnter={handleStartApplication} onLogin={handleStartLogin} />;
+  }
+
+  // --- RENDER LOGIN ---
+  if (authStep === 'LOGIN') {
+      return (
+          <LoginView
+            onBack={() => setAuthStep('LANDING')}
+            onSuccess={handleLoginSuccess}
+          />
+      );
   }
 
   // --- RENDER REGISTRATION FLOW ---
   if (authStep === 'REGISTRATION') {
       return (
-          <RegistrationFlow 
-            onComplete={handleRegistrationComplete} 
-            onCancel={() => setAuthStep('LANDING')} 
-          />
+          <Suspense fallback={<LoadingScreen />}>
+              <RegistrationFlow 
+                onComplete={handleRegistrationComplete} 
+                onCancel={() => setAuthStep('LANDING')} 
+              />
+          </Suspense>
       );
   }
 
   // --- RENDER ONBOARDING IF NEW USER ---
   if (authStep === 'ONBOARDING') {
-      return <OnboardingView onComplete={handleOnboardingComplete} />;
+      return (
+          <Suspense fallback={<LoadingScreen />}>
+              <OnboardingView onComplete={handleOnboardingComplete} />
+          </Suspense>
+      );
+  }
+
+  if (authStep === 'APP' && userProfile.verificationStatus && userProfile.verificationStatus !== 'VERIFIED') {
+      return (
+          <PendingVerificationView
+            status={userProfile.verificationStatus}
+            onLogout={async () => {
+                await signOut();
+                setAuthStep('LANDING');
+            }}
+          />
+      );
   }
 
   // --- FROZEN ACCOUNT SCREEN ---
@@ -1010,86 +1069,84 @@ const App: React.FC = () => {
             />
         )}
 
-        {activeChatMatch ? (
-           <ChatView 
-             match={activeChatMatch} 
-             onBack={() => setActiveChatMatch(null)} 
-             onUnmatch={handleUnmatch}
-             userProfile={userProfile}
-             templates={messageTemplates}
-             onAddTemplate={handleAddTemplate}
-             onDeleteTemplate={handleDeleteTemplate}
-             onUpdateMatchTheme={handleUpdateMatchTheme}
-             isPremium={isPremium}
-           />
-        ) : isFilterOpen ? (
-           <FilterView 
-              initialFilters={filters} 
-              onClose={() => setIsFilterOpen(false)} 
-              onSave={handleSaveFilters} 
-           />
-        ) : viewingProfile ? (
-           <ProfileDetailView 
-                profile={viewingProfile} 
-                onClose={() => setViewingProfile(null)} 
-                onBlock={handleBlockProfile}
-                onReport={handleReportProfile}
-                currentUser={userProfile}
-           />
-        ) : currentView === 'premium' ? (
-           <PremiumView 
-             onClose={() => setCurrentView('home')} 
-             onUpgrade={() => {
-                 setIsPremium(true);
-                 showToast("Welcome to Vitalis Elite!");
-             }}
-           />
-        ) : (
-           <>
-             {currentView === 'home' && renderHome()}
-             {currentView === 'matches' && <MatchesView matches={matches} onMatchSelect={setActiveChatMatch} />}
-             {currentView === 'notifications' && (
-                <NotificationsView 
-                    notifications={notifications} 
-                    onNotificationClick={handleNotificationClick} 
-                />
-             )}
-             {currentView === 'likesYou' && (
-                <LikesYouView 
-                    profiles={MOCK_LIKES_YOU_PROFILES}
-                    onUpgradeClick={() => setCurrentView('premium')}
-                />
-             )}
-             {currentView === 'profile' && (
-                <MyProfileView 
-                   profile={userProfile} 
-                   onUpdateProfile={handleUpdateProfile} 
-                   onGoPremium={() => setCurrentView('premium')}
-                   isPremium={isPremium}
-                   onResetTutorial={resetTutorial}
-                   onViewProfile={setViewingProfile}
-                />
-             )}
-             {currentView === 'history' && (
-                <SwipeHistoryView 
-                    history={swipeHistory}
-                    isPremium={isPremium}
-                    onUpgradeClick={() => setCurrentView('premium')}
-                    onUndoSwipe={handleUndoSwipeFromHistory}
-                    onViewProfile={setViewingProfile}
-                />
-             )}
-             {currentView === 'nearby' && (
-                <NearbyView 
+        <Suspense fallback={<LoadingScreen />}>
+            {activeChatMatch ? (
+               <ChatView 
+                 match={activeChatMatch} 
+                 onBack={() => setActiveChatMatch(null)} 
+                 onUnmatch={handleUnmatch}
+                 userProfile={userProfile}
+                 templates={messageTemplates}
+                 onAddTemplate={handleAddTemplate}
+                 onDeleteTemplate={handleDeleteTemplate}
+                 onUpdateMatchTheme={handleUpdateMatchTheme}
+                 isPremium={isPremium}
+               />
+            ) : isFilterOpen ? (
+               <FilterView 
+                  initialFilters={filters} 
+                  onClose={() => setIsFilterOpen(false)} 
+                  onSave={handleSaveFilters} 
+               />
+            ) : viewingProfile ? (
+               <ProfileDetailView 
+                    profile={viewingProfile} 
+                    onClose={() => setViewingProfile(null)} 
+                    onBlock={handleBlockProfile}
+                    onReport={handleReportProfile}
                     currentUser={userProfile}
-                    profiles={MOCK_PROFILES}
-                    onSayHi={handleSayHiToNearby}
-                    onUpdatePrivacy={handleUpdatePrivacy}
-                    onViewProfile={setViewingProfile}
-                />
-             )}
-           </>
-        )}
+               />
+            ) : currentView === 'premium' ? (
+               <PremiumView 
+                 onClose={() => setCurrentView('home')} 
+               />
+            ) : (
+               <>
+                 {currentView === 'home' && renderHome()}
+                 {currentView === 'matches' && <MatchesView matches={matches} onMatchSelect={setActiveChatMatch} />}
+                 {currentView === 'notifications' && (
+                    <NotificationsView 
+                        notifications={notifications} 
+                        onNotificationClick={handleNotificationClick} 
+                    />
+                 )}
+                 {currentView === 'likesYou' && (
+                    <LikesYouView 
+                        profiles={MOCK_LIKES_YOU_PROFILES}
+                        onUpgradeClick={() => setCurrentView('premium')}
+                    />
+                 )}
+                 {currentView === 'profile' && (
+                    <MyProfileView 
+                       profile={userProfile} 
+                       onUpdateProfile={handleUpdateProfile} 
+                       onGoPremium={() => setCurrentView('premium')}
+                       isPremium={isPremium}
+                       onResetTutorial={resetTutorial}
+                       onViewProfile={setViewingProfile}
+                    />
+                 )}
+                 {currentView === 'history' && (
+                    <SwipeHistoryView 
+                        history={swipeHistory}
+                        isPremium={isPremium}
+                        onUpgradeClick={() => setCurrentView('premium')}
+                        onUndoSwipe={handleUndoSwipeFromHistory}
+                        onViewProfile={setViewingProfile}
+                    />
+                 )}
+                 {currentView === 'nearby' && (
+                    <NearbyView 
+                        currentUser={userProfile}
+                        profiles={MOCK_PROFILES}
+                        onSayHi={handleSayHiToNearby}
+                        onUpdatePrivacy={handleUpdatePrivacy}
+                        onViewProfile={setViewingProfile}
+                    />
+                 )}
+               </>
+            )}
+        </Suspense>
       </main>
 
       {currentMatch && (
@@ -1127,7 +1184,7 @@ const App: React.FC = () => {
                 
                 <div className="flex flex-col gap-3">
                     <button 
-                        onClick={activateBoost}
+                        onClick={handleActivateBoost}
                         className="w-full py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold tracking-wide shadow-lg hover:brightness-110 transition-all flex items-center justify-center gap-2"
                     >
                         <Zap size={18} fill="currentColor" />

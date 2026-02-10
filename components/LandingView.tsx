@@ -3,9 +3,10 @@ import { Activity, ShieldCheck, FileCheck, Lock, ChevronRight } from 'lucide-rea
 
 interface LandingViewProps {
   onEnter: () => void;
+  onLogin?: () => void;
 }
 
-export const LandingView: React.FC<LandingViewProps> = ({ onEnter }) => {
+export const LandingView: React.FC<LandingViewProps> = ({ onEnter, onLogin }) => {
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col overflow-y-auto">
       {/* Background Ambience */}
@@ -76,6 +77,14 @@ export const LandingView: React.FC<LandingViewProps> = ({ onEnter }) => {
                 Apply Now
                 <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
             </button>
+            {onLogin && (
+                <button
+                    onClick={onLogin}
+                    className="w-full py-3 rounded-xl border border-slate-800 text-slate-200 text-sm font-semibold hover:border-gold-500/40 hover:text-white transition-colors"
+                >
+                    Sign In
+                </button>
+            )}
             
             <p className="text-[10px] text-slate-600 max-w-xs mx-auto leading-relaxed">
                 By applying, you confirm that you hold a valid medical qualification. Unverified accounts will be suspended.

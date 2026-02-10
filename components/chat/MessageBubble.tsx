@@ -1,5 +1,7 @@
 import React from 'react';
 import { Message, MessageStatus, ChatTheme } from '../../types';
+import { AudioBubble } from './AudioBubble';
+import { VideoBubble } from './VideoBubble';
 
 interface MessageBubbleProps {
   msg: Message;
@@ -8,11 +10,12 @@ interface MessageBubbleProps {
   isHighlighted: boolean;
   searchQuery: string;
   onImageClick: (url: string) => void;
+  onVideoClick: (url: string) => void;
   formatTime: (timestamp: number) => string;
+  formatDuration: (seconds: number) => string;
   renderStatusIcon: (status: MessageStatus) => React.ReactNode;
-  AudioBubble: React.ComponentType<{ msg: Message; isMe: boolean }>;
-  VideoBubble: React.ComponentType<{ msg: Message }>;
   HighlightedText: React.ComponentType<{ text: string; highlight: string }>;
+  videoThumbnailUrl: string;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -22,11 +25,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   isHighlighted,
   searchQuery,
   onImageClick,
+  onVideoClick,
   formatTime,
+  formatDuration,
   renderStatusIcon,
-  AudioBubble,
-  VideoBubble,
   HighlightedText,
+  videoThumbnailUrl,
 }) => {
   return (
     <div
@@ -44,7 +48,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               : `${currentTheme.secondaryColor} ${currentTheme.textColor} rounded-tl-none`
           } ${isHighlighted ? 'ring-2 ring-gold-500 ring-offset-2 ring-offset-slate-900' : ''}`}
         >
-          <AudioBubble msg={msg} isMe={isMe} />
+          <AudioBubble
+            msg={msg}
+            isMe={isMe}
+            currentTheme={currentTheme}
+            formatDuration={formatDuration}
+          />
         </div>
       ) : msg.videoUrl ? (
         <div
@@ -52,7 +61,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             isMe ? 'border-white/20 rounded-tr-none' : 'border-slate-700 rounded-tl-none'
           } ${isHighlighted ? 'ring-2 ring-gold-500' : ''}`}
         >
-          <VideoBubble msg={msg} />
+          <VideoBubble msg={msg} thumbnailUrl={videoThumbnailUrl} onViewImage={onVideoClick} />
         </div>
       ) : msg.imageUrl ? (
         <div

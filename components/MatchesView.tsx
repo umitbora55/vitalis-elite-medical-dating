@@ -9,7 +9,7 @@ interface MatchesViewProps {
   onMatchSelect: (match: Match) => void;
 }
 
-export const MatchesView: React.FC<MatchesViewProps> = ({ matches, onMatchSelect }) => {
+const MatchesViewComponent: React.FC<MatchesViewProps> = ({ matches, onMatchSelect }) => {
   const [sortOption, setSortOption] = useState<MatchSortOption>(MatchSortOption.NEWEST);
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -204,3 +204,5 @@ export const MatchesView: React.FC<MatchesViewProps> = ({ matches, onMatchSelect
     </div>
   );
 };
+
+export const MatchesView = React.memo(MatchesViewComponent);

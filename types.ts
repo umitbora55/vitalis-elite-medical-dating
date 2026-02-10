@@ -168,6 +168,12 @@ export interface VerificationBadges {
   license: boolean; // Main professional verification
 }
 
+export type VerificationStatus =
+  | 'PENDING_VERIFICATION'
+  | 'EMAIL_VERIFICATION_SENT'
+  | 'REJECTED'
+  | 'VERIFIED';
+
 export interface Profile {
   id: string;
   name: string;
@@ -204,6 +210,7 @@ export interface Profile {
   firstMessagePreference?: FirstMessagePreference; // New: First message rule
   referralData?: ReferralData; // New: Referral system data
   themePreference?: ThemePreference; // New: App theme preference
+  verificationStatus?: VerificationStatus;
 }
 
 export interface CallInfo {

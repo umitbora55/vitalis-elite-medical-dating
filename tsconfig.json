@@ -30,5 +30,8 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "mobile"
+  ]
 }
