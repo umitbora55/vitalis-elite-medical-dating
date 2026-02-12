@@ -1,12 +1,27 @@
 import { supabase } from '../src/lib/supabase';
 
-const normalizeDomain = (email: string) => {
+type VerifiedDomainRow = {
+  domain: string;
+  institution_name: string;
+  tier: number;
+};
+
+const VERIFICATION_DOC_BUCKET = 'verification-documents';
+const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf',
+]);
+const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024;
+
+const normalizeDomain = (email: string): string => {
   const atIndex = email.lastIndexOf('@');
   if (atIndex === -1) return '';
   return email.slice(atIndex + 1).toLowerCase();
 };
 
-const matchesDomain = (candidate: string, domain: string) => {
+const matchesDomain = (candidate: string, domain: string): boolean => {
   if (domain.startsWith('*.')) {
     const suffix = domain.replace('*.', '');
     return candidate === suffix || candidate.endsWith(`.${suffix}`);
@@ -14,15 +29,44 @@ const matchesDomain = (candidate: string, domain: string) => {
   return candidate === domain;
 };
 
-export const getVerifiedDomain = async (email: string) => {
+const getDomainCandidates = (candidate: string): string[] => {
+  const candidates = new Set<string>();
+  candidates.add(candidate);
+
+  const parts = candidate.split('.');
+  for (let i = 0; i < parts.length - 1; i += 1) {
+    const suffix = parts.slice(i).join('.');
+    if (suffix.includes('.')) {
+      candidates.add(`*.${suffix}`);
+    }
+  }
+
+  return Array.from(candidates);
+};
+
+export const getVerifiedDomain = async (
+  email: string,
+): Promise<{ domain: VerifiedDomainRow | null; error: Error | null }> => {
   const domain = normalizeDomain(email);
   if (!domain) return { domain: null, error: new Error('Invalid email') };
 
-  const { data, error } = await supabase.from('verified_domains').select('*');
-  if (error) return { domain: null, error };
+  const candidates = getDomainCandidates(domain);
+  const { data, error } = await supabase
+    .from('verified_domains')
+    .select('domain,institution_name,tier')
+    .in('domain', candidates)
+    .returns<VerifiedDomainRow[]>();
+  if (error) return { domain: null, error: error as unknown as Error };
 
-  const match = data?.find((row: { domain: string }) => matchesDomain(domain, row.domain));
-  return { domain: match || null, error: null };
+  const matches = (data || []).filter((row) => matchesDomain(domain, row.domain));
+  if (matches.length === 0) return { domain: null, error: null };
+
+  const best = matches.sort((a, b) => {
+    if (b.tier !== a.tier) return b.tier - a.tier;
+    return b.domain.length - a.domain.length;
+  })[0];
+
+  return { domain: best || null, error: null };
 };
 
 export const sendVerificationOtp = async (email: string) => {
@@ -58,6 +102,37 @@ export const createVerificationRequest = async (
     document_url: documentUrl || null,
     status: 'PENDING',
   });
+};
+
+const sanitizeFileName = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9.\-_]/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 120);
+
+export const uploadVerificationDocument = async (
+  userId: string,
+  file: File,
+): Promise<{ documentPath: string | null; error: Error | null }> => {
+  if (!ALLOWED_DOCUMENT_MIME_TYPES.has(file.type)) {
+    return { documentPath: null, error: new Error('Unsupported document format') };
+  }
+  if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
+    return { documentPath: null, error: new Error('Document is larger than 10 MB') };
+  }
+
+  const safeName = sanitizeFileName(file.name || 'document');
+  const path = `${userId}/${Date.now()}-${safeName}`;
+  const { error } = await supabase.storage
+    .from(VERIFICATION_DOC_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: false });
+
+  if (error) {
+    return { documentPath: null, error: error as unknown as Error };
+  }
+
+  return { documentPath: path, error: null };
 };
 
 export const updateProfileVerificationStatus = async (

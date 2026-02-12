@@ -1,0 +1,229 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* === BASE LAYER - Agent 1 & 2 === */
+@layer base {
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Better focus states */
+  *:focus-visible {
+    outline: 2px solid theme('colors.gold.500');
+    outline-offset: 2px;
+  }
+
+  /* Body defaults */
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Selection color */
+  ::selection {
+    background-color: theme('colors.gold.500');
+    color: theme('colors.slate.950');
+  }
+}
+
+/* === COMPONENT LAYER - Premium Patterns === */
+@layer components {
+  /* Premium Card - Agent 3 */
+  .card-premium {
+    @apply rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 300ms cubic-bezier(0.22, 1, 0.36, 1),
+                transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .card-premium:hover {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Premium Button - Agent 4 */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl;
+    @apply bg-gradient-to-r from-gold-600 to-gold-400 text-slate-950;
+    @apply font-semibold text-base;
+    @apply shadow-button transition-all duration-200;
+    @apply hover:shadow-button-hover hover:brightness-105;
+    @apply active:scale-[0.98] active:shadow-sm;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+    min-height: 48px;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl;
+    @apply bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white;
+    @apply border border-slate-200 dark:border-slate-700;
+    @apply font-semibold text-base;
+    @apply transition-all duration-200;
+    @apply hover:bg-slate-200 dark:hover:bg-slate-700;
+    @apply active:scale-[0.98];
+    min-height: 48px;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg;
+    @apply text-slate-600 dark:text-slate-400 font-medium;
+    @apply transition-all duration-200;
+    @apply hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white;
+    @apply active:scale-[0.98];
+  }
+
+  .btn-icon {
+    @apply inline-flex items-center justify-center rounded-full;
+    @apply transition-all duration-200;
+    @apply hover:bg-slate-100 dark:hover:bg-slate-800;
+    @apply active:scale-95;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Premium Input - Agent 5 */
+  .input-premium {
+    @apply w-full px-4 py-3.5 rounded-xl;
+    @apply bg-white dark:bg-slate-950;
+    @apply border-2 border-slate-200 dark:border-slate-800;
+    @apply text-slate-900 dark:text-white text-base;
+    @apply placeholder:text-slate-400 dark:placeholder:text-slate-500;
+    @apply transition-all duration-200;
+    @apply focus:border-gold-500 focus:ring-4 focus:ring-gold-500/10;
+    @apply focus:outline-none;
+    min-height: 52px;
+  }
+
+  .input-premium:hover:not(:focus) {
+    @apply border-slate-300 dark:border-slate-700;
+  }
+
+  /* Glass Effect - Agent 3 */
+  .glass {
+    @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl;
+    @apply border border-white/20 dark:border-slate-800/50;
+  }
+
+  .glass-dark {
+    @apply bg-black/40 backdrop-blur-xl;
+    @apply border border-white/10;
+  }
+
+  /* Badge Styles - Agent 3 */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full;
+    @apply text-xs font-semibold uppercase tracking-wide;
+  }
+
+  .badge-gold {
+    @apply bg-gold-500/10 text-gold-600 dark:text-gold-400 border border-gold-500/20;
+  }
+
+  .badge-success {
+    @apply bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20;
+  }
+
+  /* Section Spacing - Agent 1 */
+  .section-spacing {
+    @apply py-8 px-4 sm:px-6;
+  }
+
+  /* Card Spacing - Agent 1 */
+  .card-spacing {
+    @apply p-5 sm:p-6;
+  }
+}
+
+/* === UTILITY LAYER === */
+@layer utilities {
+  /* Scrollbar hiding */
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Text balance for headings */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Gradient text utility */
+  .text-gradient-gold {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-gold-600 via-gold-400 to-gold-500;
+  }
+
+  /* Touch target minimum - Agent 4 */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Smooth shadow transition */
+  .shadow-transition {
+    transition: box-shadow 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Image shimmer loading */
+  .shimmer-bg {
+    background: linear-gradient(
+      90deg,
+      theme('colors.slate.200') 0%,
+      theme('colors.slate.100') 50%,
+      theme('colors.slate.200') 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s linear infinite;
+  }
+
+  .dark .shimmer-bg {
+    background: linear-gradient(
+      90deg,
+      theme('colors.slate.800') 0%,
+      theme('colors.slate.700') 50%,
+      theme('colors.slate.800') 100%
+    );
+    background-size: 200% 100%;
+  }
+
+  /* Safe area padding for mobile */
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 24px);
+  }
+
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top), 16px);
+  }
+}
+
+/* === REDUCED MOTION === */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* === CUSTOM ANIMATIONS - Agent 7 === */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

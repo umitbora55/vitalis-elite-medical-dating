@@ -163,88 +163,91 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 z-[60] bg-slate-950 flex flex-col animate-fade-in overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 absolute top-0 left-0 right-0 z-10">
+      {/* Header - Agent 4: Better close button */}
+      <div className="flex items-center justify-between p-5 absolute top-0 left-0 right-0 z-10 safe-top">
         <button
           onClick={onClose}
-          className="p-2 bg-black/20 backdrop-blur rounded-full text-white hover:bg-white/10 transition-colors"
+          aria-label="Close premium plans"
+          className="btn-icon glass-dark hover:bg-white/20 text-white/80 hover:text-white"
         >
-          <X size={24} />
+          <X size={22} strokeWidth={2} />
         </button>
       </div>
 
-      {/* Hero Section */}
-      <div className="relative h-56 w-full overflow-hidden flex-shrink-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-900/30 via-slate-950 to-amber-900/20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
+      {/* Hero Section - Agent 3 & 6: Premium visual treatment */}
+      <div className="relative h-60 w-full overflow-hidden flex-shrink-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-900/25 via-slate-950 to-amber-900/15" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent" />
+        {/* Subtle glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-amber-500/10 blur-[100px] rounded-full" />
 
-        <div className="absolute bottom-6 left-0 right-0 text-center px-6">
-          <div className="inline-flex items-center justify-center p-3 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-4">
-            <Crown size={28} className="text-amber-400" />
+        <div className="absolute bottom-8 left-0 right-0 text-center px-6">
+          <div className="inline-flex items-center justify-center p-4 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/20 backdrop-blur-xl mb-5 shadow-glow-gold">
+            <Crown size={32} className="text-amber-400" strokeWidth={2} />
           </div>
-          <h1 className="text-2xl font-serif font-bold text-white mb-1">Seviyeni Seç</h1>
-          <p className="text-slate-400 text-xs">Deneyimini yükselt, bağlantılarını derinleştir.</p>
+          <h1 className="text-3xl font-serif font-bold text-white mb-2 tracking-tight">Seviyeni Seç</h1>
+          <p className="text-slate-400 text-sm">Deneyimini yükselt, bağlantılarını derinleştir.</p>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 px-5 pb-44 pt-4">
+      {/* Content - Agent 1: Better spacing */}
+      <div className="flex-1 px-5 pb-48 pt-5">
 
-        {/* Plan Selector Cards */}
-        <div className="grid grid-cols-2 gap-2.5 mb-6">
+        {/* Plan Selector Cards - Agent 3: Premium card styling */}
+        <div className="grid grid-cols-2 gap-3 mb-8">
           {plans.map((plan) => {
             const isSelected = selectedPlan === plan.id;
             return (
               <button
                 key={plan.id}
                 onClick={() => setSelectedPlan(plan.id)}
-                className={`relative p-3.5 rounded-xl border-2 text-left transition-all duration-300 ${isSelected
+                className={`relative p-4 rounded-2xl border-2 text-left transition-all duration-300 active:scale-[0.98] ${isSelected
                   ? `bg-slate-900 ${plan.selectedBorder} ${plan.selectedShadow}`
                   : `bg-slate-900/40 ${plan.borderColor} opacity-60 hover:opacity-90`
                   }`}
               >
                 {plan.badge && (
-                  <div className="absolute -top-2.5 left-3 px-2 py-0.5 bg-amber-500 text-[8px] font-bold text-black uppercase tracking-wider rounded-full">
+                  <div className="absolute -top-2.5 left-3 px-2.5 py-1 bg-gradient-to-r from-amber-500 to-amber-400 text-[9px] font-bold text-black uppercase tracking-wider rounded-full shadow-sm">
                     {plan.badge}
                   </div>
                 )}
 
-                <div className="flex items-start justify-between mb-1.5">
+                <div className="flex items-start justify-between mb-2">
                   <h3 className={`text-xs font-bold tracking-wide ${isSelected ? plan.color : 'text-slate-400'}`}>
                     {plan.name}
                   </h3>
                   {isSelected && (
-                    <div className={`w-4 h-4 rounded-full ${plan.checkBg} flex items-center justify-center flex-shrink-0`}>
-                      <Check size={10} className={plan.checkText} />
+                    <div className={`w-5 h-5 rounded-full ${plan.checkBg} flex items-center justify-center flex-shrink-0`}>
+                      <Check size={12} className={plan.checkText} strokeWidth={3} />
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-baseline gap-1">
-                  <span className={`text-lg font-bold ${isSelected ? 'text-white' : 'text-slate-300'}`}>{plan.price}</span>
-                  {plan.period && <span className="text-[10px] text-slate-500">{plan.period}</span>}
+                <div className="flex items-baseline gap-1.5">
+                  <span className={`text-xl font-bold ${isSelected ? 'text-white' : 'text-slate-300'}`}>{plan.price}</span>
+                  {plan.period && <span className="text-caption text-slate-500">{plan.period}</span>}
                 </div>
               </button>
             );
           })}
         </div>
 
-        {/* Dynamic Feature List */}
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className={`w-1 h-4 rounded-full ${activePlan.checkBg}`}></div>
-            <h2 className="text-sm font-bold text-white tracking-wide">{activePlan.name}</h2>
-            <span className="text-[10px] text-slate-500 italic">— {activePlan.tagline}</span>
+        {/* Dynamic Feature List - Agent 1 & 3: Better list design */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`w-1.5 h-5 rounded-full ${activePlan.checkBg}`}></div>
+            <h2 className="text-base font-bold text-white tracking-wide">{activePlan.name}</h2>
+            <span className="text-caption text-slate-500 italic">— {activePlan.tagline}</span>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-2">
             {activePlan.features.map((feature, idx) => (
               <div
                 key={idx}
-                className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-slate-900/60 border border-slate-800/60"
+                className="flex items-center gap-4 px-4 py-3 rounded-xl bg-slate-900/50 border border-slate-800/50"
               >
-                <div className={activePlan.color}>{feature.icon}</div>
-                <span className="text-xs font-medium text-slate-300">{feature.text}</span>
+                <div className={`${activePlan.color} flex-shrink-0`}>{feature.icon}</div>
+                <span className="text-sm font-medium text-slate-300">{feature.text}</span>
               </div>
             ))}
           </div>
@@ -252,21 +255,21 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onClose }) => {
 
       </div>
 
-      {/* Footer CTA */}
-      <div className="fixed bottom-0 left-0 right-0 p-5 bg-slate-950/95 border-t border-slate-800/50 backdrop-blur-xl z-20">
+      {/* Footer CTA - Agent 4: Premium button */}
+      <div className="fixed bottom-0 left-0 right-0 p-5 bg-slate-950/95 border-t border-slate-800/40 backdrop-blur-xl z-20 safe-bottom">
         <button
           onClick={handlePurchase}
           disabled={isProcessing || selectedPlan === 'FREE'}
-          className={`w-full py-3.5 rounded-full font-bold uppercase tracking-widest text-sm transition-all transform active:scale-95 ${ctaGradient[selectedPlan]}`}
+          className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-sm transition-all duration-200 active:scale-[0.98] ${ctaGradient[selectedPlan]}`}
         >
           {isProcessing ? 'Yönlendiriliyor...' : ctaLabel[selectedPlan]}
         </button>
         {errorMessage && (
-          <p className="text-[10px] text-center text-red-400 mt-2">
+          <p className="text-caption text-center text-red-400 mt-3">
             {errorMessage}
           </p>
         )}
-        <p className="text-[10px] text-center text-slate-600 mt-2">
+        <p className="text-caption text-center text-slate-500 mt-3">
           Otomatik yenileme. İstediğin zaman iptal et.
         </p>
       </div>

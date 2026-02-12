@@ -1,12 +1,14 @@
 import { Profile, Specialty, MedicalRole, Notification, NotificationType, SwipeHistoryItem, MessageTemplate, ChatTheme, ProfileVisitor } from './types';
 
 // Helper to get time ago
-const minutesAgo = (min: number) => Date.now() - min * 60 * 1000;
-const hoursAgo = (hours: number) => Date.now() - hours * 60 * 60 * 1000;
-const daysAgo = (days: number) => Date.now() - days * 24 * 60 * 60 * 1000;
+const minutesAgo = (min: number): number => Date.now() - min * 60 * 1000;
+const hoursAgo = (hours: number): number => Date.now() - hours * 60 * 60 * 1000;
+const daysAgo = (days: number): number => Date.now() - days * 24 * 60 * 60 * 1000;
 
 // Helper to set future time
-const hoursFromNow = (hours: number) => Date.now() + hours * 60 * 60 * 1000;
+const hoursFromNow = (hours: number): number => Date.now() + hours * 60 * 60 * 1000;
+
+const IS_DEV = import.meta.env.DEV;
 
 export const DAILY_SWIPE_LIMIT = 50;
 
@@ -131,7 +133,119 @@ export const BACKGROUND_OPTIONS = [
     { id: 'custom', name: 'Custom Photo', isPremium: true, type: 'IMAGE' }
 ];
 
-export const MOCK_PROFILES: Profile[] = [
+const PROD_STUB_IMAGE_URLS = [
+  'https://picsum.photos/seed/vitalis-stub-1/800/1200',
+  'https://picsum.photos/seed/vitalis-stub-2/800/1200',
+  'https://picsum.photos/seed/vitalis-stub-3/800/1200',
+  'https://picsum.photos/seed/vitalis-stub-4/800/1200',
+  'https://picsum.photos/seed/vitalis-stub-5/800/1200',
+  'https://picsum.photos/seed/vitalis-stub-6/800/1200',
+];
+
+const createStubProfile = (overrides: Partial<Profile>): Profile => {
+  const base: Profile = {
+    id: 'stub',
+    name: 'Demo Profile',
+    age: 30,
+    role: MedicalRole.DOCTOR,
+    specialty: Specialty.CARDIOLOGY,
+    subSpecialty: 'General',
+    hospital: 'Vitalis',
+    institutionHidden: true,
+    bio: 'This is a demo profile.',
+    education: 'Medical School',
+    images: [PROD_STUB_IMAGE_URLS[0]],
+    verified: false,
+    verificationBadges: { photo: false, phone: false, email: false, license: false },
+    interests: [],
+    personalityTags: [],
+    hasLikedUser: false,
+    distance: 10,
+    location: 'Nearby',
+    isLocationHidden: true,
+    lastActive: Date.now(),
+    isOnlineHidden: false,
+    isAvailable: false,
+    readReceiptsEnabled: true,
+    stories: [],
+    storyPrivacy: 'ALL_MATCHES',
+  };
+
+  return { ...base, ...overrides };
+};
+
+const PROD_STUB_PROFILES: Profile[] = [
+  createStubProfile({
+    id: 'stub_1',
+    name: 'Demo Doctor',
+    role: MedicalRole.DOCTOR,
+    specialty: Specialty.CARDIOLOGY,
+    subSpecialty: 'Interventional',
+    images: [PROD_STUB_IMAGE_URLS[0]],
+    verified: false,
+  }),
+  createStubProfile({
+    id: 'stub_2',
+    name: 'Demo Nurse',
+    role: MedicalRole.NURSE,
+    specialty: Specialty.EMERGENCY,
+    subSpecialty: 'Trauma',
+    images: [PROD_STUB_IMAGE_URLS[1]],
+    verified: false,
+  }),
+  createStubProfile({
+    id: 'stub_3',
+    name: 'Demo Physio',
+    role: MedicalRole.PHYSIOTHERAPIST,
+    specialty: Specialty.PHYSIOTHERAPY,
+    subSpecialty: 'Sports',
+    images: [PROD_STUB_IMAGE_URLS[2]],
+    verified: false,
+  }),
+  createStubProfile({
+    id: 'stub_4',
+    name: 'Demo Dentist',
+    role: MedicalRole.DENTIST,
+    specialty: Specialty.DENTISTRY,
+    subSpecialty: 'Cosmetic',
+    images: [PROD_STUB_IMAGE_URLS[3]],
+    verified: false,
+  }),
+  createStubProfile({
+    id: 'stub_5',
+    name: 'Demo Pharmacist',
+    role: MedicalRole.PHARMACIST,
+    specialty: Specialty.PHARMACY,
+    subSpecialty: 'Clinical',
+    images: [PROD_STUB_IMAGE_URLS[4]],
+    verified: false,
+  }),
+  createStubProfile({
+    id: 'stub_6',
+    name: 'Demo Surgeon',
+    role: MedicalRole.DOCTOR,
+    specialty: Specialty.SURGERY,
+    subSpecialty: 'General Surgery',
+    images: [PROD_STUB_IMAGE_URLS[5]],
+    verified: false,
+  }),
+];
+
+const PROD_USER_PROFILE: Profile = createStubProfile({
+  id: 'me',
+  name: 'User',
+  age: 30,
+  role: MedicalRole.DOCTOR,
+  specialty: Specialty.CARDIOLOGY,
+  subSpecialty: 'General',
+  hospital: 'My Hospital',
+  institutionHidden: false,
+  isLocationHidden: false,
+  distance: 0,
+  verified: false,
+});
+
+export const MOCK_PROFILES: Profile[] = IS_DEV ? [
   {
     id: '1',
     name: 'Dr. Sarah',
@@ -338,33 +452,33 @@ export const MOCK_PROFILES: Profile[] = [
     isAvailable: false,
     readReceiptsEnabled: true,
     stories: [],
-    storyPrivacy: 'ALL_MATCHES'
-  }
-];
+	    storyPrivacy: 'ALL_MATCHES'
+	  }
+] : PROD_STUB_PROFILES;
 
 // MOCK HISTORY
-export const MOCK_SWIPE_HISTORY: SwipeHistoryItem[] = [
-    { id: 'h1', profile: MOCK_PROFILES[3], action: 'PASS', timestamp: minutesAgo(10) },
-    { id: 'h2', profile: MOCK_PROFILES[1], action: 'LIKE', timestamp: hoursAgo(1) },
-    { id: 'h3', profile: MOCK_PROFILES[5], action: 'PASS', timestamp: hoursAgo(3) },
-    { id: 'h4', profile: MOCK_PROFILES[0], action: 'SUPER_LIKE', timestamp: daysAgo(1) },
-    { id: 'h5', profile: MOCK_PROFILES[4], action: 'PASS', timestamp: daysAgo(2) },
-];
+export const MOCK_SWIPE_HISTORY: SwipeHistoryItem[] = IS_DEV ? [
+	    { id: 'h1', profile: MOCK_PROFILES[3], action: 'PASS', timestamp: minutesAgo(10) },
+	    { id: 'h2', profile: MOCK_PROFILES[1], action: 'LIKE', timestamp: hoursAgo(1) },
+	    { id: 'h3', profile: MOCK_PROFILES[5], action: 'PASS', timestamp: hoursAgo(3) },
+	    { id: 'h4', profile: MOCK_PROFILES[0], action: 'SUPER_LIKE', timestamp: daysAgo(1) },
+	    { id: 'h5', profile: MOCK_PROFILES[4], action: 'PASS', timestamp: daysAgo(2) },
+] : [];
 
-export const MOCK_PROFILE_VISITORS: ProfileVisitor[] = [
-    { id: 'v1', profile: MOCK_PROFILES[4], timestamp: minutesAgo(45), viewCount: 2 },
-    { id: 'v2', profile: MOCK_PROFILES[1], timestamp: hoursAgo(2), viewCount: 1 },
-    { id: 'v3', profile: MOCK_PROFILES[3], timestamp: hoursAgo(5), viewCount: 3 },
-    { id: 'v4', profile: MOCK_PROFILES[5], timestamp: daysAgo(1), viewCount: 1 },
-    { id: 'v5', profile: MOCK_PROFILES[0], timestamp: daysAgo(2), viewCount: 5 },
-    { id: 'v6', profile: MOCK_PROFILES[2], timestamp: daysAgo(4), viewCount: 1 },
-];
+export const MOCK_PROFILE_VISITORS: ProfileVisitor[] = IS_DEV ? [
+	    { id: 'v1', profile: MOCK_PROFILES[4], timestamp: minutesAgo(45), viewCount: 2 },
+	    { id: 'v2', profile: MOCK_PROFILES[1], timestamp: hoursAgo(2), viewCount: 1 },
+	    { id: 'v3', profile: MOCK_PROFILES[3], timestamp: hoursAgo(5), viewCount: 3 },
+	    { id: 'v4', profile: MOCK_PROFILES[5], timestamp: daysAgo(1), viewCount: 1 },
+	    { id: 'v5', profile: MOCK_PROFILES[0], timestamp: daysAgo(2), viewCount: 5 },
+	    { id: 'v6', profile: MOCK_PROFILES[2], timestamp: daysAgo(4), viewCount: 1 },
+] : [];
 
 // USER_PROFILE with Story Viewers for testing
-export const USER_PROFILE: Profile = {
-  id: 'me',
-  name: 'Dr. John',
-  age: 32,
+export const USER_PROFILE: Profile = IS_DEV ? {
+	  id: 'me',
+	  name: 'Dr. John',
+	  age: 32,
   role: MedicalRole.DOCTOR,
   specialty: Specialty.CARDIOLOGY,
   subSpecialty: 'Interventional Cardiology',
@@ -442,30 +556,30 @@ export const USER_PROFILE: Profile = {
           { name: "Dr. Emily", status: "VERIFIED", timestamp: daysAgo(5) },
           { name: "Nurse Mike", status: "PENDING", timestamp: hoursAgo(4) }
       ]
-  },
-  themePreference: 'SYSTEM' // Default theme preference
-};
+	  },
+	  themePreference: 'SYSTEM' // Default theme preference
+} : PROD_USER_PROFILE;
 
-export const MOCK_LIKES_YOU_PROFILES: Profile[] = [
-    { ...MOCK_PROFILES[3], id: 'ly1', images: ['https://picsum.photos/id/400/800/1200'] },
-    { ...MOCK_PROFILES[5], id: 'ly2', images: ['https://picsum.photos/id/401/800/1200'] },
-    { ...MOCK_PROFILES[1], id: 'ly3', images: ['https://picsum.photos/id/402/800/1200'] },
-    { ...MOCK_PROFILES[2], id: 'ly4', images: ['https://picsum.photos/id/403/800/1200'] },
-    { ...MOCK_PROFILES[0], id: 'ly5', images: ['https://picsum.photos/id/404/800/1200'] },
-    { ...MOCK_PROFILES[4], id: 'ly6', images: ['https://picsum.photos/id/405/800/1200'] },
-    { ...MOCK_PROFILES[1], id: 'ly7', images: ['https://picsum.photos/id/406/800/1200'] },
-    { ...MOCK_PROFILES[3], id: 'ly8', images: ['https://picsum.photos/id/407/800/1200'] },
-    { ...MOCK_PROFILES[5], id: 'ly9', images: ['https://picsum.photos/id/408/800/1200'] },
-    { ...MOCK_PROFILES[2], id: 'ly10', images: ['https://picsum.photos/id/409/800/1200'] },
-    { ...MOCK_PROFILES[0], id: 'ly11', images: ['https://picsum.photos/id/410/800/1200'] },
-    { ...MOCK_PROFILES[4], id: 'ly12', images: ['https://picsum.photos/id/411/800/1200'] },
-];
+export const MOCK_LIKES_YOU_PROFILES: Profile[] = IS_DEV ? [
+	    { ...MOCK_PROFILES[3], id: 'ly1', images: ['https://picsum.photos/id/400/800/1200'] },
+	    { ...MOCK_PROFILES[5], id: 'ly2', images: ['https://picsum.photos/id/401/800/1200'] },
+	    { ...MOCK_PROFILES[1], id: 'ly3', images: ['https://picsum.photos/id/402/800/1200'] },
+	    { ...MOCK_PROFILES[2], id: 'ly4', images: ['https://picsum.photos/id/403/800/1200'] },
+	    { ...MOCK_PROFILES[0], id: 'ly5', images: ['https://picsum.photos/id/404/800/1200'] },
+	    { ...MOCK_PROFILES[4], id: 'ly6', images: ['https://picsum.photos/id/405/800/1200'] },
+	    { ...MOCK_PROFILES[1], id: 'ly7', images: ['https://picsum.photos/id/406/800/1200'] },
+	    { ...MOCK_PROFILES[3], id: 'ly8', images: ['https://picsum.photos/id/407/800/1200'] },
+	    { ...MOCK_PROFILES[5], id: 'ly9', images: ['https://picsum.photos/id/408/800/1200'] },
+	    { ...MOCK_PROFILES[2], id: 'ly10', images: ['https://picsum.photos/id/409/800/1200'] },
+	    { ...MOCK_PROFILES[0], id: 'ly11', images: ['https://picsum.photos/id/410/800/1200'] },
+	    { ...MOCK_PROFILES[4], id: 'ly12', images: ['https://picsum.photos/id/411/800/1200'] },
+] : [];
 
-export const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: '1',
-    type: NotificationType.SUPER_LIKE,
-    senderProfile: MOCK_PROFILES[0],
+export const MOCK_NOTIFICATIONS: Notification[] = IS_DEV ? [
+	  {
+	    id: '1',
+	    type: NotificationType.SUPER_LIKE,
+	    senderProfile: MOCK_PROFILES[0],
     timestamp: minutesAgo(5),
     isRead: false
   },
@@ -487,7 +601,7 @@ export const MOCK_NOTIFICATIONS: Notification[] = [
     id: '4',
     type: NotificationType.MATCH,
     senderProfile: MOCK_PROFILES[5],
-    timestamp: minutesAgo(1440),
-    isRead: true
-  }
-];
+	    timestamp: minutesAgo(1440),
+	    isRead: true
+	  }
+] : [];

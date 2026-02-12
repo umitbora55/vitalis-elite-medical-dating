@@ -20,65 +20,106 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onSuccess }) => {
     setIsSubmitting(false);
 
     if (error) {
-      setErrorMessage(error.message);
+      setErrorMessage(normalizeLoginError(error.message));
       return;
     }
 
     onSuccess();
   };
 
+  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    void handleSubmit();
+  };
+
+  const hasError = Boolean(errorMessage);
+
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        <button onClick={onBack} className="mb-6 text-slate-500 hover:text-white flex items-center gap-1">
-          <ChevronLeft size={16} /> Back
+      {/* Background accent */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-gold-500/5 blur-[100px] rounded-full"></div>
+
+      <div className="w-full max-w-md relative z-10">
+        {/* Back button - Agent 4 */}
+        <button onClick={onBack} className="btn-ghost mb-8 -ml-2 text-slate-400 hover:text-white">
+          <ChevronLeft size={20} strokeWidth={2} /> Back
         </button>
 
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-serif text-white mb-2">Welcome Back</h2>
-          <p className="text-slate-400 text-sm">Sign in to continue.</p>
+        {/* Header - Agent 2 */}
+        <div className="text-center mb-10">
+          <h2 className="text-4xl font-serif font-bold text-white mb-3 tracking-tight">Welcome Back</h2>
+          <p className="text-slate-400 text-base">Sign in to continue.</p>
         </div>
 
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase ml-1">Email</label>
+        {/* Form - Agent 5: Premium inputs */}
+        <form className="space-y-5" onSubmit={handleFormSubmit}>
+          <div className="space-y-2">
+            <label htmlFor="login-email" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Email</label>
             <div className="relative">
-              <Mail className="absolute left-4 top-3.5 text-slate-500" size={18} />
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
               <input
+                id="login-email"
                 type="email"
                 placeholder="jane@hospital.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus:border-gold-500 focus:outline-none transition-colors"
+                aria-invalid={hasError}
+                aria-describedby={hasError ? 'login-error' : undefined}
+                className="input-premium pl-12"
               />
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase ml-1">Password</label>
+          <div className="space-y-2">
+            <label htmlFor="login-password" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Password</label>
             <div className="relative">
-              <Lock className="absolute left-4 top-3.5 text-slate-500" size={18} />
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
               <input
+                id="login-password"
                 type="password"
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus:border-gold-500 focus:outline-none transition-colors"
+                aria-invalid={hasError}
+                aria-describedby={hasError ? 'login-error' : undefined}
+                className="input-premium pl-12"
               />
             </div>
           </div>
 
-          {errorMessage && <p className="text-xs text-red-400">{errorMessage}</p>}
-        </div>
+          {/* Error message - Agent 5 */}
+          {errorMessage && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+              <p id="login-error" className="text-sm text-red-400 font-medium" role="alert">
+                {errorMessage}
+              </p>
+            </div>
+          )}
 
-        <button
-          onClick={handleSubmit}
-          disabled={!email || !password || isSubmitting}
-          className="w-full mt-8 py-4 rounded-xl bg-gradient-to-r from-gold-600 to-gold-400 text-slate-950 font-bold text-lg shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : 'Sign In'}
-        </button>
+          {/* Submit button - Agent 4 */}
+          <button
+            type="submit"
+            disabled={!email || !password || isSubmitting}
+            className="btn-primary w-full mt-6 py-4 text-lg"
+          >
+            {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : 'Sign In'}
+          </button>
+        </form>
       </div>
     </div>
   );
+};
+
+const normalizeLoginError = (rawMessage: string): string => {
+  const lower = rawMessage.toLowerCase();
+  if (lower.includes('invalid login credentials') || lower.includes('invalid_credentials')) {
+    return 'Email veya şifre hatalı.';
+  }
+  if (lower.includes('network') || lower.includes('fetch')) {
+    return 'Bağlantı hatası oluştu. Lütfen tekrar deneyin.';
+  }
+  if (lower.includes('rate') || lower.includes('too many')) {
+    return 'Çok fazla deneme yapıldı. Birkaç dakika sonra tekrar deneyin.';
+  }
+  return 'Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.';
 };

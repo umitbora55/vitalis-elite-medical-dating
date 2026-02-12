@@ -1,11 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const requiredEnv = (name: 'VITE_SUPABASE_URL' | 'VITE_SUPABASE_ANON_KEY'): string => {
+  const value = import.meta.env[name] as string | undefined;
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+};
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  // eslint-disable-next-line no-console
-  console.warn('Missing Supabase environment variables. Check .env.local');
+const supabaseUrl = requiredEnv('VITE_SUPABASE_URL');
+const supabaseAnonKey = requiredEnv('VITE_SUPABASE_ANON_KEY');
+
+try {
+  // Validate URL early to fail fast on broken configuration.
+  // eslint-disable-next-line no-new
+  new URL(supabaseUrl);
+} catch {
+  throw new Error('VITE_SUPABASE_URL must be a valid URL');
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);

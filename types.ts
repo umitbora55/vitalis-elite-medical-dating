@@ -54,6 +54,7 @@ export enum MatchSortOption {
 }
 
 export type FirstMessagePreference = 'ANYONE' | 'ME_FIRST' | 'THEM_FIRST';
+export type PremiumTier = 'FREE' | 'DOSE' | 'FORTE' | 'ULTRA';
 
 export type SwipeAction = 'LIKE' | 'PASS' | 'SUPER_LIKE';
 
@@ -211,6 +212,7 @@ export interface Profile {
   referralData?: ReferralData; // New: Referral system data
   themePreference?: ThemePreference; // New: App theme preference
   verificationStatus?: VerificationStatus;
+  premiumTier?: PremiumTier;
 }
 
 export interface CallInfo {

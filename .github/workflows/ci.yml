@@ -49,6 +49,31 @@ jobs:
       - name: Run Unit Tests
         run: npm run test:ci
 
+  mobile-quality:
+    name: Mobile Lint
+    runs-on: ubuntu-latest
+    needs: typecheck
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+
+      - name: Install Mobile Dependencies
+        run: npm ci
+        working-directory: mobile
+
+      - name: Run Mobile Lint
+        run: npm run lint
+        working-directory: mobile
+
   e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-latest
@@ -75,7 +100,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [unit-tests, e2e-tests]
+    needs: [unit-tests, mobile-quality, e2e-tests]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

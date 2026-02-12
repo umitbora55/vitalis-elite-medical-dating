@@ -8,6 +8,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature',
 };
 
+const isDuplicateEventError = (error: unknown): boolean => {
+  const code = (error as { code?: string } | null)?.code;
+  return code === '23505';
+};
+
+const persistEventIdempotencyKey = async (supabase: ReturnType<typeof createClient>, event: Stripe.Event) => {
+  const { error } = await supabase.from('stripe_webhook_events').insert({
+    event_id: event.id,
+    event_type: event.type,
+    payload: event,
+  });
+
+  if (!error) return { duplicate: false, error: null };
+  if (isDuplicateEventError(error)) return { duplicate: true, error: null };
+
+  return { duplicate: false, error };
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -40,6 +58,21 @@ serve(async (req) => {
     });
   }
 
+  const { duplicate, error: idempotencyError } = await persistEventIdempotencyKey(supabase, event);
+
+  if (idempotencyError) {
+    return new Response(JSON.stringify({ error: 'Failed to persist event idempotency key' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (duplicate) {
+    return new Response(JSON.stringify({ received: true, duplicate: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -52,25 +85,34 @@ serve(async (req) => {
           const subscription = await stripe.subscriptions.retrieve(subscriptionId);
           const period = subscription.items.data[0]?.price?.recurring?.interval || 'month';
 
-          await supabase.from('subscriptions').insert({
-            profile_id: userId,
-            plan,
-            period,
-            platform: 'web',
-            store_transaction_id: subscriptionId,
-            starts_at: new Date(subscription.current_period_start * 1000).toISOString(),
-            expires_at: new Date(subscription.current_period_end * 1000).toISOString(),
-            is_active: subscription.status === 'active' || subscription.status === 'trialing',
-            cancelled_at: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
-            cancel_at_period_end: subscription.cancel_at_period_end || false,
-          });
+          const { error } = await supabase.from('subscriptions').upsert(
+            {
+              profile_id: userId,
+              plan,
+              period,
+              platform: 'web',
+              store_transaction_id: subscriptionId,
+              starts_at: new Date(subscription.current_period_start * 1000).toISOString(),
+              expires_at: new Date(subscription.current_period_end * 1000).toISOString(),
+              is_active: subscription.status === 'active' || subscription.status === 'trialing',
+              cancelled_at: subscription.cancel_at
+                ? new Date(subscription.cancel_at * 1000).toISOString()
+                : null,
+              cancel_at_period_end: subscription.cancel_at_period_end || false,
+            },
+            { onConflict: 'store_transaction_id' },
+          );
+
+          if (error) {
+            throw error;
+          }
         }
         break;
       }
       case 'customer.subscription.deleted':
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
-        await supabase
+        const { error } = await supabase
           .from('subscriptions')
           .update({
             is_active: subscription.status === 'active' || subscription.status === 'trialing',
@@ -81,6 +123,10 @@ serve(async (req) => {
             cancel_at_period_end: subscription.cancel_at_period_end || false,
           })
           .eq('store_transaction_id', subscription.id);
+
+        if (error) {
+          throw error;
+        }
         break;
       }
       default:

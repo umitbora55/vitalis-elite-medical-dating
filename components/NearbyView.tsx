@@ -8,9 +8,19 @@ interface NearbyViewProps {
   onSayHi: (profile: Profile) => void;
   onUpdatePrivacy: (setting: boolean) => void;
   onViewProfile: (profile: Profile) => void;
+  onBrowseProfiles: () => void;
+  onRetryScan: () => void;
 }
 
-export const NearbyView: React.FC<NearbyViewProps> = ({ currentUser, profiles, onSayHi, onUpdatePrivacy, onViewProfile }) => {
+export const NearbyView: React.FC<NearbyViewProps> = ({
+  currentUser,
+  profiles,
+  onSayHi,
+  onUpdatePrivacy,
+  onViewProfile,
+  onBrowseProfiles,
+  onRetryScan,
+}) => {
   const isVisible = currentUser.privacySettings?.showInNearby;
 
   // Filter logic: 
@@ -75,6 +85,7 @@ export const NearbyView: React.FC<NearbyViewProps> = ({ currentUser, profiles, o
                     <input 
                         type="checkbox" 
                         className="sr-only peer" 
+                        aria-label="Toggle nearby visibility"
                         checked={isVisible}
                         onChange={() => onUpdatePrivacy(!isVisible)}
                     />
@@ -112,19 +123,45 @@ export const NearbyView: React.FC<NearbyViewProps> = ({ currentUser, profiles, o
                     </div>
                     <p className="text-slate-400 text-sm">Scanning for colleagues nearby...</p>
                     <p className="text-slate-600 text-xs mt-2">No active users found within 5km right now.</p>
+                    <div className="mt-5 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={onRetryScan}
+                        className="px-4 py-2 rounded-xl border border-slate-700 text-slate-300 text-xs font-semibold hover:border-gold-500/40 hover:text-white transition-colors"
+                      >
+                        Retry scan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onBrowseProfiles}
+                        className="px-4 py-2 rounded-xl bg-gold-500 text-white text-xs font-semibold hover:bg-gold-600 transition-colors"
+                      >
+                        Browse profiles
+                      </button>
+                    </div>
                 </div>
             ) : (
                 <div className="space-y-3">
                     {nearbyUsers.map(user => (
                         <div key={user.id} className="bg-slate-900/50 border border-slate-800 rounded-2xl p-3 flex items-center gap-3 animate-slide-up hover:border-gold-500/30 transition-colors">
-                            <div className="relative cursor-pointer" onClick={() => onViewProfile(user)}>
+                            <button
+                                type="button"
+                                aria-label={`Open ${user.name} profile`}
+                                className="relative cursor-pointer"
+                                onClick={() => onViewProfile(user)}
+                            >
                                 <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-slate-700">
                                     <img src={user.images[0]} alt={user.name} className="w-full h-full object-cover" />
                                 </div>
                                 <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 border-slate-900 rounded-full ${user.isAvailable ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-                            </div>
+                            </button>
 
-                            <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onViewProfile(user)}>
+                            <button
+                                type="button"
+                                aria-label={`View details for ${user.name}`}
+                                className="flex-1 min-w-0 cursor-pointer text-left"
+                                onClick={() => onViewProfile(user)}
+                            >
                                 <div className="flex items-center justify-between mb-0.5">
                                     <h3 className="font-bold text-white text-sm truncate">{user.name}, {user.age}</h3>
                                     <span className="text-[10px] font-bold text-gold-500 flex items-center gap-1 bg-gold-500/10 px-1.5 py-0.5 rounded">
@@ -138,10 +175,11 @@ export const NearbyView: React.FC<NearbyViewProps> = ({ currentUser, profiles, o
                                         {getStatusText(user)}
                                     </span>
                                 </div>
-                            </div>
+                            </button>
 
                             <button 
                                 onClick={() => onSayHi(user)}
+                                aria-label={`Say hi to ${user.name}`}
                                 className="w-10 h-10 rounded-full bg-slate-800 hover:bg-gold-500 hover:text-white text-gold-500 flex items-center justify-center transition-all border border-slate-700 shadow-sm active:scale-95"
                                 title="Say Hi"
                             >

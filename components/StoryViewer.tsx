@@ -16,6 +16,7 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ profile, onClose, onSe
   const [progress, setProgress] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [replyText, setReplyText] = useState('');
+  const [reactionFeedback, setReactionFeedback] = useState<string | null>(null);
   
   const stories = profile.stories || [];
   const currentStory = stories[currentIndex];
@@ -24,14 +25,9 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ profile, onClose, onSe
   const storyDuration = 5000; // 5 seconds
 
   useEffect(() => {
-    // Reset progress when index changes
-    setProgress(0);
-  }, [currentIndex]);
-
-  useEffect(() => {
     if (isPaused) return;
 
-    const interval = 50; // Update every 50ms
+    const interval = 100; // Update every 100ms (lower re-render frequency)
     const step = 100 / (storyDuration / interval);
 
     const timer = setInterval(() => {
@@ -52,9 +48,16 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ profile, onClose, onSe
     return () => clearInterval(timer);
   }, [currentIndex, stories.length, onClose, isPaused]);
 
+  useEffect(() => {
+    if (!reactionFeedback) return;
+    const id = window.setTimeout(() => setReactionFeedback(null), 1200);
+    return (): void => window.clearTimeout(id);
+  }, [reactionFeedback]);
+
   const handleNext = (e?: React.MouseEvent) => {
       e?.stopPropagation();
       if (currentIndex < stories.length - 1) {
+          setProgress(0);
           setCurrentIndex(prev => prev + 1);
       } else {
           onClose();
@@ -64,6 +67,7 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ profile, onClose, onSe
   const handlePrev = (e?: React.MouseEvent) => {
       e?.stopPropagation();
       if (currentIndex > 0) {
+          setProgress(0);
           setCurrentIndex(prev => prev - 1);
       }
   };
@@ -78,20 +82,20 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ profile, onClose, onSe
 
   const handleEmojiClick = (emoji: string) => {
       if (onSendReaction) onSendReaction(emoji);
-      // Optional: Show animation or confirmation toast here
+      setReactionFeedback(`${emoji} gönderildi`);
   };
 
   if (!currentStory) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-fade-in">
+    <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-fade-in" role="dialog" aria-modal="true" aria-label={`${profile.name} stories`}>
         
         {/* Progress Bars */}
         <div className="absolute top-0 left-0 right-0 p-2 flex gap-1 z-20">
             {stories.map((_, idx) => (
                 <div key={idx} className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
                     <div 
-                        className="h-full bg-white transition-all linear"
+                        className="h-full bg-white transition-[width] linear"
                         style={{ 
                             width: idx < currentIndex ? '100%' : idx === currentIndex ? `${progress}%` : '0%'
                         }}
@@ -113,7 +117,7 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ profile, onClose, onSe
                     </p>
                 </div>
             </div>
-            <button onClick={onClose} className="p-2 text-white hover:bg-white/10 rounded-full">
+            <button onClick={onClose} aria-label="Close story viewer" className="p-2 text-white hover:bg-white/10 rounded-full">
                 <X size={24} />
             </button>
         </div>
@@ -199,7 +203,7 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ profile, onClose, onSe
                                 onFocus={() => setIsPaused(true)}
                                 onBlur={() => setIsPaused(false)}
                                 placeholder="Mesaj gönder..." 
-                                className="w-full bg-white/10 backdrop-blur-md border border-white/30 rounded-full px-5 py-3 text-white placeholder:text-white/60 focus:outline-none focus:border-gold-500 focus:bg-black/40 transition-all text-sm"
+                                className="w-full bg-white/10 backdrop-blur-md border border-white/30 rounded-full px-5 py-3 text-white placeholder:text-white/60 focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 focus:bg-black/40 transition-all text-sm"
                             />
                             {replyText && (
                                 <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-gold-500 rounded-full text-white hover:scale-105 transition-transform">
@@ -213,6 +217,8 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ profile, onClose, onSe
                             {REACTIONS.map((emoji) => (
                                 <button 
                                     key={emoji}
+                                    type="button"
+                                    aria-label={`Send ${emoji} reaction`}
                                     onClick={() => handleEmojiClick(emoji)}
                                     className="text-2xl hover:scale-125 active:scale-95 transition-transform"
                                 >
@@ -221,6 +227,11 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ profile, onClose, onSe
                             ))}
                         </div>
                      </div>
+                     {reactionFeedback && (
+                        <p className="text-xs text-green-300" role="status" aria-live="polite">
+                            {reactionFeedback}
+                        </p>
+                     )}
                 </div>
             )}
         </div>

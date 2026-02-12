@@ -1,83 +1,103 @@
 import React from 'react';
-import { Activity, User, MessageCircle, SlidersHorizontal, Bell, Clock, MapPin } from 'lucide-react';
+import { Activity, User, MessageCircle, Bell, Clock, MapPin, Heart } from 'lucide-react';
+import { ViewType } from '../stores/uiStore';
 
 interface AppHeaderProps {
-  currentView: 'home' | 'profile' | 'matches' | 'notifications' | 'likesYou' | 'premium' | 'history' | 'nearby';
-  setView: (view: 'home' | 'profile' | 'matches' | 'notifications' | 'likesYou' | 'premium' | 'history' | 'nearby') => void;
-  onOpenFilters?: () => void;
+  currentView: ViewType;
+  setView: (view: ViewType) => void;
   unreadNotificationsCount?: number;
 }
 
-export const AppHeader: React.FC<AppHeaderProps> = ({ currentView, setView, onOpenFilters, unreadNotificationsCount = 0 }) => {
+export const AppHeader: React.FC<AppHeaderProps> = ({ currentView, setView, unreadNotificationsCount = 0 }) => {
+  // Agent 4: Better nav button styles
+  const navButtonClass = (view: ViewType | ViewType[]) => {
+    const views = Array.isArray(view) ? view : [view];
+    const isActive = views.includes(currentView);
+    return `btn-icon transition-all duration-200 ${
+      isActive
+        ? 'text-gold-500 bg-gold-500/10 dark:bg-gold-500/15'
+        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+    }`;
+  };
+
   return (
-    <header className="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 h-16 flex items-center justify-between px-4 sm:px-6 transition-colors duration-300">
-      
-      {/* Left Action: Profile or Filter based on View */}
-      {currentView === 'home' && onOpenFilters ? (
-        <button 
-          onClick={onOpenFilters}
-          className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:text-gold-500 dark:hover:text-gold-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        >
-          <SlidersHorizontal size={24} />
-        </button>
-      ) : (
-        <button 
-          onClick={() => setView('profile')}
-          className={`p-2 rounded-full transition-colors ${
-              currentView === 'profile' 
-              ? 'text-gold-500 bg-slate-100 dark:bg-slate-800 dark:text-gold-400' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <User size={24} />
-        </button>
-      )}
+    <header className="fixed top-0 w-full z-50 glass border-b border-slate-200/50 dark:border-slate-800/50 h-16 flex items-center justify-between px-4 sm:px-6 transition-all duration-300 safe-top">
 
-      {/* Center Logo */}
-      <div className="flex items-center gap-2 cursor-pointer absolute left-1/2 transform -translate-x-1/2" onClick={() => setView('home')}>
-        <div className="bg-gradient-to-tr from-gold-600 to-gold-400 p-1.5 rounded-lg shadow-[0_0_15px_rgba(251,191,36,0.3)]">
-          <Activity size={20} className="text-white" strokeWidth={3} />
+      {/* Left Action: Spacer for balance */}
+      <div className="w-11"></div>
+
+      {/* Center Logo Icon - Agent 3: Premium logo treatment */}
+      <button
+        type="button"
+        aria-label="Go to home"
+        onClick={() => setView('home')}
+        className="flex items-center absolute left-1/2 transform -translate-x-1/2 group"
+      >
+        <div className="bg-gradient-to-br from-gold-500 via-gold-400 to-amber-500 p-2 rounded-xl shadow-glow-gold transition-all duration-300 group-hover:shadow-glow-gold-lg group-active:scale-95">
+          <Activity size={22} className="text-white" strokeWidth={2.5} />
         </div>
-        <h1 className="text-2xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-r from-slate-800 via-slate-600 to-slate-800 dark:from-slate-100 dark:via-slate-300 dark:to-slate-100 tracking-wide hidden sm:block transition-colors duration-300">
-          VITALIS
-        </h1>
-      </div>
+      </button>
 
-      {/* Right Action: Notifications, Matches, History */}
-      <div className="flex items-center gap-0.5 sm:gap-1">
-        
+      {/* Right Action Group - Agent 4: Better spacing & touch targets */}
+      <div className="flex items-center gap-1">
+
         {/* Nearby Button */}
-        <button 
-            onClick={() => setView('nearby')}
-            className={`p-2 rounded-full transition-colors ${currentView === 'nearby' ? 'text-gold-500 dark:text-gold-400 bg-slate-100 dark:bg-slate-800' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'}`}
+        <button
+          onClick={() => setView('nearby')}
+          aria-label="Open nearby"
+          className={navButtonClass('nearby')}
         >
-            <MapPin size={24} />
+          <MapPin size={22} strokeWidth={2} />
         </button>
 
-        <button 
-            onClick={() => setView('history')}
-            className={`p-2 rounded-full transition-colors hidden sm:block ${currentView === 'history' ? 'text-gold-500 dark:text-gold-400 bg-slate-100 dark:bg-slate-800' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'}`}
+        {/* History - Hidden on mobile */}
+        <button
+          onClick={() => setView('history')}
+          aria-label="Open swipe history"
+          className={`${navButtonClass('history')} hidden sm:flex`}
         >
-            <Clock size={24} />
+          <Clock size={22} strokeWidth={2} />
         </button>
 
-        <button 
-            onClick={() => setView('notifications')}
-            className={`p-2 rounded-full transition-colors relative ${currentView === 'notifications' ? 'text-gold-500 dark:text-gold-400 bg-slate-100 dark:bg-slate-800' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'}`}
+        {/* Likes You Button */}
+        <button
+          onClick={() => setView('likesYou')}
+          aria-label="Open likes"
+          className={navButtonClass('likesYou')}
         >
-            <Bell size={24} />
-            {unreadNotificationsCount > 0 && (
-                <div className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center border border-white dark:border-slate-950">
-                    {unreadNotificationsCount}
-                </div>
-            )}
+          <Heart size={22} strokeWidth={2} />
         </button>
 
-        <button 
-            onClick={() => setView('matches')}
-            className={`p-2 rounded-full transition-colors ${currentView === 'matches' ? 'text-gold-500 dark:text-gold-400 bg-slate-100 dark:bg-slate-800' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'}`}
+        {/* Notifications with badge */}
+        <button
+          onClick={() => setView('notifications')}
+          aria-label="Open notifications"
+          className={`${navButtonClass('notifications')} relative`}
         >
-            <MessageCircle size={24} />
+          <Bell size={22} strokeWidth={2} />
+          {unreadNotificationsCount > 0 && (
+            <div className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center px-1 border-2 border-white dark:border-slate-950 shadow-sm">
+              {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+            </div>
+          )}
+        </button>
+
+        {/* Messages */}
+        <button
+          onClick={() => setView('matches')}
+          aria-label="Open matches"
+          className={navButtonClass('matches')}
+        >
+          <MessageCircle size={22} strokeWidth={2} />
+        </button>
+
+        {/* Profile */}
+        <button
+          onClick={() => setView('profile')}
+          aria-label="Open my profile"
+          className={navButtonClass('profile')}
+        >
+          <User size={22} strokeWidth={2} />
         </button>
       </div>
     </header>

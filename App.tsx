@@ -23,11 +23,23 @@ import { useTheme } from './hooks/useTheme';
 import { useBoost } from './hooks/useBoost';
 import { useSwipeLimit } from './hooks/useSwipeLimit';
 import { signUpWithEmail, signOut } from './services/authService';
+import { blockProfile as persistBlockProfile, reportProfile as persistReportProfile } from './services/safetyService';
 import { upsertProfile } from './services/profileService';
 import { getActiveSubscription } from './services/subscriptionService';
-import { initAnalytics, trackEvent } from './src/lib/analytics';
+import {
+    AnalyticsConsent,
+    getAnalyticsConsent,
+    initAnalytics,
+    setAnalyticsConsent,
+    trackEvent,
+} from './src/lib/analytics';
 import { PendingVerificationView } from './components/PendingVerificationView';
-import { createVerificationRequest, saveVerifiedEmail, updateProfileVerificationStatus } from './services/verificationService';
+import {
+    createVerificationRequest,
+    saveVerifiedEmail,
+    updateProfileVerificationStatus,
+    uploadVerificationDocument,
+} from './services/verificationService';
 import { supabase } from './src/lib/supabase';
 
 const MatchesView = lazy(() => import('./components/MatchesView').then((m) => ({ default: m.MatchesView })));
@@ -46,6 +58,7 @@ type VerificationPayload = {
     workEmail?: string;
     tier?: number;
     domain?: string;
+    documentFile?: File;
 };
 
 type RegistrationData = {
@@ -58,6 +71,14 @@ type RegistrationData = {
     institution?: string;
 };
 
+const INITIAL_NOW_MS = Date.now();
+
+const LoadingScreen: React.FC = () => (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-300 text-sm">
+        Loading...
+    </div>
+);
+
 const App: React.FC = () => {
     const authStep = useAuthStore((state) => state.authStep);
     const setAuthStep = useAuthStore((state) => state.setAuthStep);
@@ -65,6 +86,7 @@ const App: React.FC = () => {
     const setUserProfile = useUserStore((state) => state.setProfile);
     const updateUserProfile = useUserStore((state) => state.updateProfile);
     const isPremium = useUserStore((state) => state.isPremium);
+    const premiumTier = useUserStore((state) => state.premiumTier);
     const setIsPremium = useUserStore((state) => state.setPremium);
     const currentView = useUiStore((state) => state.currentView);
     const setCurrentView = useUiStore((state) => state.setCurrentView);
@@ -106,6 +128,19 @@ const App: React.FC = () => {
     const markAllNotificationsRead = useNotificationStore((state) => state.markAllRead);
 
     const { syncProfileTheme } = useTheme(userProfile.themePreference || 'SYSTEM');
+
+    const [nowMs, setNowMs] = useState(INITIAL_NOW_MS);
+
+    useEffect(() => {
+        // Avoid calling Date.now() during render (React purity lint rule).
+        const intervalId = window.setInterval(() => setNowMs(Date.now()), 60_000);
+        const immediateId = window.setTimeout(() => setNowMs(Date.now()), 0);
+
+        return (): void => {
+            window.clearInterval(intervalId);
+            window.clearTimeout(immediateId);
+        };
+    }, []);
 
     const handleUpdateProfile = useCallback((updatedProfile: Profile) => {
         setUserProfile(updatedProfile);
@@ -171,16 +206,12 @@ const App: React.FC = () => {
     // Super Like State
     // Animation state
     const [toastMessage, setToastMessage] = useState<string | null>(null);
+    const [showChatEntryDissolve, setShowChatEntryDissolve] = useState(false);
 
     // --- BOOST STATE ---
     const [showBoostConfirm, setShowBoostConfirm] = useState(false);
     const [showPremiumAlert, setShowPremiumAlert] = useState(false);
-
-    const LoadingScreen = () => (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-300 text-sm">
-            Loading...
-        </div>
-    );
+    const [analyticsConsent, setAnalyticsConsentState] = useState<AnalyticsConsent | null>(() => getAnalyticsConsent());
 
     const showToast = useCallback((msg: string) => {
         setToastMessage(msg);
@@ -193,13 +224,24 @@ const App: React.FC = () => {
     }, [setIsPremium]);
 
     useEffect(() => {
+        if (analyticsConsent !== 'granted') return;
         initAnalytics(userProfile);
-    }, [userProfile]);
+    }, [analyticsConsent, userProfile]);
 
     useEffect(() => {
         if (authStep !== 'APP') return;
         void refreshSubscriptionStatus();
     }, [authStep, refreshSubscriptionStatus]);
+
+    useEffect(() => {
+        const handleEscape = (event: KeyboardEvent): void => {
+            if (event.key !== 'Escape') return;
+            if (showBoostConfirm) setShowBoostConfirm(false);
+            if (showPremiumAlert) setShowPremiumAlert(false);
+        };
+        window.addEventListener('keydown', handleEscape);
+        return (): void => window.removeEventListener('keydown', handleEscape);
+    }, [showBoostConfirm, showPremiumAlert]);
 
     useEffect(() => {
         if (currentView === 'premium') {
@@ -214,15 +256,19 @@ const App: React.FC = () => {
 
         if (checkoutStatus === 'success') {
             void refreshSubscriptionStatus();
-            showToast('Welcome to Vitalis Elite!');
         }
-        if (checkoutStatus === 'cancel') {
-            showToast('Checkout canceled.');
-        }
+        const toastId = window.setTimeout(() => {
+            if (checkoutStatus === 'success') {
+                showToast('Welcome to Vitalis Elite!');
+            } else if (checkoutStatus === 'cancel') {
+                showToast('Checkout canceled.');
+            }
+        }, 0);
 
         params.delete('checkout');
         const nextUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
         window.history.replaceState({}, '', nextUrl);
+        return (): void => window.clearTimeout(toastId);
     }, [refreshSubscriptionStatus, showToast]);
 
     // Logic to handle Login from Landing
@@ -233,6 +279,11 @@ const App: React.FC = () => {
     const handleStartLogin = () => {
         setAuthStep('LOGIN');
     };
+
+    const handleConsentChoice = useCallback((consent: AnalyticsConsent) => {
+        setAnalyticsConsent(consent);
+        setAnalyticsConsentState(consent);
+    }, []);
 
     const handleRegistrationComplete = useCallback(async (data: RegistrationData, verification: VerificationPayload) => {
         const email = data.email?.trim();
@@ -273,18 +324,57 @@ const App: React.FC = () => {
         };
 
         updateUserProfile(nextProfile);
-        void upsertProfile(nextProfile);
+        const { error: profileError } = await upsertProfile(nextProfile);
+        if (profileError) {
+            showToast('Profile saved locally. Cloud sync failed.');
+        }
         if (verification.method === 'EMAIL' && email && verification.domain && verification.tier) {
             const { data: authData } = await supabase.auth.getUser();
             if (authData?.user?.id) {
-                await saveVerifiedEmail(authData.user.id, email, verification.domain, verification.tier);
-                await updateProfileVerificationStatus(authData.user.id, 'VERIFIED');
+                const saveEmailResult = await saveVerifiedEmail(authData.user.id, email, verification.domain, verification.tier);
+                if (saveEmailResult.error) {
+                    showToast('Verified email could not be saved.');
+                    return;
+                }
+
+                const updateStatusResult = await updateProfileVerificationStatus(authData.user.id, 'VERIFIED');
+                if (updateStatusResult.error) {
+                    showToast('Verification status update failed.');
+                    return;
+                }
             }
         } else {
             const { data: authData } = await supabase.auth.getUser();
             if (authData?.user?.id) {
-                await createVerificationRequest(authData.user.id, 'DOCUMENT');
-                await updateProfileVerificationStatus(authData.user.id, 'PENDING_VERIFICATION');
+                if (!verification.documentFile) {
+                    showToast('Verification document is missing.');
+                    return;
+                }
+
+                const uploadResult = await uploadVerificationDocument(
+                    authData.user.id,
+                    verification.documentFile,
+                );
+                if (uploadResult.error || !uploadResult.documentPath) {
+                    showToast(uploadResult.error?.message || 'Verification document upload failed.');
+                    return;
+                }
+
+                const createRequestResult = await createVerificationRequest(
+                    authData.user.id,
+                    'DOCUMENT',
+                    uploadResult.documentPath,
+                );
+                if (createRequestResult.error) {
+                    showToast('Verification request could not be created.');
+                    return;
+                }
+
+                const updateStatusResult = await updateProfileVerificationStatus(authData.user.id, 'PENDING_VERIFICATION');
+                if (updateStatusResult.error) {
+                    showToast('Verification status update failed.');
+                    return;
+                }
             }
         }
 
@@ -295,7 +385,11 @@ const App: React.FC = () => {
         } else {
             setAuthStep('APP');
         }
-        showToast("Application Approved! Welcome.");
+        if (nextProfile.verificationStatus === 'VERIFIED') {
+            showToast('Welcome to Vitalis Elite!');
+        } else {
+            showToast('Verification pending. You will be notified when approved.');
+        }
     }, [setAuthStep, showToast, updateUserProfile, userProfile]);
 
     const handleLoginSuccess = useCallback(() => {
@@ -307,13 +401,6 @@ const App: React.FC = () => {
         localStorage.setItem('vitalis_onboarding_seen', 'true');
     }, [setAuthStep]);
 
-    const resetTutorial = useCallback(() => {
-        localStorage.removeItem('vitalis_onboarding_seen');
-        setClosedTips(new Set()); // Reset tips
-        setAuthStep('ONBOARDING');
-        setCurrentView('home');
-    }, [setAuthStep, setCurrentView]);
-
     // Logic for Contextual Tips
     useEffect(() => {
         if (authStep !== 'APP') return;
@@ -323,14 +410,14 @@ const App: React.FC = () => {
             if (currentView === 'home' && !closedTips.has('interests')) {
                 setActiveTip({
                     id: 'interests',
-                    message: "💡 Tip: Add more interests to your profile to get 2x more matches!"
+                    message: "Add more interests to your profile to get 2x more matches!"
                 });
             }
             // Tip 2: Availability (Show on Profile)
             else if (currentView === 'profile' && !closedTips.has('availability')) {
                 setActiveTip({
                     id: 'availability',
-                    message: "💡 Tip: Turn on 'I'm Available' status so active users see you first."
+                    message: "Turn on 'I'm Available' status so active users see you first."
                 });
             }
             else {
@@ -388,12 +475,14 @@ const App: React.FC = () => {
         });
     }, [setUserProfile, showToast, userProfile]);
 
-    const handleStoryReply = useCallback((_text: string) => {
+    const handleStoryReply = useCallback((text: string) => {
         if (!viewingStoryProfile) return;
+
+        const trimmed = text.trim();
 
         // Ideally this would add a message to the chat
         // For demo, we just toast and maybe open chat
-        showToast("Reply sent! 📨");
+        showToast(trimmed ? "Reply sent! 📨" : "Reply sent! 📨");
 
         // Find match and open chat
         const match = matches.find(m => m.profile.id === viewingStoryProfile.id);
@@ -416,6 +505,8 @@ const App: React.FC = () => {
 
     // Filter profiles based on preferences AND exclude already swiped OR blocked ones
     const visibleProfiles = useMemo(() => {
+        if (authStep !== 'APP' || currentView !== 'home') return [];
+
         let filtered = MOCK_PROFILES.filter(profile => {
             // 0. Exclude blocked
             if (blockedProfileIds.has(profile.id)) return false;
@@ -450,7 +541,7 @@ const App: React.FC = () => {
             if (filters.showAvailableOnly) {
                 if (!profile.isAvailable) return false;
                 // Check if expired
-                if (profile.availabilityExpiresAt && profile.availabilityExpiresAt < Date.now()) return false;
+                if (profile.availabilityExpiresAt && profile.availabilityExpiresAt < nowMs) return false;
             }
 
             return true;
@@ -458,15 +549,15 @@ const App: React.FC = () => {
 
         // Sort: Available users first
         filtered = filtered.sort((a, b) => {
-            const aIsAvailable = a.isAvailable && (!a.availabilityExpiresAt || a.availabilityExpiresAt > Date.now());
-            const bIsAvailable = b.isAvailable && (!b.availabilityExpiresAt || b.availabilityExpiresAt > Date.now());
+            const aIsAvailable = a.isAvailable && (!a.availabilityExpiresAt || a.availabilityExpiresAt > nowMs);
+            const bIsAvailable = b.isAvailable && (!b.availabilityExpiresAt || b.availabilityExpiresAt > nowMs);
 
             if (aIsAvailable === bIsAvailable) return 0;
             return aIsAvailable ? -1 : 1;
         });
 
         return filtered;
-    }, [filters, swipedProfileIds, blockedProfileIds, userProfile.hospital, userProfile.privacySettings]);
+    }, [authStep, blockedProfileIds, currentView, filters, nowMs, swipedProfileIds, userProfile.hospital, userProfile.privacySettings]);
 
     // Determine if there are profiles left that are just hidden by filters
     const hasHiddenProfiles = useMemo(() => {
@@ -483,7 +574,7 @@ const App: React.FC = () => {
     }, [notifications]);
 
     // --- Safety Actions ---
-    const handleBlockProfile = (profileId: string) => {
+    const handleBlockProfile = useCallback((profileId: string) => {
         addBlockedProfile(profileId);
 
         // Also remove from matches if exists
@@ -499,16 +590,18 @@ const App: React.FC = () => {
             setActiveChatMatch(null);
         }
 
+        void persistBlockProfile(profileId);
         showToast("User blocked successfully");
-    };
+    }, [activeChatMatch?.profile.id, addBlockedProfile, removeMatch, setActiveChatMatch, setViewingProfile, showToast, viewingProfile?.id]);
 
-    const handleReportProfile = (profileId: string, _reason: ReportReason) => {
-        showToast("Report received. Thank you.");
+    const handleReportProfile = useCallback((profileId: string, reason: ReportReason) => {
+        void persistReportProfile(profileId, reason);
+        showToast(`Report received (${reason}). Thank you.`);
         // Often you might also block the user automatically when reporting
         handleBlockProfile(profileId);
-    };
+    }, [handleBlockProfile, showToast]);
 
-    const handleUnmatch = (matchId: string) => {
+    const handleUnmatch = useCallback((matchId: string) => {
         // 1. Remove from matches list
         removeMatch(matchId);
 
@@ -519,7 +612,7 @@ const App: React.FC = () => {
         setActiveChatMatch(null);
 
         showToast("Unmatched successfully");
-    };
+    }, [removeMatch, removeSwipedProfile, setActiveChatMatch, showToast]);
 
     const handleUpdateMatchTheme = useCallback((matchId: string, theme: ChatTheme) => {
         setMatches(
@@ -558,7 +651,7 @@ const App: React.FC = () => {
         });
     }, [setUserProfile, userProfile]);
 
-    const handleSwipe = (direction: SwipeDirection) => {
+    const handleSwipe = useCallback((direction: SwipeDirection) => {
         // 0. Check daily limit if not premium
         if (!isPremium && dailySwipesRemaining <= 0) {
             setShowPremiumAlert(true); // Or simply don't do anything, UI handles display
@@ -635,9 +728,9 @@ const App: React.FC = () => {
 
             setSwipeDirection(null);
         }, 400); // Matches transition duration
-    };
+    }, [addMatch, addSwipeHistory, addSwipedProfile, dailySwipesRemaining, decrementSuperLike, decrementSwipe, isPremium, superLikesCount, swipeDirection, currentProfile, setCurrentMatch, setLastSwipedId, setShowPremiumAlert, setSwipeDirection, trackEvent, userProfile.firstMessagePreference]);
 
-    const handleRewind = () => {
+    const handleRewind = useCallback(() => {
         if (!lastSwipedId) return;
 
         if (!isPremium) {
@@ -656,9 +749,9 @@ const App: React.FC = () => {
 
         setLastSwipedId(null);
         showToast("Last action undone");
-    };
+    }, [isPremium, lastSwipedId, removeMatch, removeSwipedProfile, setLastSwipedId, setShowPremiumAlert, setSwipeHistory, showToast, swipeHistory]);
 
-    const handleUndoSwipeFromHistory = (item: SwipeHistoryItem) => {
+    const handleUndoSwipeFromHistory = useCallback((item: SwipeHistoryItem) => {
         // Logic to undo specific item from history
         // 1. Remove from History
         setSwipeHistory(swipeHistory.filter(h => h.id !== item.id));
@@ -672,42 +765,56 @@ const App: React.FC = () => {
         }
 
         showToast(item.action === 'PASS' ? "Profile restored to stack" : "Like undone");
-    };
+    }, [removeMatch, removeSwipedProfile, setSwipeHistory, showToast, swipeHistory]);
 
-    const handleSaveFilters = (newFilters: FilterPreferences) => {
+    const handleSaveFilters = useCallback((newFilters: FilterPreferences) => {
         setFilters(newFilters);
         setIsFilterOpen(false);
-    };
+    }, [setFilters, setIsFilterOpen]);
 
-    const resetFilters = () => {
+    const resetFilters = useCallback(() => {
         setFilters({
             ageRange: [20, 80],
             maxDistance: 150,
             specialties: Object.values(Specialty),
             showAvailableOnly: false
         });
-    };
+    }, [setFilters]);
 
-    const resetSwipes = () => {
+    const resetSwipes = useCallback(() => {
         clearSwipedProfiles();
-    };
+    }, [clearSwipedProfiles]);
 
-    const handleActivateAccount = () => {
+    const handleActivateAccount = useCallback(() => {
         setUserProfile({ ...userProfile, isFrozen: false });
         showToast("Account Reactivated! Welcome back.");
-    };
+    }, [setUserProfile, showToast, userProfile]);
 
     // --- Notification Logic ---
 
-    const handleViewChange = (view: 'home' | 'profile' | 'matches' | 'notifications' | 'likesYou' | 'premium' | 'history' | 'nearby') => {
+    const handleViewChange = useCallback((view: 'home' | 'profile' | 'matches' | 'notifications' | 'likesYou' | 'premium' | 'history' | 'nearby') => {
         setCurrentView(view);
         if (view === 'notifications') {
             // Mark all as read when opening notifications
             markAllNotificationsRead();
         }
-    };
+    }, [markAllNotificationsRead, setCurrentView]);
 
-    const handleNotificationClick = (notification: Notification) => {
+    const isNotificationProfileLocked = useCallback((notification: Notification): boolean => {
+        const requiresPremiumIdentity =
+            notification.type === NotificationType.LIKE ||
+            notification.type === NotificationType.SUPER_LIKE;
+        if (!requiresPremiumIdentity) return false;
+        return !(premiumTier === 'FORTE' || premiumTier === 'ULTRA');
+    }, [premiumTier]);
+
+    const handleNotificationClick = useCallback((notification: Notification) => {
+        if (isNotificationProfileLocked(notification)) {
+            setCurrentView('premium');
+            showToast('Bu profili gormek icin Forte veya Ultra gerekli.');
+            return;
+        }
+
         if (notification.type === NotificationType.MATCH) {
             // Try to find an existing match
             const existingMatch = matches.find(m => m.profile.id === notification.senderProfile.id);
@@ -727,7 +834,7 @@ const App: React.FC = () => {
             // For LIKE or SUPER_LIKE, show the profile details
             setViewingProfile(notification.senderProfile);
         }
-    };
+    }, [isNotificationProfileLocked, matches, setActiveChatMatch, setCurrentView, setViewingProfile, showToast]);
 
 
     const getCardStyle = () => {
@@ -767,7 +874,7 @@ const App: React.FC = () => {
                     <Tooltip
                         message={activeTip.message}
                         onClose={closeTip}
-                        className="top-40 left-8 z-50"
+                        className="bottom-32 left-1/2 -translate-x-1/2 z-50"
                     />
                 )}
 
@@ -802,8 +909,8 @@ const App: React.FC = () => {
                         onClick={handleBoostClick}
                         disabled={!!boostEndTime}
                         className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg transition-all ${boostEndTime
-                            ? 'bg-purple-90 border border-purple-500/50 text-purple-200 cursor-default'
-                            : 'bg-gradient- from-purple-600 to-pink-600 text-white hover:scale-105 active:scale-95'
+                            ? 'bg-purple-900/40 border border-purple-500/50 text-purple-200 cursor-default'
+                            : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(147,51,234,0.3)]'
                             }`}
                     >
                         <Zap size={16} className={boostEndTime ? 'text-purple-400 fill-purple-400 animate-pulse' : 'fill-white'} />
@@ -837,7 +944,7 @@ const App: React.FC = () => {
 
                             <h2 className="text-2xl font-serif text-white mb-2">Daily Limit Reached</h2>
                             <p className="text-slate-400 text-sm mb-8 px-4">
-                                You've used all your free likes for today. Your swipes will refill at midnight.
+                                You&apos;ve used all your free likes for today. Your swipes will refill at midnight.
                             </p>
 
                             <div className="flex items-center gap-3 mb-8 bg-slate-800/50 px-6 py-3 rounded-xl border border-slate-700/50">
@@ -925,8 +1032,8 @@ const App: React.FC = () => {
                                 <div className="w-16 h-16 rounded-full bg-slate-800 mx-auto flex items-center justify-center mb-4">
                                     <ShieldCheck className="text-gold-500" size={32} />
                                 </div>
-                                <h2 className="text-2xl font-serif text-white mb-2">That's everyone</h2>
-                                <p className="text-slate-400 mb-6">You've reviewed all verified profiles in your area.</p>
+                                <h2 className="text-2xl font-serif text-white mb-2">That&apos;s everyone</h2>
+                                <p className="text-slate-400 mb-6">You&apos;ve reviewed all verified profiles in your area.</p>
                                 <button
                                     onClick={resetSwipes}
                                     className="px-6 py-3 rounded-full bg-transparent border border-gold-500 text-gold-500 hover:bg-gold-500 hover:text-white transition-all text-sm font-bold uppercase tracking-wider"
@@ -947,7 +1054,7 @@ const App: React.FC = () => {
             <LandingView
                 onEnter={handleStartApplication}
                 onLogin={handleStartLogin}
-                onDevBypass={() => {
+                onDevBypass={import.meta.env.DEV ? () => {
                     updateUserProfile({
                         ...userProfile,
                         name: 'Dev User',
@@ -960,8 +1067,8 @@ const App: React.FC = () => {
                     });
                     localStorage.setItem('vitalis_onboarding_seen', 'true');
                     setAuthStep('APP');
-                    showToast('DEV: Logged in as test user');
-                }}
+                    showToast('Logged in as test user');
+                } : undefined}
             />
         );
     }
@@ -981,7 +1088,9 @@ const App: React.FC = () => {
         return (
             <Suspense fallback={<LoadingScreen />}>
                 <RegistrationFlow
-                    onComplete={handleRegistrationComplete}
+                    onComplete={(profileData, verification) => {
+                        void handleRegistrationComplete(profileData, verification);
+                    }}
                     onCancel={() => setAuthStep('LANDING')}
                 />
             </Suspense>
@@ -1001,9 +1110,9 @@ const App: React.FC = () => {
         return (
             <PendingVerificationView
                 status={userProfile.verificationStatus}
-                onLogout={async () => {
-                    await signOut();
-                    setAuthStep('LANDING');
+                onRetryVerification={() => setAuthStep('REGISTRATION')}
+                onLogout={() => {
+                    void signOut().finally(() => setAuthStep('LANDING'));
                 }}
             />
         );
@@ -1044,7 +1153,7 @@ const App: React.FC = () => {
 
             {/* Ghost Mode Banner */}
             {userProfile.privacySettings?.ghostMode && (
-                <div className="w-full bg-purple-900/40 border-b border-purple-500/30 text-purple-200 text-[10px] font-bold uppercase tracking-widest py-1 text-center animate-fade-in flex items-center justify-center gap-2 backdrop-blur-sm fixed top-16 z-[45]">
+                <div className="w-full bg-purple-900/40 border-b border-purple-500/30 text-purple-200 text-[10px] font-bold uppercase tracking-widest py-1 text-center animate-fade-in flex items-center justify-center gap-2 backdrop-blur-sm fixed top-16 z-layer-banner">
                     <Ghost size={12} />
                     Ghost Mode Active
                 </div>
@@ -1054,14 +1163,13 @@ const App: React.FC = () => {
                 <AppHeader
                     currentView={currentView}
                     setView={handleViewChange}
-                    onOpenFilters={() => setIsFilterOpen(true)}
                     unreadNotificationsCount={unreadNotificationsCount}
                 />
             )}
 
             {/* Global Toast Notification */}
             {toastMessage && (
-                <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[70] animate-fade-in">
+                <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-layer-toast animate-fade-in" role="status" aria-live="polite" aria-atomic="true">
                     <div className="bg-slate-900 border border-gold-500/50 text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-2">
                         <CheckCircle2 size={16} className="text-gold-500" />
                         <span className="text-sm font-medium">{toastMessage}</span>
@@ -1069,7 +1177,36 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            <main className={`h-screen w-full relative ${userProfile.privacySettings?.ghostMode ? 'pt-6' : ''}`}>
+            {analyticsConsent === null && (
+                <div className="fixed bottom-4 left-4 right-4 z-layer-toast max-w-xl mx-auto rounded-2xl border border-slate-700 bg-slate-900/95 backdrop-blur-xl p-4 shadow-2xl">
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                        We use analytics to improve matching and app stability. See our{' '}
+                        <a href="/privacy.html" target="_blank" rel="noreferrer" className="text-gold-400 underline">
+                            Privacy Policy
+                        </a>{' '}
+                        and{' '}
+                        <a href="/terms.html" target="_blank" rel="noreferrer" className="text-gold-400 underline">
+                            Terms
+                        </a>.
+                    </p>
+                    <div className="mt-3 flex items-center gap-2">
+                        <button
+                            onClick={() => handleConsentChoice('denied')}
+                            className="flex-1 rounded-lg border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 transition-colors"
+                        >
+                            Decline
+                        </button>
+                        <button
+                            onClick={() => handleConsentChoice('granted')}
+                            className="flex-1 rounded-lg bg-gold-500 px-3 py-2 text-xs font-semibold text-slate-950 hover:bg-gold-400 transition-colors"
+                        >
+                            Accept
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <main className={`min-h-screen w-full relative ${userProfile.privacySettings?.ghostMode ? 'pt-6' : ''}`}>
                 {/* STORY VIEWER OVERLAY */}
                 {viewingStoryProfile && (
                     <StoryViewer
@@ -1085,7 +1222,7 @@ const App: React.FC = () => {
                     <Tooltip
                         message={activeTip.message}
                         onClose={closeTip}
-                        className="top-32 right-8 z-50"
+                        className="bottom-24 left-1/2 -translate-x-1/2 z-layer-tooltip"
                     />
                 )}
 
@@ -1093,7 +1230,10 @@ const App: React.FC = () => {
                     {activeChatMatch ? (
                         <ChatView
                             match={activeChatMatch}
-                            onBack={() => setActiveChatMatch(null)}
+                            onBack={() => {
+                                setActiveChatMatch(null);
+                                setShowChatEntryDissolve(false);
+                            }}
                             onUnmatch={handleUnmatch}
                             userProfile={userProfile}
                             templates={messageTemplates}
@@ -1101,6 +1241,8 @@ const App: React.FC = () => {
                             onDeleteTemplate={handleDeleteTemplate}
                             onUpdateMatchTheme={handleUpdateMatchTheme}
                             isPremium={isPremium}
+                            enableEntryDissolve={showChatEntryDissolve}
+                            onEntryDissolveDone={() => setShowChatEntryDissolve(false)}
                         />
                     ) : isFilterOpen ? (
                         <FilterView
@@ -1128,22 +1270,24 @@ const App: React.FC = () => {
                                 <NotificationsView
                                     notifications={notifications}
                                     onNotificationClick={handleNotificationClick}
+                                    premiumTier={premiumTier}
+                                    onExplore={() => setCurrentView('home')}
+                                    onUpgradeClick={() => setCurrentView('premium')}
                                 />
                             )}
                             {currentView === 'likesYou' && (
                                 <LikesYouView
                                     profiles={MOCK_LIKES_YOU_PROFILES}
                                     onUpgradeClick={() => setCurrentView('premium')}
+                                    premiumTier={premiumTier}
                                 />
                             )}
                             {currentView === 'profile' && (
                                 <MyProfileView
                                     profile={userProfile}
                                     onUpdateProfile={handleUpdateProfile}
-                                    onGoPremium={() => setCurrentView('premium')}
                                     isPremium={isPremium}
-                                    onResetTutorial={resetTutorial}
-                                    onViewProfile={setViewingProfile}
+                                    onOpenDiscoverySettings={() => setIsFilterOpen(true)}
                                 />
                             )}
                             {currentView === 'history' && (
@@ -1162,6 +1306,8 @@ const App: React.FC = () => {
                                     onSayHi={handleSayHiToNearby}
                                     onUpdatePrivacy={handleUpdatePrivacy}
                                     onViewProfile={setViewingProfile}
+                                    onBrowseProfiles={() => setCurrentView('home')}
+                                    onRetryScan={() => showToast('Nearby scan refreshed.')}
                                 />
                             )}
                         </>
@@ -1175,6 +1321,7 @@ const App: React.FC = () => {
                     onClose={() => setCurrentMatch(null)}
                     onChat={() => {
                         setCurrentMatch(null);
+                        setShowChatEntryDissolve(true);
                         setActiveChatMatch(currentMatch);
                     }}
                     onViewProfile={() => {
@@ -1187,7 +1334,7 @@ const App: React.FC = () => {
 
             {/* Boost Confirmation Modal */}
             {showBoostConfirm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm p-6 animate-fade-in">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label="Boost confirmation">
                     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative overflow-hidden">
                         <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-purple-500 to-pink-500"></div>
 
@@ -1227,7 +1374,7 @@ const App: React.FC = () => {
 
             {/* Premium Alert Modal */}
             {showPremiumAlert && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm p-6 animate-fade-in">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label="Premium upsell">
                     <div className="bg-slate-900 border border-gold-500/20 rounded-3xl p-6 max-w-sm w-full shadow-2xl">
                         <div className="flex justify-center mb-4">
                             <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center border border-gold-500">

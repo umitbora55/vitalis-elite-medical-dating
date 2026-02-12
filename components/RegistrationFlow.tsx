@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,7 +19,16 @@ type VerificationPayload = {
   workEmail?: string;
   tier?: number;
   domain?: string;
+  documentFile?: File;
 };
+
+const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf',
+]);
 
 const registrationSchema = z.object({
   name: z.string().min(2, 'Full name is required'),
@@ -51,7 +60,31 @@ const registrationSchema = z.object({
 
 type RegistrationFormData = z.infer<typeof registrationSchema>;
 
+type VerifiedDomainMatch = { domain: string; tier: number };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseVerifiedDomainMatch = (value: unknown): VerifiedDomainMatch | null => {
+  if (!isRecord(value)) return null;
+  const domain = value.domain;
+  const tier = value.tier;
+  if (typeof domain !== 'string') return null;
+  if (typeof tier !== 'number') return null;
+  return { domain, tier };
+};
+
+const parseGetVerifiedDomainResult = (
+  value: unknown,
+): { domain: VerifiedDomainMatch | null; error: Error | null } => {
+  if (!isRecord(value)) return { domain: null, error: new Error('Invalid verification response') };
+  const domain = parseVerifiedDomainMatch(value.domain);
+  const error = value.error instanceof Error ? value.error : null;
+  return { domain, error };
+};
+
 export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, onCancel }) => {
+  const isDev = import.meta.env.DEV;
   const [step, setStep] = useState<Step>('BASIC');
   const [verificationStep, setVerificationStep] = useState<VerificationStep>('EMAIL_INPUT');
   const [workEmail, setWorkEmail] = useState('');
@@ -64,6 +97,8 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
     register,
     trigger,
     setValue,
+    setError,
+    clearErrors,
     getValues,
     watch,
     formState: { errors },
@@ -86,7 +121,15 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
 
   const formData = watch();
 
-  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [submittedPending, setSubmittedPending] = useState(false);
+  const getFieldError = (field: keyof RegistrationFormData): string | undefined => {
+    const message = errors[field]?.message;
+    return typeof message === 'string' ? message : undefined;
+  };
+
+  const getFieldErrorId = (field: keyof RegistrationFormData): string => `registration-${field}-error`;
 
   const handleBasicNext = async () => {
     const isValid = await trigger(['name', 'age', 'email', 'password']);
@@ -106,41 +149,77 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
   const handleStartEmailVerification = async () => {
     setOtpError(null);
     setIsVerifyingEmail(true);
-    const { domain, error } = await getVerifiedDomain(workEmail);
+    try {
+      const rawResult: unknown = await getVerifiedDomain(workEmail);
+      const { domain, error } = parseGetVerifiedDomainResult(rawResult);
 
-    if (error || !domain) {
-      setOtpError('Kurumsal domain doğrulanamadı. Belge ile doğrulayın.');
+      if (error || !domain) {
+        setOtpError('Kurumsal domain doğrulanamadı. Belge ile doğrulayın.');
+        setVerificationStep('DOCUMENT');
+        return;
+      }
+
+      setMatchedDomain({ domain: domain.domain, tier: domain.tier });
+      const otpResult = await sendVerificationOtp(workEmail);
+      if (otpResult.error) {
+        setOtpError(otpResult.error.message);
+        return;
+      }
+
+      setOtpSent(true);
+      setVerificationStep('EMAIL_OTP');
+    } catch {
+      setOtpError('Doğrulama kodu gönderilemedi. İnternet bağlantınızı kontrol edin.');
+    } finally {
       setIsVerifyingEmail(false);
-      setVerificationStep('DOCUMENT');
-      return;
     }
-
-    setMatchedDomain({ domain: domain.domain, tier: domain.tier });
-    const otpResult = await sendVerificationOtp(workEmail);
-    if (otpResult.error) {
-      setOtpError(otpResult.error.message);
-      setIsVerifyingEmail(false);
-      return;
-    }
-
-    setOtpSent(true);
-    setVerificationStep('EMAIL_OTP');
-    setIsVerifyingEmail(false);
   };
 
   const handleVerifyOtp = async () => {
     setOtpError(null);
     setIsVerifyingEmail(true);
-    const result = await verifyOtp(workEmail, otpCode);
-    if (result.error) {
-      setOtpError(result.error.message);
+    try {
+      const result = await verifyOtp(workEmail, otpCode);
+      if (result.error) {
+        setOtpError(result.error.message);
+        return;
+      }
+
+      setStep('GUIDELINES');
+    } catch {
+      setOtpError('Kod doğrulanamadı. Lütfen tekrar deneyin.');
+    } finally {
       setIsVerifyingEmail(false);
-      return;
+    }
+  };
+
+  const buildVerificationPayload = (): VerificationPayload => {
+    if (verificationStep === 'EMAIL_OTP' && matchedDomain && otpSent) {
+      return {
+        method: 'EMAIL',
+        workEmail,
+        tier: matchedDomain.tier,
+        domain: matchedDomain.domain,
+      };
     }
 
-    setIsVerifyingEmail(false);
-    setStep('GUIDELINES');
+    return { method: 'DOCUMENT', documentFile: documentFile ?? undefined };
   };
+
+  useEffect(() => {
+    if (step !== 'PENDING' || submittedPending) return;
+    setSubmittedPending(true);
+    const verification: VerificationPayload =
+      verificationStep === 'EMAIL_OTP' && matchedDomain && otpSent
+        ? {
+          method: 'EMAIL',
+          workEmail,
+          tier: matchedDomain.tier,
+          domain: matchedDomain.domain,
+        }
+        : { method: 'DOCUMENT', documentFile: documentFile ?? undefined };
+    onComplete(getValues(), verification);
+  }, [documentFile, getValues, matchedDomain, onComplete, otpSent, step, submittedPending, verificationStep, workEmail]);
 
   const renderVerification = () => (
     <div className="w-full max-w-md animate-fade-in">
@@ -158,23 +237,28 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
       {verificationStep === 'EMAIL_INPUT' && (
         <div className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase ml-1">Kurumsal Email</label>
+            <label htmlFor="work-email" className="text-xs font-bold text-slate-500 uppercase ml-1">Kurumsal Email</label>
             <div className="relative">
               <Mail className="absolute left-4 top-3.5 text-slate-500" size={18} />
               <input
+                id="work-email"
                 type="email"
                 placeholder="ornek@saglik.gov.tr"
                 value={workEmail}
                 onChange={(e) => setWorkEmail(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus:border-gold-500 focus:outline-none transition-colors"
+                aria-invalid={Boolean(otpError)}
+                aria-describedby={otpError ? 'verification-error' : undefined}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors"
               />
             </div>
           </div>
 
-          {otpError && <p className="text-xs text-red-400">{otpError}</p>}
+          {otpError && <p id="verification-error" className="text-xs text-red-400" role="alert">{otpError}</p>}
 
           <button
-            onClick={handleStartEmailVerification}
+            onClick={() => {
+              void handleStartEmailVerification();
+            }}
             disabled={!workEmail || isVerifyingEmail}
             className="w-full mt-4 py-4 rounded-xl bg-gradient-to-r from-gold-600 to-gold-400 text-slate-950 font-bold text-lg shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -193,20 +277,25 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
       {verificationStep === 'EMAIL_OTP' && (
         <div className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase ml-1">Doğrulama Kodu</label>
+            <label htmlFor="verification-otp" className="text-xs font-bold text-slate-500 uppercase ml-1">Doğrulama Kodu</label>
             <input
+              id="verification-otp"
               type="text"
               placeholder="123456"
               value={otpCode}
               onChange={(e) => setOtpCode(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus:border-gold-500 focus:outline-none transition-colors"
+              aria-invalid={Boolean(otpError)}
+              aria-describedby={otpError ? 'verification-error' : undefined}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors"
             />
           </div>
 
-          {otpError && <p className="text-xs text-red-400">{otpError}</p>}
+          {otpError && <p id="verification-error" className="text-xs text-red-400" role="alert">{otpError}</p>}
 
           <button
-            onClick={handleVerifyOtp}
+            onClick={() => {
+              void handleVerifyOtp();
+            }}
             disabled={!otpCode || isVerifyingEmail}
             className="w-full mt-4 py-4 rounded-xl bg-gradient-to-r from-gold-600 to-gold-400 text-slate-950 font-bold text-lg shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -224,40 +313,47 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
     <div className="w-full max-w-md animate-fade-in">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-serif text-white mb-2">Create Profile</h2>
-        <p className="text-slate-400 text-sm">Let's start with the basics.</p>
+        <p className="text-slate-400 text-sm">Let&apos;s start with the basics.</p>
       </div>
 
       <div className="space-y-4">
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500 uppercase ml-1">Full Name</label>
+          <label htmlFor="registration-name" className="text-xs font-bold text-slate-500 uppercase ml-1">Full Name</label>
           <div className="relative">
             <User className="absolute left-4 top-3.5 text-slate-500" size={18} />
             <input
+              id="registration-name"
               type="text"
               placeholder="Dr. Jane Doe"
               {...register('name')}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus:border-gold-500 focus:outline-none transition-colors"
+              aria-invalid={Boolean(getFieldError('name'))}
+              aria-describedby={getFieldError('name') ? getFieldErrorId('name') : undefined}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors"
             />
           </div>
-          {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name.message}</p>}
+          {errors.name && <p id={getFieldErrorId('name')} className="text-xs text-red-400 mt-1" role="alert">{errors.name.message}</p>}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase ml-1">Age</label>
+            <label htmlFor="registration-age" className="text-xs font-bold text-slate-500 uppercase ml-1">Age</label>
             <input
+              id="registration-age"
               type="number"
               placeholder="28"
               {...register('age')}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus:border-gold-500 focus:outline-none transition-colors"
+              aria-invalid={Boolean(getFieldError('age'))}
+              aria-describedby={getFieldError('age') ? getFieldErrorId('age') : undefined}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors"
             />
-            {errors.age && <p className="text-xs text-red-400 mt-1">{errors.age.message}</p>}
+            {errors.age && <p id={getFieldErrorId('age')} className="text-xs text-red-400 mt-1" role="alert">{errors.age.message}</p>}
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase ml-1">Gender</label>
+            <label htmlFor="registration-gender" className="text-xs font-bold text-slate-500 uppercase ml-1">Gender</label>
             <select
+              id="registration-gender"
               {...register('gender')}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus:border-gold-500 focus:outline-none transition-colors appearance-none"
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none"
             >
               <option value="">Select</option>
               <option value="Male">Male</option>
@@ -268,42 +364,49 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500 uppercase ml-1">Email</label>
+          <label htmlFor="registration-email" className="text-xs font-bold text-slate-500 uppercase ml-1">Email</label>
           <div className="relative">
             <Mail className="absolute left-4 top-3.5 text-slate-500" size={18} />
             <input
+              id="registration-email"
               type="email"
               placeholder="jane@hospital.com"
               {...register('email')}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus:border-gold-500 focus:outline-none transition-colors"
+              aria-invalid={Boolean(getFieldError('email'))}
+              aria-describedby={getFieldError('email') ? getFieldErrorId('email') : undefined}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors"
             />
           </div>
-          {errors.email && <p className="text-xs text-red-400 mt-1">{errors.email.message}</p>}
+          {errors.email && <p id={getFieldErrorId('email')} className="text-xs text-red-400 mt-1" role="alert">{errors.email.message}</p>}
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500 uppercase ml-1">Password</label>
+          <label htmlFor="registration-password" className="text-xs font-bold text-slate-500 uppercase ml-1">Password</label>
           <div className="relative">
             <Lock className="absolute left-4 top-3.5 text-slate-500" size={18} />
             <input
+              id="registration-password"
               type="password"
               placeholder="Create a password"
               {...register('password')}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus:border-gold-500 focus:outline-none transition-colors"
+              aria-invalid={Boolean(getFieldError('password'))}
+              aria-describedby={getFieldError('password') ? getFieldErrorId('password') : undefined}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors"
             />
           </div>
-          {errors.password && <p className="text-xs text-red-400 mt-1">{errors.password.message}</p>}
+          {errors.password && <p id={getFieldErrorId('password')} className="text-xs text-red-400 mt-1" role="alert">{errors.password.message}</p>}
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500 uppercase ml-1">Phone</label>
+          <label htmlFor="registration-phone" className="text-xs font-bold text-slate-500 uppercase ml-1">Phone</label>
           <div className="relative">
             <Phone className="absolute left-4 top-3.5 text-slate-500" size={18} />
             <input
+              id="registration-phone"
               type="tel"
               placeholder="+1 (555) 000-0000"
               {...register('phone')}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus:border-gold-500 focus:outline-none transition-colors"
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors"
             />
           </div>
         </div>
@@ -314,7 +417,9 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
           Cancel
         </button>
         <button
-          onClick={handleBasicNext}
+          onClick={() => {
+            void handleBasicNext();
+          }}
           disabled={!formData.name || !formData.age || !formData.email || !formData.password}
           className="flex-1 py-4 rounded-xl bg-gradient-to-r from-gold-600 to-gold-400 text-slate-950 font-bold text-lg shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -341,24 +446,30 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
 
       <div className="space-y-4">
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500 uppercase ml-1">Medical Role</label>
+          <label htmlFor="registration-role" className="text-xs font-bold text-slate-500 uppercase ml-1">Medical Role</label>
           <select
+            id="registration-role"
             {...register('role')}
-            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus:border-gold-500 focus:outline-none transition-colors appearance-none"
+            aria-invalid={Boolean(getFieldError('role'))}
+            aria-describedby={getFieldError('role') ? getFieldErrorId('role') : undefined}
+            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none"
           >
             <option value="">Select Role</option>
             {Object.values(MedicalRole).map(role => (
               <option key={role} value={role}>{role}</option>
             ))}
           </select>
-          {errors.role && <p className="text-xs text-red-400 mt-1">{errors.role.message}</p>}
+          {errors.role && <p id={getFieldErrorId('role')} className="text-xs text-red-400 mt-1" role="alert">{errors.role.message}</p>}
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500 uppercase ml-1">Specialty</label>
+          <label htmlFor="registration-specialty" className="text-xs font-bold text-slate-500 uppercase ml-1">Specialty</label>
           <select
+            id="registration-specialty"
             {...register('specialty')}
-            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus:border-gold-500 focus:outline-none transition-colors appearance-none"
+            aria-invalid={Boolean(getFieldError('specialty'))}
+            aria-describedby={getFieldError('specialty') ? getFieldErrorId('specialty') : undefined}
+            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none"
           >
             <option value="">Select Specialty</option>
             {Object.values(Specialty).map(spec => (
@@ -366,26 +477,29 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
             ))}
           </select>
           {errors.specialty && (
-            <p className="text-xs text-red-400 mt-1">{errors.specialty.message}</p>
+            <p id={getFieldErrorId('specialty')} className="text-xs text-red-400 mt-1" role="alert">{errors.specialty.message}</p>
           )}
         </div>
 
         <div className="space-y-1">
-          <label className="text-xs font-bold text-slate-500 uppercase ml-1">Institution (Optional)</label>
+          <label htmlFor="registration-institution" className="text-xs font-bold text-slate-500 uppercase ml-1">Institution (Optional)</label>
           <div className="relative">
             <Building2 className="absolute left-4 top-3.5 text-slate-500" size={18} />
             <input
+              id="registration-institution"
               type="text"
               placeholder="City General Hospital"
               {...register('institution')}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus:border-gold-500 focus:outline-none transition-colors"
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors"
             />
           </div>
         </div>
       </div>
 
       <button
-        onClick={handleProfessionalNext}
+        onClick={() => {
+          void handleProfessionalNext();
+        }}
         disabled={!formData.role || !formData.specialty}
         className="w-full mt-8 py-4 rounded-xl bg-gradient-to-r from-gold-600 to-gold-400 text-slate-950 font-bold text-lg shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
@@ -396,11 +510,30 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
 
   // --- Step 3: Document Upload ---
   const handleFileUpload = () => {
-    setIsUploading(true);
-    setTimeout(() => {
-      setValue('document', 'uploaded_doc.pdf', { shouldValidate: true });
-      setIsUploading(false);
-    }, 1500);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!ALLOWED_DOCUMENT_MIME_TYPES.has(file.type)) {
+      setDocumentFile(null);
+      setValue('document', '', { shouldValidate: true });
+      setError('document', { type: 'manual', message: 'Only JPG, PNG, WEBP or PDF files are allowed.' });
+      return;
+    }
+
+    if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
+      setDocumentFile(null);
+      setValue('document', '', { shouldValidate: true });
+      setError('document', { type: 'manual', message: 'File size must be smaller than 10 MB.' });
+      return;
+    }
+
+    clearErrors('document');
+    setDocumentFile(file);
+    setValue('document', file.name, { shouldValidate: true });
   };
 
   const renderDocuments = () => (
@@ -417,20 +550,36 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
             : 'border-slate-700 bg-slate-900 hover:bg-slate-800 hover:border-gold-500/50'
           }`}
       >
-        {isUploading ? (
-          <Loader2 size={48} className="text-gold-500 animate-spin mb-4" />
-        ) : formData.document ? (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,application/pdf"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
+        {formData.document ? (
           <>
             <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mb-4">
               <CheckCircle2 size={32} className="text-green-500" />
             </div>
             <h3 className="text-white font-bold mb-1">Document Uploaded</h3>
             <p className="text-slate-500 text-xs">{formData.document}</p>
+            {documentFile && (
+              <p className="text-slate-600 text-[10px] mt-1">
+                {(documentFile.size / 1024 / 1024).toFixed(2)} MB, {documentFile.type || 'unknown'}
+              </p>
+            )}
             <button
               className="text-xs text-red-400 mt-4 hover:underline"
               onClick={(e) => {
                 e.stopPropagation();
+                setDocumentFile(null);
                 setValue('document', '', { shouldValidate: true });
+                clearErrors('document');
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = '';
+                }
               }}
             >
               Remove
@@ -459,7 +608,9 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
       </div>
 
       <button
-        onClick={handleDocumentsNext}
+        onClick={() => {
+          void handleDocumentsNext();
+        }}
         disabled={!formData.document}
         className="w-full mt-8 py-4 rounded-xl bg-gradient-to-r from-gold-600 to-gold-400 text-slate-950 font-bold text-lg shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
@@ -498,24 +649,14 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
         </p>
       </div>
 
-      {/* DEMO SIMULATION BUTTON */}
-      <button
-        onClick={() => {
-          const verification: VerificationPayload =
-            verificationStep === 'EMAIL_OTP' && matchedDomain && otpSent
-              ? {
-                method: 'EMAIL',
-                workEmail,
-                tier: matchedDomain.tier,
-                domain: matchedDomain.domain,
-              }
-              : { method: 'DOCUMENT' };
-          onComplete(getValues(), verification);
-        }}
-        className="text-xs text-slate-600 hover:text-green-500 border border-transparent hover:border-green-500/30 px-4 py-2 rounded transition-colors"
-      >
-        [DEV: Simulate Admin Approval]
-      </button>
+      {isDev && (
+        <button
+          onClick={() => onComplete(getValues(), buildVerificationPayload())}
+          className="text-xs text-slate-600 hover:text-green-500 border border-transparent hover:border-green-500/30 px-4 py-2 rounded transition-colors"
+        >
+          Re-run submission
+        </button>
+      )}
     </div>
   );
 

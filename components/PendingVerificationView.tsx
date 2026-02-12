@@ -5,9 +5,10 @@ import { VerificationStatus } from '../types';
 interface PendingVerificationViewProps {
   status: VerificationStatus;
   onLogout: () => void;
+  onRetryVerification?: () => void;
 }
 
-export const PendingVerificationView: React.FC<PendingVerificationViewProps> = ({ status, onLogout }) => {
+export const PendingVerificationView: React.FC<PendingVerificationViewProps> = ({ status, onLogout, onRetryVerification }) => {
   const statusCopy = {
     PENDING_VERIFICATION: {
       title: 'Doğrulama Bekleniyor',
@@ -44,6 +45,15 @@ export const PendingVerificationView: React.FC<PendingVerificationViewProps> = (
           <span>Takip: support@vitalis.app</span>
           <Mail size={14} />
         </div>
+
+        {status === 'REJECTED' && onRetryVerification && (
+          <button
+            onClick={onRetryVerification}
+            className="w-full py-3 rounded-xl bg-gold-500 text-white font-semibold mb-3 hover:bg-gold-600 transition-colors"
+          >
+            Yeniden Doğrulama Başlat
+          </button>
+        )}
 
         <button
           onClick={onLogout}

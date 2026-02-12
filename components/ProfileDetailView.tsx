@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Profile, ReportReason } from '../types';
 import { ChevronDown, MapPin, GraduationCap, Stethoscope, BadgeCheck, Briefcase, Clock, MoreVertical, Ban, Flag, X, Check, Sparkles, Navigation, Zap, Palette, HelpCircle, Shield, Camera, Smartphone, Mail, Info } from 'lucide-react';
 import { calculateCompatibility } from '../utils/compatibility';
 import { PERSONALITY_OPTIONS } from '../constants';
+
+const INITIAL_NOW_MS = Date.now();
 
 interface ProfileDetailViewProps {
   profile: Profile;
@@ -13,63 +15,99 @@ interface ProfileDetailViewProps {
 }
 
 export const ProfileDetailView: React.FC<ProfileDetailViewProps> = ({ profile, onClose, onBlock, onReport, currentUser }) => {
-  const isAvailableNow = profile.isAvailable && (!profile.availabilityExpiresAt || profile.availabilityExpiresAt > Date.now());
+  const [nowMs, setNowMs] = useState(INITIAL_NOW_MS);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedReason, setSelectedReason] = useState<ReportReason | null>(null);
   const [showTrustScore, setShowTrustScore] = useState(false);
 
+  useEffect(() => {
+    // Avoid calling Date.now() during render (React purity lint rule),
+    // and avoid synchronous setState inside effects (React set-state-in-effect lint rule).
+    const immediateId = setTimeout(() => setNowMs(Date.now()), 0);
+
+    if (profile.isAvailable && profile.availabilityExpiresAt) {
+      const msUntilExpiry = profile.availabilityExpiresAt - Date.now();
+      if (msUntilExpiry > 0) {
+        const expiryId = setTimeout(() => setNowMs(Date.now()), msUntilExpiry + 50);
+
+        return (): void => {
+          clearTimeout(immediateId);
+          clearTimeout(expiryId);
+        };
+      }
+    }
+
+    return (): void => clearTimeout(immediateId);
+  }, [profile.isAvailable, profile.availabilityExpiresAt]);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      if (showBlockConfirm) setShowBlockConfirm(false);
+      if (showReportModal) setShowReportModal(false);
+      if (showTrustScore) setShowTrustScore(false);
+      if (isMenuOpen) setIsMenuOpen(false);
+    };
+    window.addEventListener('keydown', handleEscape);
+    return (): void => window.removeEventListener('keydown', handleEscape);
+  }, [isMenuOpen, showBlockConfirm, showReportModal, showTrustScore]);
+
+  const isAvailableNow =
+    profile.isAvailable &&
+    (!profile.availabilityExpiresAt || profile.availabilityExpiresAt > nowMs);
+
   const matchStats = useMemo(() => calculateCompatibility(currentUser, profile), [currentUser, profile]);
 
-  const handleBlockConfirm = () => {
-    if (onBlock) {
-        onBlock(profile.id);
+  const handleBlockConfirm = (): void => {
+    if (onBlock) onBlock(profile.id);
+    setShowBlockConfirm(false);
+  };
+
+  const handleReportSubmit = (): void => {
+    if (onReport && selectedReason) {
+      onReport(profile.id, selectedReason);
+      setShowReportModal(false);
     }
   };
 
-  const handleReportSubmit = () => {
-      if (onReport && selectedReason) {
-          onReport(profile.id, selectedReason);
-          setShowReportModal(false);
-      }
-  };
-
-  const getDistanceText = () => {
-      if (profile.isLocationHidden) return "Nearby";
-      if (profile.distance > 50) return "50+ km";
-      return `${profile.distance} km`;
+  const getDistanceText = (): string => {
+    if (profile.isLocationHidden) return 'Nearby';
+    if (profile.distance > 50) return '50+ km';
+    return `${profile.distance} km`;
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950 overflow-y-auto animate-fade-in pb-20 no-scrollbar">
-      {/* Sticky Header with Actions */}
-      <div className="fixed top-0 left-0 right-0 p-4 z-50 flex justify-between bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
+    <div className="fixed inset-0 z-50 bg-slate-950 overflow-y-auto animate-fade-in pb-24 no-scrollbar">
+      {/* Sticky Header with Actions - Agent 4: Better touch targets */}
+      <div className="fixed top-0 left-0 right-0 p-5 z-50 flex justify-between bg-gradient-to-b from-black/70 via-black/40 to-transparent pointer-events-none safe-top">
         {/* Menu Button */}
         <div className="relative pointer-events-auto">
-             <button 
+             <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="w-10 h-10 flex items-center justify-center bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all border border-white/10"
+                aria-label="Open profile actions"
+                className="btn-icon glass-dark hover:bg-white/20"
              >
-                <MoreVertical size={20} />
+                <MoreVertical size={22} strokeWidth={2} />
              </button>
 
-             {/* Dropdown Menu */}
+             {/* Dropdown Menu - Agent 3: Premium dropdown */}
              {isMenuOpen && (
-                 <div className="absolute top-12 left-0 w-48 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden animate-fade-in z-50">
-                     <button 
+                 <div className="absolute top-14 left-0 w-52 card-premium bg-slate-900/95 backdrop-blur-xl shadow-2xl overflow-hidden animate-scale-in z-50">
+                     <button
                         onClick={() => { setShowReportModal(true); setIsMenuOpen(false); }}
-                        className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-slate-800 transition-colors"
+                        className="w-full px-4 py-3.5 flex items-center gap-3 text-left hover:bg-slate-800/80 transition-colors"
                      >
-                        <Flag size={16} className="text-orange-400" />
+                        <Flag size={18} className="text-orange-400" />
                         <span className="text-sm font-medium text-slate-200">Report Profile</span>
                      </button>
-                     <div className="h-px bg-slate-800"></div>
-                     <button 
+                     <div className="h-px bg-slate-800/60 mx-3"></div>
+                     <button
                         onClick={() => { setShowBlockConfirm(true); setIsMenuOpen(false); }}
-                        className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-slate-800 transition-colors"
+                        className="w-full px-4 py-3.5 flex items-center gap-3 text-left hover:bg-red-500/10 transition-colors"
                      >
-                        <Ban size={16} className="text-red-500" />
+                        <Ban size={18} className="text-red-500" />
                         <span className="text-sm font-medium text-red-400">Block {profile.name}</span>
                      </button>
                  </div>
@@ -77,34 +115,38 @@ export const ProfileDetailView: React.FC<ProfileDetailViewProps> = ({ profile, o
         </div>
 
         {/* Close Button */}
-        <button 
+        <button
           onClick={onClose}
-          className="pointer-events-auto w-10 h-10 flex items-center justify-center bg-black/40 backdrop-blur-md rounded-full text-white hover:bg-gold-500 hover:text-white transition-all border border-white/10"
+          aria-label="Close profile details"
+          className="pointer-events-auto btn-icon glass-dark hover:bg-gold-500 hover:border-gold-500 transition-all duration-200"
         >
-          <ChevronDown size={24} />
+          <ChevronDown size={24} strokeWidth={2} />
         </button>
       </div>
 
-      {/* Image Gallery (Scrollable) */}
-      <div className="w-full h-[65vh] relative bg-slate-900">
+      {/* Image Gallery (Scrollable) - Agent 6: Premium image treatment */}
+      <div className="w-full h-[68vh] relative bg-slate-900">
          <div className="w-full h-full overflow-x-auto flex snap-x snap-mandatory hide-scrollbar">
             {profile.images.map((img, idx) => (
                 <div key={idx} className="w-full h-full flex-shrink-0 snap-center relative">
-                    <img 
-                        src={img} 
-                        className="w-full h-full object-cover" 
-                        alt={`${profile.name} - photo ${idx + 1}`} 
+                    <img
+                        src={img}
+                        className="w-full h-full object-cover"
+                        alt={`${profile.name} - photo ${idx + 1}`}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-950"></div>
+                    {/* Premium gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent via-60% to-slate-950"></div>
+                    {/* Subtle vignette */}
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.15)_100%)]"></div>
                 </div>
             ))}
          </div>
-         
-         {/* Pagination Indicators if multiple images */}
+
+         {/* Pagination Indicators - Agent 1: Better spacing */}
          {profile.images.length > 1 && (
-            <div className="absolute top-4 left-4 flex gap-1.5 z-40">
+            <div className="absolute top-5 left-5 right-5 flex gap-2 z-40">
                 {profile.images.map((_, idx) => (
-                    <div key={idx} className="w-8 h-1 rounded-full bg-white/40 backdrop-blur-sm"></div>
+                    <div key={idx} className="flex-1 h-1.5 rounded-full bg-white/30 backdrop-blur-sm"></div>
                 ))}
             </div>
          )}
@@ -138,7 +180,9 @@ export const ProfileDetailView: React.FC<ProfileDetailViewProps> = ({ profile, o
                     </div>
 
                     {/* NEW: Verification Badges Row */}
-                    <div 
+                    <button
+                        type="button"
+                        aria-label="Open verification details"
                         onClick={() => setShowTrustScore(true)}
                         className="flex items-center gap-3 mb-3 cursor-pointer group"
                     >
@@ -160,7 +204,7 @@ export const ProfileDetailView: React.FC<ProfileDetailViewProps> = ({ profile, o
                         <span className="text-[10px] text-slate-500 group-hover:text-gold-500 transition-colors flex items-center gap-1">
                             {Object.values(profile.verificationBadges || {}).filter(Boolean).length} Verifications <Info size={10} />
                         </span>
-                    </div>
+                    </button>
 
                     <div className="flex flex-col gap-1 mb-1">
                       <div className="flex items-center gap-2 text-gold-500 font-bold uppercase tracking-wider text-sm">
@@ -221,13 +265,13 @@ export const ProfileDetailView: React.FC<ProfileDetailViewProps> = ({ profile, o
                  </div>
              </div>
 
-             {/* About Section */}
-             <div className="mb-8">
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-800 pb-2">Professional Bio</h3>
-                <p className="text-slate-200 leading-relaxed font-serif text-lg font-light opacity-90">
-                    "{profile.bio}"
-                </p>
-             </div>
+	             {/* About Section */}
+	             <div className="mb-8">
+	                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 border-b border-slate-800 pb-2">Professional Bio</h3>
+	                <p className="text-slate-200 leading-relaxed font-serif text-lg font-light opacity-90">
+	                    &ldquo;{profile.bio}&rdquo;
+	                </p>
+	             </div>
 
              {/* Q&A Section (New) */}
              {profile.questions && profile.questions.length > 0 && (
@@ -250,14 +294,14 @@ export const ProfileDetailView: React.FC<ProfileDetailViewProps> = ({ profile, o
                                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-gold-500 uppercase tracking-wider mb-2">
                                              <Sparkles size={10} /> You both answered this!
                                          </div>
-                                     )}
-                                     <p className="text-xs font-bold text-slate-400 uppercase mb-1.5">{q.question}</p>
-                                     <p className="text-base text-slate-200 font-serif italic">"{q.answer}"</p>
-                                 </div>
-                             );
-                         })}
-                     </div>
-                 </div>
+	                                     )}
+	                                     <p className="text-xs font-bold text-slate-400 uppercase mb-1.5">{q.question}</p>
+	                                     <p className="text-base text-slate-200 font-serif italic">&ldquo;{q.answer}&rdquo;</p>
+	                                 </div>
+	                             );
+	                         })}
+	                     </div>
+	                 </div>
              )}
 
              {/* Personality & Vibe Section */}
@@ -341,13 +385,13 @@ export const ProfileDetailView: React.FC<ProfileDetailViewProps> = ({ profile, o
 
       {/* --- Trust Score / Badges Modal --- */}
       {showTrustScore && (
-          <div className="fixed inset-0 z-[70] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in">
+          <div className="fixed inset-0 z-[70] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label="Verification details">
               <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm shadow-2xl relative overflow-hidden">
                   <div className="p-6 bg-slate-800/50 border-b border-slate-700 flex justify-between items-center">
                       <h3 className="text-lg font-serif font-bold text-white flex items-center gap-2">
                           <Shield size={20} className="text-gold-500" /> Trust Score
                       </h3>
-                      <button onClick={() => setShowTrustScore(false)} className="text-slate-500 hover:text-white">
+                      <button onClick={() => setShowTrustScore(false)} aria-label="Close verification details" className="text-slate-500 hover:text-white">
                           <X size={20} />
                       </button>
                   </div>
@@ -416,17 +460,17 @@ export const ProfileDetailView: React.FC<ProfileDetailViewProps> = ({ profile, o
 
       {/* --- Block Confirmation Modal --- */}
       {showBlockConfirm && (
-        <div className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in">
+        <div className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label={`Block ${profile.name}`}>
              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xs w-full shadow-2xl">
                  <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4 border border-red-500/30">
                      <Ban size={28} className="text-red-500" />
                  </div>
-                 <h3 className="text-xl font-serif text-white text-center mb-2">Block {profile.name}?</h3>
-                 <p className="text-slate-400 text-center text-sm mb-6">
-                    They won't be able to find your profile or send you messages. This action cannot be undone easily.
-                 </p>
-                 <div className="flex flex-col gap-3">
-                     <button 
+	                 <h3 className="text-xl font-serif text-white text-center mb-2">Block {profile.name}?</h3>
+	                 <p className="text-slate-400 text-center text-sm mb-6">
+	                    They won&apos;t be able to find your profile or send you messages. This action cannot be undone easily.
+	                 </p>
+	                 <div className="flex flex-col gap-3">
+	                     <button 
                         onClick={handleBlockConfirm}
                         className="w-full py-3 rounded-xl bg-red-500 text-white font-bold tracking-wide hover:bg-red-600 transition-colors"
                      >
@@ -445,11 +489,11 @@ export const ProfileDetailView: React.FC<ProfileDetailViewProps> = ({ profile, o
 
       {/* --- Report Modal --- */}
       {showReportModal && (
-          <div className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in">
+          <div className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label={`Report ${profile.name}`}>
               <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl">
                   <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-4">
                       <h3 className="text-lg font-serif font-bold text-white">Report Profile</h3>
-                      <button onClick={() => setShowReportModal(false)} className="text-slate-500 hover:text-white"><X size={20}/></button>
+                      <button onClick={() => setShowReportModal(false)} aria-label="Close report modal" className="text-slate-500 hover:text-white"><X size={20}/></button>
                   </div>
                   
                   <p className="text-slate-400 text-sm mb-4">Please select a reason for reporting {profile.name}:</p>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface UseSwipeLimitOptions {
   dailyLimit: number;
@@ -11,29 +11,47 @@ interface UseSwipeLimitResult {
 
 export const useSwipeLimit = ({ dailyLimit, onReset }: UseSwipeLimitOptions): UseSwipeLimitResult => {
   const [timeToReset, setTimeToReset] = useState('');
+  const onResetRef = useRef(onReset);
 
   useEffect(() => {
-    const updateCountdown = () => {
-      const now = new Date();
-      const midnight = new Date();
-      midnight.setHours(24, 0, 0, 0);
-      const diff = midnight.getTime() - now.getTime();
+    onResetRef.current = onReset;
+  }, [onReset]);
 
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  useEffect(() => {
+    let resetTimer: ReturnType<typeof setTimeout> | undefined;
 
+    const getNextMidnight = (): Date => {
+      const next = new Date();
+      next.setHours(24, 0, 0, 0);
+      return next;
+    };
+
+    const updateCountdown = (): void => {
+      const diffMs = Math.max(0, getNextMidnight().getTime() - Date.now());
+      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
       setTimeToReset(`${hours}h ${minutes}m`);
+    };
 
-      if (diff <= 1000) {
-        onReset();
-      }
+    const scheduleReset = (): void => {
+      const diffMs = Math.max(0, getNextMidnight().getTime() - Date.now());
+      // Small buffer to avoid missing midnight due to timer drift.
+      resetTimer = setTimeout(() => {
+        onResetRef.current();
+        updateCountdown();
+        scheduleReset();
+      }, diffMs + 50);
     };
 
     updateCountdown();
-    const timer = setInterval(updateCountdown, 60000);
+    const countdownTimer = setInterval(updateCountdown, 60_000);
+    scheduleReset();
 
-    return () => clearInterval(timer);
-  }, [dailyLimit, onReset]);
+    return (): void => {
+      clearInterval(countdownTimer);
+      if (resetTimer) clearTimeout(resetTimer);
+    };
+  }, [dailyLimit]);
 
   return { timeToReset };
 };

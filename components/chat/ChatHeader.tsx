@@ -5,7 +5,6 @@ import { ChatTheme, Match } from '../../types';
 interface ChatHeaderProps {
   match: Match;
   currentTheme: ChatTheme;
-  isFirstMovePending: boolean;
   status: { text: string; color: string };
   isSearchOpen: boolean;
   onBack: () => void;
@@ -24,7 +23,6 @@ interface ChatHeaderProps {
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
   match,
   currentTheme,
-  isFirstMovePending,
   status,
   isSearchOpen,
   onBack,
@@ -41,27 +39,25 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 }) => {
   return (
     <div
-      className={`flex items-center justify-between p-4 backdrop-blur-md border-b pt-8 pb-4 z-10 shadow-sm relative transition-colors ${
-        isFirstMovePending ? 'mt-8' : ''
-      } ${currentTheme.isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white/80 border-slate-200'}`}
+      className={`flex items-center justify-between p-4 backdrop-blur-md border-b pt-8 pb-4 z-10 shadow-sm relative transition-colors ${currentTheme.isDark ? 'bg-slate-900/80 border-slate-800' : 'bg-white/80 border-slate-200'
+        }`}
     >
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
-          className={`p-1 -ml-2 transition-colors rounded-full ${
-            currentTheme.isDark
-              ? 'text-slate-400 hover:text-white hover:bg-slate-800'
-              : 'text-slate-600 hover:text-black hover:bg-slate-100'
-          }`}
+          aria-label="Go back to matches"
+          className={`p-1 -ml-2 transition-colors rounded-full ${currentTheme.isDark
+            ? 'text-slate-400 hover:text-white hover:bg-slate-800'
+            : 'text-slate-600 hover:text-black hover:bg-slate-100'
+            }`}
         >
           <ChevronLeft size={28} />
         </button>
 
         <div className="relative">
           <div
-            className={`w-10 h-10 rounded-full overflow-hidden border ${
-              currentTheme.isDark ? 'border-slate-700' : 'border-slate-200'
-            }`}
+            className={`w-10 h-10 rounded-full overflow-hidden border ${currentTheme.isDark ? 'border-slate-700' : 'border-slate-200'
+              }`}
           >
             <img
               src={match.profile.images[0]}
@@ -70,17 +66,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             />
           </div>
           <div
-            className={`absolute bottom-0 right-0 w-2.5 h-2.5 ${status.color} rounded-full border-2 ${
-              currentTheme.isDark ? 'border-slate-900' : 'border-white'
-            }`}
+            className={`absolute bottom-0 right-0 w-2.5 h-2.5 ${status.color} rounded-full border-2 ${currentTheme.isDark ? 'border-slate-900' : 'border-white'
+              }`}
           ></div>
         </div>
 
         <div>
           <h3
-            className={`font-bold text-sm ${
-              currentTheme.isDark ? 'text-slate-100' : 'text-slate-900'
-            }`}
+            className={`font-bold text-sm ${currentTheme.isDark ? 'text-slate-100' : 'text-slate-900'
+              }`}
           >
             {match.profile.name}
           </h3>
@@ -97,38 +91,37 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       </div>
 
       <div
-        className={`flex items-center gap-4 ${
-          currentTheme.isDark ? 'text-slate-400' : 'text-slate-600'
-        }`}
+        className={`flex items-center gap-4 ${currentTheme.isDark ? 'text-slate-400' : 'text-slate-600'
+          }`}
       >
         <button
           onClick={onToggleSearch}
-          className={`hover:text-gold-400 transition-colors p-2 rounded-full ${
-            isSearchOpen ? 'text-gold-500 bg-slate-800' : ''
-          } ${currentTheme.isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'}`}
+          aria-label="Search in conversation"
+          className={`hover:text-gold-400 transition-colors p-2 rounded-full ${isSearchOpen ? 'text-gold-500 bg-slate-800' : ''
+            } ${currentTheme.isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'}`}
         >
           <Search size={20} />
         </button>
 
         <button
           onClick={() => onStartCall('VOICE')}
-          className={`hover:text-gold-400 transition-colors p-2 rounded-full ${
-            currentTheme.isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
-          }`}
+          aria-label="Start voice call"
+          className={`hover:text-gold-400 transition-colors p-2 rounded-full ${currentTheme.isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
+            }`}
         >
           <Phone size={20} />
         </button>
         <button
           onClick={() => onStartCall('VIDEO')}
-          className={`hover:text-gold-400 transition-colors p-2 rounded-full ${
-            currentTheme.isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
-          }`}
+          aria-label="Start video call"
+          className={`hover:text-gold-400 transition-colors p-2 rounded-full ${currentTheme.isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
+            }`}
         >
           <Video size={20} />
         </button>
 
         <div className="relative">
-          <button onClick={onToggleMenu} className="hover:text-gold-400 transition-colors p-1">
+          <button onClick={onToggleMenu} aria-label="Open chat actions" className="hover:text-gold-400 transition-colors p-2 rounded-full hover:bg-slate-800/50">
             <MoreVertical size={20} />
           </button>
           {isMenuOpen && (

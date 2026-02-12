@@ -17,8 +17,7 @@ export const CommunityGuidelines: React.FC<CommunityGuidelinesProps> = ({ mode, 
   };
 
   const handleReport = () => {
-      // In a real app, this would open a reporting flow
-      alert("İhlal bildirim ekranına yönlendiriliyorsunuz...");
+      window.location.href = 'mailto:safety@vitalis.app?subject=Community%20Violation%20Report';
   };
 
   return (

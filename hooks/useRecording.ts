@@ -19,6 +19,7 @@ interface UseRecordingResult {
 }
 
 const DEFAULT_LIMITS = { AUDIO: 60, VIDEO: 15 } as const;
+const RECORDING_TICK_MS = 250;
 
 export const useRecording = (options: UseRecordingOptions): UseRecordingResult => {
   const { initialMode = 'AUDIO', maxDurationSeconds = DEFAULT_LIMITS, onSend } = options;
@@ -42,12 +43,16 @@ export const useRecording = (options: UseRecordingOptions): UseRecordingResult =
       setIsRecording(false);
 
       if (shouldSend) {
-        onSend({ durationSeconds: recordingDuration, mode: recordingMode });
+        const durationSeconds = Math.max(
+          0,
+          Math.floor((Date.now() - recordingStartTimeRef.current) / 1000)
+        );
+        onSend({ durationSeconds, mode: recordingMode });
       }
 
       setRecordingDuration(0);
     },
-    [clearIntervalRef, onSend, recordingDuration, recordingMode]
+    [clearIntervalRef, onSend, recordingMode]
   );
 
   const startRecording = useCallback(() => {
@@ -57,13 +62,13 @@ export const useRecording = (options: UseRecordingOptions): UseRecordingResult =
 
     recordingIntervalRef.current = setInterval(() => {
       const duration = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
-      setRecordingDuration(duration);
+      setRecordingDuration((prev) => (prev === duration ? prev : duration));
 
       const limit = maxDurationSeconds[recordingMode];
       if (duration >= limit) {
         stopRecording(true);
       }
-    }, 100);
+    }, RECORDING_TICK_MS);
   }, [maxDurationSeconds, recordingMode, stopRecording]);
 
   const cancelRecording = useCallback(() => {
