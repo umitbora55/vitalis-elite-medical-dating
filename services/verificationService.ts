@@ -77,27 +77,35 @@ export const verifyOtp = async (email: string, token: string) => {
   return supabase.auth.verifyOtp({ email, token, type: 'email' });
 };
 
+// AUDIT-FIX: BE-008 — Remove userId parameter, use auth.getUser() to prevent IDOR
 export const saveVerifiedEmail = async (
-  userId: string,
   email: string,
   domain: string,
   tier: number,
 ) => {
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) {
+    return { data: null, error: new Error('No authenticated user') };
+  }
   return supabase.from('verified_work_emails').insert({
-    user_id: userId,
+    user_id: authData.user.id,
     email,
     domain,
     tier,
   });
 };
 
+// AUDIT-FIX: BE-002 — Remove userId parameter, use auth.getUser() to prevent IDOR
 export const createVerificationRequest = async (
-  userId: string,
   method: 'EMAIL' | 'DOCUMENT' | 'STUDENT',
   documentUrl?: string,
 ) => {
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) {
+    return { data: null, error: new Error('No authenticated user') };
+  }
   return supabase.from('verification_requests').insert({
-    user_id: userId,
+    user_id: authData.user.id,
     method,
     document_url: documentUrl || null,
     status: 'PENDING',
@@ -111,10 +119,15 @@ const sanitizeFileName = (name: string): string =>
     .replace(/-+/g, '-')
     .slice(0, 120);
 
+// AUDIT-FIX: BE-002 — Remove userId parameter, use auth.getUser() to prevent IDOR
 export const uploadVerificationDocument = async (
-  userId: string,
   file: File,
 ): Promise<{ documentPath: string | null; error: Error | null }> => {
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) {
+    return { documentPath: null, error: new Error('No authenticated user') };
+  }
+
   if (!ALLOWED_DOCUMENT_MIME_TYPES.has(file.type)) {
     return { documentPath: null, error: new Error('Unsupported document format') };
   }
@@ -123,6 +136,7 @@ export const uploadVerificationDocument = async (
   }
 
   const safeName = sanitizeFileName(file.name || 'document');
+  const userId = authData.user.id;
   const path = `${userId}/${Date.now()}-${safeName}`;
   const { error } = await supabase.storage
     .from(VERIFICATION_DOC_BUCKET)
@@ -135,9 +149,13 @@ export const uploadVerificationDocument = async (
   return { documentPath: path, error: null };
 };
 
+// AUDIT-FIX: BE-002 — Remove userId parameter, use auth.getUser() to prevent IDOR
 export const updateProfileVerificationStatus = async (
-  userId: string,
   status: 'PENDING_VERIFICATION' | 'EMAIL_VERIFICATION_SENT' | 'REJECTED' | 'VERIFIED',
 ) => {
-  return supabase.from('profiles').update({ verification_status: status }).eq('id', userId);
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) {
+    return { data: null, error: new Error('No authenticated user') };
+  }
+  return supabase.from('profiles').update({ verification_status: status }).eq('id', authData.user.id);
 };

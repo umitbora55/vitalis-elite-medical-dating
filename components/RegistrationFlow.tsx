@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MedicalRole, Specialty } from '../types';
-import { ChevronRight, Upload, FileCheck, ShieldCheck, CheckCircle2, AlertCircle, Loader2, User, Mail, Phone, Building2, Stethoscope, ChevronLeft, Lock } from 'lucide-react';
+import { MedicalRole, Specialty, ROLE_SPECIALTIES } from '../types';
+import { ChevronRight, Upload, FileCheck, ShieldCheck, CheckCircle2, AlertCircle, Loader2, User, Mail, Building2, Stethoscope, ChevronLeft, Lock, Info } from 'lucide-react';
 import { CommunityGuidelines } from './CommunityGuidelines';
 import { getVerifiedDomain, sendVerificationOtp, verifyOtp } from '../services/verificationService';
 
@@ -47,15 +47,18 @@ const registrationSchema = z.object({
     .string()
     .min(1, 'Medical role is required')
     .refine((value) => Object.values(MedicalRole).includes(value as MedicalRole), 'Select a role'),
-  specialty: z
-    .string()
-    .min(1, 'Specialty is required')
-    .refine(
-      (value) => Object.values(Specialty).includes(value as Specialty),
-      'Select a specialty',
-    ),
+  specialty: z.string(),
   institution: z.string().optional(),
   document: z.string().min(1, 'Upload a document to continue'),
+}).superRefine((data, ctx) => {
+  const role = data.role as MedicalRole;
+  const allowedSpecialties = ROLE_SPECIALTIES[role] ?? [];
+  if (allowedSpecialties.length > 0 && !data.specialty) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Specialty is required', path: ['specialty'] });
+  }
+  if (data.specialty && !allowedSpecialties.includes(data.specialty as Specialty)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid specialty for this role', path: ['specialty'] });
+  }
 });
 
 type RegistrationFormData = z.infer<typeof registrationSchema>;
@@ -83,8 +86,80 @@ const parseGetVerifiedDomainResult = (
   return { domain, error };
 };
 
+// AUDIT-FIX: FE-001 — Removed isDev variable and associated dev bypass code
+
+const COUNTRY_CODES = [
+  { code: '+1', flag: '🇺🇸', country: 'US', placeholder: '(555) 123-4567' },
+  { code: '+7', flag: '🇷🇺', country: 'RU', placeholder: '912 345-67-89' },
+  { code: '+20', flag: '🇪🇬', country: 'EG', placeholder: '100 123 4567' },
+  { code: '+27', flag: '🇿🇦', country: 'ZA', placeholder: '71 123 4567' },
+  { code: '+30', flag: '🇬🇷', country: 'GR', placeholder: '691 234 5678' },
+  { code: '+31', flag: '🇳🇱', country: 'NL', placeholder: '6 12345678' },
+  { code: '+32', flag: '🇧🇪', country: 'BE', placeholder: '470 12 34 56' },
+  { code: '+33', flag: '🇫🇷', country: 'FR', placeholder: '6 12 34 56 78' },
+  { code: '+34', flag: '🇪🇸', country: 'ES', placeholder: '612 34 56 78' },
+  { code: '+36', flag: '🇭🇺', country: 'HU', placeholder: '20 123 4567' },
+  { code: '+39', flag: '🇮🇹', country: 'IT', placeholder: '312 345 6789' },
+  { code: '+40', flag: '🇷🇴', country: 'RO', placeholder: '712 345 678' },
+  { code: '+41', flag: '🇨🇭', country: 'CH', placeholder: '78 123 45 67' },
+  { code: '+43', flag: '🇦🇹', country: 'AT', placeholder: '664 123 4567' },
+  { code: '+44', flag: '🇬🇧', country: 'GB', placeholder: '7911 123456' },
+  { code: '+45', flag: '🇩🇰', country: 'DK', placeholder: '20 12 34 56' },
+  { code: '+46', flag: '🇸🇪', country: 'SE', placeholder: '70 123 45 67' },
+  { code: '+47', flag: '🇳🇴', country: 'NO', placeholder: '406 12 345' },
+  { code: '+48', flag: '🇵🇱', country: 'PL', placeholder: '512 345 678' },
+  { code: '+49', flag: '🇩🇪', country: 'DE', placeholder: '151 2345 6789' },
+  { code: '+52', flag: '🇲🇽', country: 'MX', placeholder: '55 1234 5678' },
+  { code: '+54', flag: '🇦🇷', country: 'AR', placeholder: '11 2345-6789' },
+  { code: '+55', flag: '🇧🇷', country: 'BR', placeholder: '11 91234-5678' },
+  { code: '+56', flag: '🇨🇱', country: 'CL', placeholder: '9 1234 5678' },
+  { code: '+57', flag: '🇨🇴', country: 'CO', placeholder: '301 234 5678' },
+  { code: '+60', flag: '🇲🇾', country: 'MY', placeholder: '12 345 6789' },
+  { code: '+61', flag: '🇦🇺', country: 'AU', placeholder: '412 345 678' },
+  { code: '+62', flag: '🇮🇩', country: 'ID', placeholder: '812 3456 7890' },
+  { code: '+63', flag: '🇵🇭', country: 'PH', placeholder: '917 123 4567' },
+  { code: '+64', flag: '🇳🇿', country: 'NZ', placeholder: '21 123 4567' },
+  { code: '+65', flag: '🇸🇬', country: 'SG', placeholder: '9123 4567' },
+  { code: '+66', flag: '🇹🇭', country: 'TH', placeholder: '81 234 5678' },
+  { code: '+81', flag: '🇯🇵', country: 'JP', placeholder: '90 1234 5678' },
+  { code: '+82', flag: '🇰🇷', country: 'KR', placeholder: '10 1234 5678' },
+  { code: '+84', flag: '🇻🇳', country: 'VN', placeholder: '91 234 56 78' },
+  { code: '+86', flag: '🇨🇳', country: 'CN', placeholder: '131 2345 6789' },
+  { code: '+90', flag: '🇹🇷', country: 'TR', placeholder: '531 234 56 78' },
+  { code: '+91', flag: '🇮🇳', country: 'IN', placeholder: '91234 56789' },
+  { code: '+351', flag: '🇵🇹', country: 'PT', placeholder: '912 345 678' },
+  { code: '+353', flag: '🇮🇪', country: 'IE', placeholder: '85 123 4567' },
+  { code: '+380', flag: '🇺🇦', country: 'UA', placeholder: '50 123 4567' },
+  { code: '+420', flag: '🇨🇿', country: 'CZ', placeholder: '601 123 456' },
+  { code: '+966', flag: '🇸🇦', country: 'SA', placeholder: '51 234 5678' },
+  { code: '+971', flag: '🇦🇪', country: 'AE', placeholder: '50 123 4567' },
+] as const;
+
+const PERSONAL_EMAIL_DOMAINS = new Set([
+  'gmail.com', 'googlemail.com',
+  'hotmail.com', 'hotmail.co.uk', 'hotmail.fr', 'hotmail.de', 'hotmail.it',
+  'outlook.com', 'outlook.co.uk', 'outlook.fr', 'outlook.de',
+  'live.com', 'live.co.uk', 'live.fr',
+  'msn.com',
+  'yahoo.com', 'yahoo.co.uk', 'yahoo.fr', 'yahoo.de', 'yahoo.co.jp',
+  'ymail.com',
+  'aol.com',
+  'icloud.com', 'me.com', 'mac.com',
+  'protonmail.com', 'proton.me',
+  'mail.com',
+  'zoho.com',
+  'yandex.com', 'yandex.ru',
+  'mail.ru',
+]);
+
+const isPersonalEmailDomain = (email: string): boolean => {
+  const atIndex = email.lastIndexOf('@');
+  if (atIndex === -1) return false;
+  const domain = email.slice(atIndex + 1).toLowerCase().trim();
+  return PERSONAL_EMAIL_DOMAINS.has(domain);
+};
+
 export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, onCancel }) => {
-  const isDev = import.meta.env.DEV;
   const [step, setStep] = useState<Step>('BASIC');
   const [verificationStep, setVerificationStep] = useState<VerificationStep>('EMAIL_INPUT');
   const [workEmail, setWorkEmail] = useState('');
@@ -93,6 +168,7 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
   const [otpSent, setOtpSent] = useState(false);
   const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
   const [matchedDomain, setMatchedDomain] = useState<{ domain: string; tier: number } | null>(null);
+  const [countryCode, setCountryCode] = useState('+90');
   const {
     register,
     trigger,
@@ -120,6 +196,21 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
   });
 
   const formData = watch();
+  const isPersonalEmail = formData.email ? isPersonalEmailDomain(formData.email) : false;
+
+  // Role-based specialty filtering
+  const selectedRole = formData.role as MedicalRole;
+  const allowedSpecialties = selectedRole ? (ROLE_SPECIALTIES[selectedRole] ?? []) : [];
+  const roleHasSpecialties = allowedSpecialties.length > 0;
+
+  // Reset specialty when role changes
+  const prevRoleRef = useRef(formData.role);
+  useEffect(() => {
+    if (formData.role !== prevRoleRef.current) {
+      prevRoleRef.current = formData.role;
+      setValue('specialty', '', { shouldValidate: false });
+    }
+  }, [formData.role, setValue]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [documentFile, setDocumentFile] = useState<File | null>(null);
@@ -138,7 +229,15 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
 
   const handleProfessionalNext = async () => {
     const isValid = await trigger(['role', 'specialty']);
-    if (isValid) setStep('DOCUMENTS');
+    if (isValid) {
+      if (isPersonalEmail) {
+        // Personal email users skip OTP and go directly to document upload
+        setVerificationStep('DOCUMENT');
+      } else {
+        setVerificationStep('EMAIL_INPUT');
+      }
+      setStep('DOCUMENTS');
+    }
   };
 
   const handleDocumentsNext = async () => {
@@ -193,18 +292,7 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
     }
   };
 
-  const buildVerificationPayload = (): VerificationPayload => {
-    if (verificationStep === 'EMAIL_OTP' && matchedDomain && otpSent) {
-      return {
-        method: 'EMAIL',
-        workEmail,
-        tier: matchedDomain.tier,
-        domain: matchedDomain.domain,
-      };
-    }
-
-    return { method: 'DOCUMENT', documentFile: documentFile ?? undefined };
-  };
+  // AUDIT-FIX: FE-001 — Removed buildVerificationPayload function (was only used by dev bypass button)
 
   useEffect(() => {
     if (step !== 'PENDING' || submittedPending) return;
@@ -228,11 +316,24 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
       </button>
 
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-serif text-white mb-2">Kurumsal Email Doğrulama</h2>
+        <h2 className="text-2xl font-serif text-white mb-2">
+          {isPersonalEmail ? 'Belge ile Doğrulama' : 'Kurumsal Email Doğrulama'}
+        </h2>
         <p className="text-slate-400 text-sm max-w-xs mx-auto">
-          Kurumsal email adresinizi doğrulayarak hızlıca verified olun.
+          {isPersonalEmail
+            ? 'Bireysel e-posta ile kayıt oldunuz. Hesabınızın aktif olması için mesleki belge yüklemeniz gerekmektedir.'
+            : 'Kurumsal email adresinizi doğrulayarak hızlıca verified olun.'}
         </p>
       </div>
+
+      {isPersonalEmail && verificationStep === 'DOCUMENT' && (
+        <div className="flex items-start gap-3 bg-amber-900/20 border border-amber-500/30 rounded-xl p-4 mb-6">
+          <Info size={18} className="text-amber-400 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-200/80 leading-relaxed">
+            Bireysel e-posta adresi tespit edildi. Belgeniz yüklendikten sonra hesabınız incelemeye alınacak ve <strong className="text-amber-300">1-2 iş günü</strong> içinde onaylanacaktır.
+          </p>
+        </div>
+      )}
 
       {verificationStep === 'EMAIL_INPUT' && (
         <div className="space-y-4">
@@ -337,15 +438,18 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <label htmlFor="registration-age" className="text-xs font-bold text-slate-500 uppercase ml-1">Age</label>
-            <input
+            <select
               id="registration-age"
-              type="number"
-              placeholder="28"
               {...register('age')}
               aria-invalid={Boolean(getFieldError('age'))}
               aria-describedby={getFieldError('age') ? getFieldErrorId('age') : undefined}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors"
-            />
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none"
+            >
+              <option value="">Select</option>
+              {Array.from({ length: 63 }, (_, i) => i + 18).map(age => (
+                <option key={age} value={String(age)}>{age}</option>
+              ))}
+            </select>
             {errors.age && <p id={getFieldErrorId('age')} className="text-xs text-red-400 mt-1" role="alert">{errors.age.message}</p>}
           </div>
           <div className="space-y-1">
@@ -378,6 +482,15 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
             />
           </div>
           {errors.email && <p id={getFieldErrorId('email')} className="text-xs text-red-400 mt-1" role="alert">{errors.email.message}</p>}
+
+          {isPersonalEmail && !errors.email && (
+            <div className="flex items-start gap-2.5 bg-amber-900/20 border border-amber-500/30 rounded-xl p-3 mt-2">
+              <AlertCircle size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-200/80 leading-relaxed">
+                Bireysel e-posta adresi tespit edildi. Hesabınızın aktif olması için mesleki belge yüklemeniz gerekecektir. Onay süreci <strong className="text-amber-300">1-2 iş günü</strong> içinde tamamlanır.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="space-y-1">
@@ -399,15 +512,32 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
 
         <div className="space-y-1">
           <label htmlFor="registration-phone" className="text-xs font-bold text-slate-500 uppercase ml-1">Phone</label>
-          <div className="relative">
-            <Phone className="absolute left-4 top-3.5 text-slate-500" size={18} />
-            <input
-              id="registration-phone"
-              type="tel"
-              placeholder="+1 (555) 000-0000"
-              {...register('phone')}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors"
-            />
+          <div className="flex gap-2">
+            <select
+              value={countryCode}
+              onChange={(e) => {
+                setCountryCode(e.target.value);
+                const currentPhone = formData.phone ?? '';
+                const numberOnly = currentPhone.replace(/^\+\d+\s*/, '');
+                setValue('phone', `${e.target.value} ${numberOnly}`);
+              }}
+              className="w-[100px] bg-slate-900 border border-slate-800 rounded-xl py-3 px-3 text-white text-sm focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none flex-shrink-0"
+            >
+              {COUNTRY_CODES.map(c => (
+                <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
+              ))}
+            </select>
+            <div className="relative flex-1">
+              <input
+                id="registration-phone"
+                type="tel"
+                placeholder={COUNTRY_CODES.find(c => c.code === countryCode)?.placeholder ?? '555 000 0000'}
+                onChange={(e) => {
+                  setValue('phone', `${countryCode} ${e.target.value}`);
+                }}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -462,24 +592,31 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
           {errors.role && <p id={getFieldErrorId('role')} className="text-xs text-red-400 mt-1" role="alert">{errors.role.message}</p>}
         </div>
 
-        <div className="space-y-1">
-          <label htmlFor="registration-specialty" className="text-xs font-bold text-slate-500 uppercase ml-1">Specialty</label>
-          <select
-            id="registration-specialty"
-            {...register('specialty')}
-            aria-invalid={Boolean(getFieldError('specialty'))}
-            aria-describedby={getFieldError('specialty') ? getFieldErrorId('specialty') : undefined}
-            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none"
-          >
-            <option value="">Select Specialty</option>
-            {Object.values(Specialty).map(spec => (
-              <option key={spec} value={spec}>{spec}</option>
-            ))}
-          </select>
-          {errors.specialty && (
-            <p id={getFieldErrorId('specialty')} className="text-xs text-red-400 mt-1" role="alert">{errors.specialty.message}</p>
-          )}
-        </div>
+        {roleHasSpecialties && (
+          <div className="space-y-1">
+            <label htmlFor="registration-specialty" className="text-xs font-bold text-slate-500 uppercase ml-1">Specialty</label>
+            <select
+              id="registration-specialty"
+              {...register('specialty')}
+              aria-invalid={Boolean(getFieldError('specialty'))}
+              aria-describedby={getFieldError('specialty') ? getFieldErrorId('specialty') : undefined}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none"
+            >
+              <option value="">Select Specialty</option>
+              {allowedSpecialties.map(spec => (
+                <option key={spec} value={spec}>{spec}</option>
+              ))}
+            </select>
+            {errors.specialty && (
+              <p id={getFieldErrorId('specialty')} className="text-xs text-red-400 mt-1" role="alert">{errors.specialty.message}</p>
+            )}
+          </div>
+        )}
+        {!roleHasSpecialties && formData.role && (
+          <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+            <p className="text-xs text-slate-400 text-center">No specialty selection needed for {formData.role}.</p>
+          </div>
+        )}
 
         <div className="space-y-1">
           <label htmlFor="registration-institution" className="text-xs font-bold text-slate-500 uppercase ml-1">Institution (Optional)</label>
@@ -500,7 +637,7 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
         onClick={() => {
           void handleProfessionalNext();
         }}
-        disabled={!formData.role || !formData.specialty}
+        disabled={!formData.role || (roleHasSpecialties && !formData.specialty)}
         className="w-full mt-8 py-4 rounded-xl bg-gradient-to-r from-gold-600 to-gold-400 text-slate-950 font-bold text-lg shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Next Step <ChevronRight size={20} />
@@ -546,8 +683,8 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
       <div
         onClick={handleFileUpload}
         className={`border-2 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${formData.document
-            ? 'border-green-500/50 bg-green-500/5'
-            : 'border-slate-700 bg-slate-900 hover:bg-slate-800 hover:border-gold-500/50'
+          ? 'border-green-500/50 bg-green-500/5'
+          : 'border-slate-700 bg-slate-900 hover:bg-slate-800 hover:border-gold-500/50'
           }`}
       >
         <input
@@ -648,15 +785,6 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
           We will notify you via email at {formData.email} once your profile is approved.
         </p>
       </div>
-
-      {isDev && (
-        <button
-          onClick={() => onComplete(getValues(), buildVerificationPayload())}
-          className="text-xs text-slate-600 hover:text-green-500 border border-transparent hover:border-green-500/30 px-4 py-2 rounded transition-colors"
-        >
-          Re-run submission
-        </button>
-      )}
     </div>
   );
 

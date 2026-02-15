@@ -1,4 +1,23 @@
 import { supabase } from '../src/lib/supabase';
+import type { Provider } from '@supabase/supabase-js';
+
+export const signInWithOAuth = async (provider: Provider) => {
+  return supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: window.location.origin,
+    },
+  });
+};
+
+export const signInWithMagicLink = async (email: string) => {
+  return supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: window.location.origin,
+    },
+  });
+};
 
 export const signUpWithEmail = async (email: string, password: string, metadata?: Record<string, unknown>) => {
   return supabase.auth.signUp({

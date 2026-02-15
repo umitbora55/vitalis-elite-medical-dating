@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Activity, ShieldCheck, Heart, Clock, Lock, ChevronRight } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { Activity, ShieldCheck, Heart, Clock, Lock, ChevronRight, Loader2 } from 'lucide-react';
 
 interface OnboardingViewProps {
   onComplete: () => void;
@@ -7,6 +7,8 @@ interface OnboardingViewProps {
 
 export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) => {
   const [step, setStep] = useState(0);
+  // AUDIT-FIX: [FE-007] - Added isTransitioning state to prevent double-click issues
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const steps = [
     {
@@ -41,13 +43,27 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
     }
   ];
 
-  const handleNext = () => {
+  // AUDIT-FIX: [FE-007] - Added double-click prevention with transition state
+  const handleNext = useCallback(() => {
+    if (isTransitioning) return;
+
     if (step < steps.length - 1) {
+      setIsTransitioning(true);
       setStep(prev => prev + 1);
+      // Reset transitioning state after animation completes
+      setTimeout(() => setIsTransitioning(false), 350);
     } else {
+      setIsTransitioning(true);
       onComplete();
     }
-  };
+  }, [step, steps.length, isTransitioning, onComplete]);
+
+  // AUDIT-FIX: [FE-007] - Handle skip with transition protection
+  const handleSkip = useCallback(() => {
+    if (isTransitioning) return;
+    setIsTransitioning(true);
+    onComplete();
+  }, [isTransitioning, onComplete]);
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center animate-fade-in">
@@ -81,19 +97,33 @@ export const OnboardingView: React.FC<OnboardingViewProps> = ({ onComplete }) =>
             </p>
         </div>
 
-        {/* Actions */}
+        {/* AUDIT-FIX: [FE-007] - Actions with loading state and disabled during transition */}
         <div className="w-full mt-8">
-            <button 
+            <button
                 onClick={handleNext}
-                className="w-full py-4 rounded-xl bg-gradient-to-r from-gold-600 to-gold-400 text-slate-950 font-bold text-lg shadow-lg hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 group"
+                disabled={isTransitioning}
+                className={`w-full py-4 rounded-xl bg-gradient-to-r from-gold-600 to-gold-400 text-slate-950 font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-2 group ${
+                  isTransitioning ? 'opacity-80 cursor-not-allowed' : 'hover:scale-[1.02]'
+                }`}
+                aria-busy={isTransitioning}
             >
-                {step === steps.length - 1 ? "Get Started" : "Next"}
-                <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                {isTransitioning && step === steps.length - 1 ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    {step === steps.length - 1 ? "Get Started" : "Next"}
+                    <ChevronRight size={20} className={!isTransitioning ? "group-hover:translate-x-1 transition-transform" : ""} />
+                  </>
+                )}
             </button>
             {step < steps.length - 1 && (
-                <button 
-                    onClick={onComplete}
-                    className="mt-4 text-slate-500 text-sm font-medium hover:text-slate-300"
+                <button
+                    onClick={handleSkip}
+                    disabled={isTransitioning}
+                    className={`mt-4 text-slate-500 text-sm font-medium ${isTransitioning ? 'opacity-50 cursor-not-allowed' : 'hover:text-slate-300'}`}
                 >
                     Skip Intro
                 </button>

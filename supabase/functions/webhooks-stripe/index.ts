@@ -1,12 +1,19 @@
 // @ts-nocheck
+// AUDIT-FIX: BE-007 — Removed unnecessary CORS headers (webhooks are server-to-server)
+// AUDIT-FIX: BE-013 — Added plan metadata validation
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.95.3';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature',
+// AUDIT-FIX: BE-007 — Minimal headers for webhook endpoint
+// Webhooks are called by Stripe servers, not browsers, so CORS is unnecessary
+// Only stripe-signature header is needed for validation
+const responseHeaders = {
+  'Content-Type': 'application/json',
 };
+
+// AUDIT-FIX: BE-013 — Valid plan values to prevent invalid subscription creation
+const VALID_PLANS = new Set(['DOSE', 'FORTE', 'ULTRA', 'GOLD', 'PLATINUM']);
 
 const isDuplicateEventError = (error: unknown): boolean => {
   const code = (error as { code?: string } | null)?.code;
@@ -27,8 +34,10 @@ const persistEventIdempotencyKey = async (supabase: ReturnType<typeof createClie
 };
 
 serve(async (req) => {
+  // AUDIT-FIX: BE-007 — Webhooks don't need OPTIONS/CORS (server-to-server)
+  // Stripe doesn't send preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { status: 204 });
   }
 
   const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
@@ -39,7 +48,7 @@ serve(async (req) => {
   if (!stripeSecret || !webhookSecret || !supabaseUrl || !supabaseServiceRole) {
     return new Response(JSON.stringify({ error: 'Missing env vars' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: responseHeaders,
     });
   }
 
@@ -54,7 +63,7 @@ serve(async (req) => {
   } catch (error) {
     return new Response(JSON.stringify({ error: 'Invalid signature' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: responseHeaders,
     });
   }
 
@@ -63,13 +72,13 @@ serve(async (req) => {
   if (idempotencyError) {
     return new Response(JSON.stringify({ error: 'Failed to persist event idempotency key' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: responseHeaders,
     });
   }
 
   if (duplicate) {
     return new Response(JSON.stringify({ received: true, duplicate: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: responseHeaders,
     });
   }
 
@@ -79,7 +88,24 @@ serve(async (req) => {
         const session = event.data.object;
         const subscriptionId = session.subscription;
         const userId = session.metadata?.userId || session.client_reference_id;
-        const plan = session.metadata?.plan || 'GOLD';
+        const plan = session.metadata?.plan;
+
+        // AUDIT-FIX: BE-013 — Reject if plan metadata is missing or invalid
+        if (!plan) {
+          console.error('Missing plan metadata in checkout session', { sessionId: session.id });
+          return new Response(JSON.stringify({ error: 'Missing plan metadata' }), {
+            status: 400,
+            headers: responseHeaders,
+          });
+        }
+
+        if (!VALID_PLANS.has(plan)) {
+          console.error('Invalid plan value in checkout session', { sessionId: session.id, plan });
+          return new Response(JSON.stringify({ error: 'Invalid plan value' }), {
+            status: 400,
+            headers: responseHeaders,
+          });
+        }
 
         if (subscriptionId && userId) {
           const subscription = await stripe.subscriptions.retrieve(subscriptionId);
@@ -134,12 +160,12 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ received: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: responseHeaders,
     });
   } catch (error) {
     return new Response(JSON.stringify({ error: 'Webhook handler failed' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: responseHeaders,
     });
   }
 });

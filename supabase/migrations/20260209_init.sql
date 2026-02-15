@@ -129,12 +129,14 @@ CREATE TABLE IF NOT EXISTS matches (
     is_active BOOLEAN DEFAULT TRUE,
     unmatched_by UUID,
     unmatched_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT unique_match UNIQUE (
-        LEAST(profile_1_id, profile_2_id),
-        GREATEST(profile_1_id, profile_2_id)
-    )
+    created_at TIMESTAMPTZ DEFAULT NOW()
+
+
+
+
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_match ON matches(LEAST(profile_1_id, profile_2_id), GREATEST(profile_1_id, profile_2_id)) WHERE is_active = TRUE;
 
 CREATE INDEX IF NOT EXISTS idx_matches_p1 ON matches(profile_1_id) WHERE is_active = TRUE;
 CREATE INDEX IF NOT EXISTS idx_matches_p2 ON matches(profile_2_id) WHERE is_active = TRUE;
@@ -252,10 +254,15 @@ CREATE TABLE IF NOT EXISTS referrals (
 
 -- RLS Policies
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Match participants can view messages" ON messages;
 CREATE POLICY "Match participants can view messages" ON messages FOR SELECT USING (
   EXISTS (
     SELECT 1 FROM matches
@@ -263,6 +270,7 @@ CREATE POLICY "Match participants can view messages" ON messages FOR SELECT USIN
       AND (profile_1_id = auth.uid() OR profile_2_id = auth.uid())
   )
 );
+DROP POLICY IF EXISTS "Match participants can send messages" ON messages;
 CREATE POLICY "Match participants can send messages" ON messages FOR INSERT WITH CHECK (
   sender_id = auth.uid()
   AND EXISTS (

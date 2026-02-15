@@ -40,7 +40,7 @@ import {
     updateProfileVerificationStatus,
     uploadVerificationDocument,
 } from './services/verificationService';
-import { supabase } from './src/lib/supabase';
+// AUDIT-FIX: BE-002/BE-008 — Removed direct supabase import; auth now handled internally by verification functions
 
 const MatchesView = lazy(() => import('./components/MatchesView').then((m) => ({ default: m.MatchesView })));
 const ChatView = lazy(() => import('./components/ChatView').then((m) => ({ default: m.ChatView })));
@@ -259,7 +259,7 @@ const App: React.FC = () => {
         }
         const toastId = window.setTimeout(() => {
             if (checkoutStatus === 'success') {
-                showToast('Welcome to Vitalis Elite!');
+                showToast('Welcome to Vitalis!');
             } else if (checkoutStatus === 'cancel') {
                 showToast('Checkout canceled.');
             }
@@ -328,53 +328,46 @@ const App: React.FC = () => {
         if (profileError) {
             showToast('Profile saved locally. Cloud sync failed.');
         }
+        // AUDIT-FIX: BE-002/BE-008 — userId no longer passed; functions use auth.getUser() internally
         if (verification.method === 'EMAIL' && email && verification.domain && verification.tier) {
-            const { data: authData } = await supabase.auth.getUser();
-            if (authData?.user?.id) {
-                const saveEmailResult = await saveVerifiedEmail(authData.user.id, email, verification.domain, verification.tier);
-                if (saveEmailResult.error) {
-                    showToast('Verified email could not be saved.');
-                    return;
-                }
+            const saveEmailResult = await saveVerifiedEmail(email, verification.domain, verification.tier);
+            if (saveEmailResult.error) {
+                showToast('Verified email could not be saved.');
+                return;
+            }
 
-                const updateStatusResult = await updateProfileVerificationStatus(authData.user.id, 'VERIFIED');
-                if (updateStatusResult.error) {
-                    showToast('Verification status update failed.');
-                    return;
-                }
+            const updateStatusResult = await updateProfileVerificationStatus('VERIFIED');
+            if (updateStatusResult.error) {
+                showToast('Verification status update failed.');
+                return;
             }
         } else {
-            const { data: authData } = await supabase.auth.getUser();
-            if (authData?.user?.id) {
-                if (!verification.documentFile) {
-                    showToast('Verification document is missing.');
-                    return;
-                }
+            if (!verification.documentFile) {
+                showToast('Verification document is missing.');
+                return;
+            }
 
-                const uploadResult = await uploadVerificationDocument(
-                    authData.user.id,
-                    verification.documentFile,
-                );
-                if (uploadResult.error || !uploadResult.documentPath) {
-                    showToast(uploadResult.error?.message || 'Verification document upload failed.');
-                    return;
-                }
+            const uploadResult = await uploadVerificationDocument(
+                verification.documentFile,
+            );
+            if (uploadResult.error || !uploadResult.documentPath) {
+                showToast(uploadResult.error?.message || 'Verification document upload failed.');
+                return;
+            }
 
-                const createRequestResult = await createVerificationRequest(
-                    authData.user.id,
-                    'DOCUMENT',
-                    uploadResult.documentPath,
-                );
-                if (createRequestResult.error) {
-                    showToast('Verification request could not be created.');
-                    return;
-                }
+            const createRequestResult = await createVerificationRequest(
+                'DOCUMENT',
+                uploadResult.documentPath,
+            );
+            if (createRequestResult.error) {
+                showToast('Verification request could not be created.');
+                return;
+            }
 
-                const updateStatusResult = await updateProfileVerificationStatus(authData.user.id, 'PENDING_VERIFICATION');
-                if (updateStatusResult.error) {
-                    showToast('Verification status update failed.');
-                    return;
-                }
+            const updateStatusResult = await updateProfileVerificationStatus('PENDING_VERIFICATION');
+            if (updateStatusResult.error) {
+                showToast('Verification status update failed.');
+                return;
             }
         }
 
@@ -386,7 +379,7 @@ const App: React.FC = () => {
             setAuthStep('APP');
         }
         if (nextProfile.verificationStatus === 'VERIFIED') {
-            showToast('Welcome to Vitalis Elite!');
+            showToast('Welcome to Vitalis!');
         } else {
             showToast('Verification pending. You will be notified when approved.');
         }
@@ -999,10 +992,12 @@ const App: React.FC = () => {
                             )}
                         </div>
 
+                        {/* AUDIT-FIX: [FE-006] - Pass canRewind prop for proper disabled state */}
                         <ControlPanel
                             onSwipe={handleSwipe}
                             onRewind={handleRewind}
                             remainingSuperLikes={superLikesCount}
+                            canRewind={isPremium && !!lastSwipedId}
                         />
                     </div>
                 ) : (
@@ -1049,26 +1044,13 @@ const App: React.FC = () => {
     };
 
     // --- RENDER LANDING PAGE ---
+    // AUDIT-FIX: FE-001 — Removed dev bypass code entirely for security hardening.
+    // Dev/test accounts should use proper test credentials, not UI bypasses.
     if (authStep === 'LANDING') {
         return (
             <LandingView
                 onEnter={handleStartApplication}
                 onLogin={handleStartLogin}
-                onDevBypass={import.meta.env.DEV ? () => {
-                    updateUserProfile({
-                        ...userProfile,
-                        name: 'Dev User',
-                        age: 30,
-                        role: MedicalRole.DOCTOR,
-                        specialty: Specialty.CARDIOLOGY,
-                        hospital: 'Test Hospital',
-                        bio: 'Development test account',
-                        verificationStatus: 'VERIFIED',
-                    });
-                    localStorage.setItem('vitalis_onboarding_seen', 'true');
-                    setAuthStep('APP');
-                    showToast('Logged in as test user');
-                } : undefined}
             />
         );
     }

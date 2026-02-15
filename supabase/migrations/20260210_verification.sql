@@ -37,11 +37,17 @@ CREATE INDEX IF NOT EXISTS idx_verification_requests_status ON verification_requ
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS verification_status TEXT NOT NULL DEFAULT 'PENDING_VERIFICATION';
 
-ALTER TABLE profiles
-  ADD CONSTRAINT profiles_verification_status_check
-  CHECK (verification_status IN (
-    'PENDING_VERIFICATION',
-    'EMAIL_VERIFICATION_SENT',
-    'REJECTED',
-    'VERIFIED'
-  ));
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_verification_status_check') THEN
+    ALTER TABLE profiles ADD CONSTRAINT profiles_verification_status_check
+    CHECK (verification_status IN ('PENDING_VERIFICATION','EMAIL_VERIFICATION_SENT','REJECTED','VERIFIED'));
+  END IF;
+END $$;
+
+
+
+
+
+
+
+

@@ -26,6 +26,45 @@ export enum MedicalRole {
   STUDENT = 'Medical Student'
 }
 
+/** Maps each MedicalRole to the Specialty values it is allowed to select. */
+export const ROLE_SPECIALTIES: Record<MedicalRole, Specialty[]> = {
+  [MedicalRole.DOCTOR]: [
+    Specialty.CARDIOLOGY,
+    Specialty.NEUROLOGY,
+    Specialty.SURGERY,
+    Specialty.PEDIATRICS,
+    Specialty.DERMATOLOGY,
+    Specialty.ANESTHESIOLOGY,
+    Specialty.RADIOLOGY,
+    Specialty.EMERGENCY,
+    Specialty.PSYCHIATRY,
+  ],
+  [MedicalRole.NURSE]: [
+    Specialty.NURSING,
+    Specialty.EMERGENCY,
+    Specialty.PEDIATRICS,
+    Specialty.PSYCHIATRY,
+  ],
+  [MedicalRole.PHARMACIST]: [
+    Specialty.PHARMACY,
+  ],
+  [MedicalRole.PHYSIOTHERAPIST]: [
+    Specialty.PHYSIOTHERAPY,
+  ],
+  [MedicalRole.DIETITIAN]: [
+    Specialty.DIETETICS,
+  ],
+  [MedicalRole.DENTIST]: [
+    Specialty.DENTISTRY,
+  ],
+  [MedicalRole.TECHNICIAN]: [
+    Specialty.RADIOLOGY,
+    Specialty.ANESTHESIOLOGY,
+    Specialty.EMERGENCY,
+  ],
+  [MedicalRole.STUDENT]: [],
+};
+
 export enum SwipeDirection {
   LEFT = 'LEFT',
   RIGHT = 'RIGHT',

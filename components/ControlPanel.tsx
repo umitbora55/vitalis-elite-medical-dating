@@ -6,21 +6,31 @@ interface ControlPanelProps {
   onSwipe: (direction: SwipeDirection) => void;
   onRewind: () => void;
   remainingSuperLikes: number;
+  // AUDIT-FIX: [FE-006] - Added canRewind prop for proper disabled state
+  canRewind?: boolean;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ onSwipe, onRewind, remainingSuperLikes }) => {
+export const ControlPanel: React.FC<ControlPanelProps> = ({ onSwipe, onRewind, remainingSuperLikes, canRewind = true }) => {
   const isSuperLikeDisabled = remainingSuperLikes <= 0;
+  // AUDIT-FIX: [FE-006] - Rewind button disabled state for non-premium or no swipe to rewind
+  const isRewindDisabled = !canRewind;
 
   return (
     <div className="absolute bottom-6 left-0 right-0 flex justify-center items-center gap-4 z-20 pointer-events-none">
       
-      {/* Rewind Button */}
-      <button 
+      {/* AUDIT-FIX: [FE-006] - Rewind Button with proper disabled state */}
+      <button
         onClick={onRewind}
-        className="pointer-events-auto w-10 h-10 rounded-full bg-slate-900/80 backdrop-blur border border-gold-500/50 text-gold-500 hover:text-white hover:bg-gold-500 hover:border-gold-500 transition-all shadow-lg flex items-center justify-center group active:scale-95"
-        title="Rewind"
+        disabled={isRewindDisabled}
+        className={`pointer-events-auto w-10 h-10 rounded-full backdrop-blur border transition-all shadow-lg flex items-center justify-center group ${
+          isRewindDisabled
+            ? 'bg-slate-800 border-slate-700 text-slate-600 cursor-not-allowed'
+            : 'bg-slate-900/80 border-gold-500/50 text-gold-500 hover:text-white hover:bg-gold-500 hover:border-gold-500 active:scale-95'
+        }`}
+        title={isRewindDisabled ? "Premium feature" : "Rewind"}
+        aria-label={isRewindDisabled ? "Rewind (Premium feature)" : "Rewind last swipe"}
       >
-        <RotateCcw size={18} className="group-hover:-rotate-45 transition-transform" />
+        <RotateCcw size={18} className={!isRewindDisabled ? "group-hover:-rotate-45 transition-transform" : ""} />
       </button>
 
       {/* Pass Button */}
