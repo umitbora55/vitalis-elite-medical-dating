@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import { MOCK_PROFILES, MOCK_LIKES_YOU_PROFILES, DAILY_SWIPE_LIMIT, DEFAULT_MESSAGE_TEMPLATES } from './constants';
 import { SwipeDirection, Match, Profile, FilterPreferences, Specialty, MedicalRole, Notification, NotificationType, ReportReason, SwipeHistoryItem, MessageTemplate, ChatTheme } from './types';
+import type { ProfileCompletionData } from './components/ProfileCompletionView';
 import { AppHeader } from './components/AppHeader';
 import { ProfileCard } from './components/ProfileCard';
 import { ControlPanel } from './components/ControlPanel';
 import { MatchOverlay } from './components/MatchOverlay';
 import { FilterView } from './components/FilterView';
 import { LandingView } from './components/LandingView';
-import { Tooltip } from './components/Tooltip';
+
 import { StoryRail } from './components/StoryRail';
 import { StoryViewer } from './components/StoryViewer';
 import { NearbyView } from './components/NearbyView';
@@ -52,6 +53,7 @@ const PremiumView = lazy(() => import('./components/PremiumView').then((m) => ({
 const OnboardingView = lazy(() => import('./components/OnboardingView').then((m) => ({ default: m.OnboardingView })));
 const RegistrationFlow = lazy(() => import('./components/RegistrationFlow').then((m) => ({ default: m.RegistrationFlow })));
 const SwipeHistoryView = lazy(() => import('./components/SwipeHistoryView').then((m) => ({ default: m.SwipeHistoryView })));
+const ProfileCompletionView = lazy(() => import('./components/ProfileCompletionView').then((m) => ({ default: m.ProfileCompletionView })));
 
 type VerificationPayload = {
     method: 'EMAIL' | 'DOCUMENT';
@@ -69,6 +71,16 @@ type RegistrationData = {
     role?: MedicalRole | string;
     specialty?: Specialty | string;
     institution?: string;
+    // Tier 1
+    genderPreference?: string;
+    city?: string;
+    university?: string;
+    // Tier 2
+    graduationYear?: string;
+    experienceYears?: string;
+    lookingFor?: string;
+    smoking?: string;
+    drinking?: string;
 };
 
 const INITIAL_NOW_MS = Date.now();
@@ -117,6 +129,10 @@ const App: React.FC = () => {
     const setMatches = useMatchStore((state) => state.setMatches);
     const addMatch = useMatchStore((state) => state.addMatch);
     const removeMatch = useMatchStore((state) => state.removeMatch);
+    const updateMatch = useMatchStore((state) => state.updateMatch);
+    const expireMatches = useMatchStore((state) => state.expireMatches);
+    const extendMatch = useMatchStore((state) => state.extendMatch);
+    const dailyExtensions = useMatchStore((state) => state.dailyExtensions);
     const currentMatch = useMatchStore((state) => state.currentMatch);
     const setCurrentMatch = useMatchStore((state) => state.setCurrentMatch);
     const activeChatMatch = useMatchStore((state) => state.activeChatMatch);
@@ -148,9 +164,7 @@ const App: React.FC = () => {
         void upsertProfile(updatedProfile);
     }, [setUserProfile, syncProfileTheme]);
 
-    // Tips State
-    const [closedTips, setClosedTips] = useState<Set<string>>(new Set());
-    const [activeTip, setActiveTip] = useState<{ id: string, message: string } | null>(null);
+
 
     // Message Templates State
     const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>(DEFAULT_MESSAGE_TEMPLATES);
@@ -249,6 +263,14 @@ const App: React.FC = () => {
         }
     }, [currentView]);
 
+    // --- Match Expiration Timer (every 60s) ---
+    useEffect(() => {
+        const interval = setInterval(() => {
+            expireMatches();
+        }, 60_000);
+        return () => clearInterval(interval);
+    }, [expireMatches]);
+
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const checkoutStatus = params.get('checkout');
@@ -319,6 +341,16 @@ const App: React.FC = () => {
                     ? (data.specialty as Specialty)
                     : userProfile.specialty,
             hospital: data.institution || userProfile.hospital,
+            // Tier 1
+            genderPreference: (data.genderPreference as Profile['genderPreference']) || userProfile.genderPreference,
+            university: data.university || userProfile.university,
+            city: data.city || userProfile.city,
+            // Tier 2
+            graduationYear: data.graduationYear ? parseInt(data.graduationYear, 10) : userProfile.graduationYear,
+            experienceYears: data.experienceYears ? parseInt(data.experienceYears, 10) : userProfile.experienceYears,
+            lookingFor: (data.lookingFor as Profile['lookingFor']) || userProfile.lookingFor,
+            smoking: (data.smoking as Profile['smoking']) || userProfile.smoking,
+            drinking: (data.drinking as Profile['drinking']) || userProfile.drinking,
             verificationStatus:
                 verification.method === 'EMAIL' ? 'VERIFIED' : 'PENDING_VERIFICATION',
         };
@@ -376,7 +408,7 @@ const App: React.FC = () => {
         if (!hasSeen) {
             setAuthStep('ONBOARDING');
         } else {
-            setAuthStep('APP');
+            setAuthStep('PROFILE_COMPLETION');
         }
         if (nextProfile.verificationStatus === 'VERIFIED') {
             showToast('Welcome to Vitalis!');
@@ -390,43 +422,13 @@ const App: React.FC = () => {
     }, [setAuthStep]);
 
     const handleOnboardingComplete = useCallback(() => {
-        setAuthStep('APP');
+        setAuthStep('PROFILE_COMPLETION');
         localStorage.setItem('vitalis_onboarding_seen', 'true');
     }, [setAuthStep]);
 
-    // Logic for Contextual Tips
-    useEffect(() => {
-        if (authStep !== 'APP') return;
 
-        const timer = setTimeout(() => {
-            // Tip 1: Add Interests (Show on Home)
-            if (currentView === 'home' && !closedTips.has('interests')) {
-                setActiveTip({
-                    id: 'interests',
-                    message: "Add more interests to your profile to get 2x more matches!"
-                });
-            }
-            // Tip 2: Availability (Show on Profile)
-            else if (currentView === 'profile' && !closedTips.has('availability')) {
-                setActiveTip({
-                    id: 'availability',
-                    message: "Turn on 'I'm Available' status so active users see you first."
-                });
-            }
-            else {
-                setActiveTip(null);
-            }
-        }, 1500); // 1.5s delay after view change
 
-        return () => clearTimeout(timer);
-    }, [currentView, closedTips, authStep]);
 
-    const closeTip = useCallback(() => {
-        if (activeTip) {
-            setClosedTips(prev => new Set(prev).add(activeTip.id));
-            setActiveTip(null);
-        }
-    }, [activeTip]);
 
     const { boostCount, boostEndTime, timeLeft, activateBoost: startBoost } = useBoost({
         initialCount: 1,
@@ -694,16 +696,21 @@ const App: React.FC = () => {
                     // --- FIRST MESSAGE PREFERENCE LOGIC ---
                     let isFirstMessagePending = false;
                     let allowedSenderId = null;
-                    let expiresAt = undefined;
 
                     if (userProfile.firstMessagePreference === 'ME_FIRST') {
                         isFirstMessagePending = true;
                         allowedSenderId = 'me';
-                        expiresAt = Date.now() + 24 * 60 * 60 * 1000;
                     } else if (userProfile.firstMessagePreference === 'THEM_FIRST') {
                         isFirstMessagePending = true;
-                        allowedSenderId = 'them'; // UI will translate this to match ID
-                        expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+                        allowedSenderId = 'them';
+                    }
+
+                    // expiresAt: ANYONE→48h, ME_FIRST/THEM_FIRST→24h
+                    const baseHours = userProfile.firstMessagePreference === 'ANYONE' ? 48 : 24;
+                    let expiresAt = Date.now() + baseHours * 60 * 60 * 1000;
+                    // Nöbetteyse +24h
+                    if (currentProfile.isOnCall || userProfile.isOnCall) {
+                        expiresAt += 24 * 60 * 60 * 1000;
                     }
 
                     const newMatch: Match = {
@@ -711,7 +718,9 @@ const App: React.FC = () => {
                         timestamp: Date.now(),
                         isFirstMessagePending,
                         allowedSenderId,
-                        expiresAt
+                        expiresAt,
+                        extended: false,
+                        isActive: true,
                     };
                     addMatch(newMatch);
                     setCurrentMatch(newMatch); // Triggers the overlay
@@ -721,7 +730,7 @@ const App: React.FC = () => {
 
             setSwipeDirection(null);
         }, 400); // Matches transition duration
-    }, [addMatch, addSwipeHistory, addSwipedProfile, dailySwipesRemaining, decrementSuperLike, decrementSwipe, isPremium, superLikesCount, swipeDirection, currentProfile, setCurrentMatch, setLastSwipedId, setShowPremiumAlert, setSwipeDirection, trackEvent, userProfile.firstMessagePreference]);
+    }, [addMatch, addSwipeHistory, addSwipedProfile, dailySwipesRemaining, decrementSuperLike, decrementSwipe, isPremium, superLikesCount, swipeDirection, currentProfile, setCurrentMatch, setLastSwipedId, setShowPremiumAlert, setSwipeDirection, trackEvent, userProfile.firstMessagePreference, userProfile.isOnCall]);
 
     const handleRewind = useCallback(() => {
         if (!lastSwipedId) return;
@@ -862,14 +871,7 @@ const App: React.FC = () => {
                     />
                 </div>
 
-                {/* TOOLTIP FOR HOME */}
-                {activeTip && activeTip.id === 'interests' && (
-                    <Tooltip
-                        message={activeTip.message}
-                        onClose={closeTip}
-                        className="bottom-32 left-1/2 -translate-x-1/2 z-50"
-                    />
-                )}
+
 
                 {/* Top Controls Area (Boost & Likes You) */}
                 <div className="w-full flex justify-between items-center mb-2 px-4 relative z-10 mt-2">
@@ -1048,10 +1050,18 @@ const App: React.FC = () => {
     // Dev/test accounts should use proper test credentials, not UI bypasses.
     if (authStep === 'LANDING') {
         return (
-            <LandingView
-                onEnter={handleStartApplication}
-                onLogin={handleStartLogin}
-            />
+            <div className="relative">
+                <LandingView
+                    onEnter={handleStartApplication}
+                    onLogin={handleStartLogin}
+                />
+                <button
+                    onClick={() => setAuthStep('APP')}
+                    className="fixed bottom-4 right-4 z-[9999] bg-red-600/80 hover:bg-red-500 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg backdrop-blur-sm transition-all"
+                >
+                    🛠 Dev Bypass
+                </button>
+            </div>
         );
     }
 
@@ -1084,6 +1094,31 @@ const App: React.FC = () => {
         return (
             <Suspense fallback={<LoadingScreen />}>
                 <OnboardingView onComplete={handleOnboardingComplete} />
+            </Suspense>
+        );
+    }
+
+    // --- RENDER PROFILE COMPLETION ---
+    if (authStep === 'PROFILE_COMPLETION') {
+        const handleProfileComplete = (data: ProfileCompletionData) => {
+            const updatedProfile: Partial<Profile> = {
+                ...(data.workStyle && { workStyle: data.workStyle }),
+                ...(data.shiftFrequency && { shiftFrequency: data.shiftFrequency }),
+                ...(data.livingStatus && { livingStatus: data.livingStatus }),
+                ...(data.salaryRange && { salaryRange: data.salaryRange }),
+                ...(data.abroadExperience !== undefined && { abroadExperience: data.abroadExperience }),
+            };
+            updateUserProfile({ ...userProfile, ...updatedProfile });
+            void upsertProfile({ ...userProfile, ...updatedProfile });
+            setAuthStep('APP');
+        };
+
+        return (
+            <Suspense fallback={<LoadingScreen />}>
+                <ProfileCompletionView
+                    onComplete={handleProfileComplete}
+                    onSkip={() => setAuthStep('APP')}
+                />
             </Suspense>
         );
     }
@@ -1199,14 +1234,7 @@ const App: React.FC = () => {
                     />
                 )}
 
-                {/* TOOLTIP FOR PROFILE */}
-                {activeTip && activeTip.id === 'availability' && currentView === 'profile' && (
-                    <Tooltip
-                        message={activeTip.message}
-                        onClose={closeTip}
-                        className="bottom-24 left-1/2 -translate-x-1/2 z-layer-tooltip"
-                    />
-                )}
+
 
                 <Suspense fallback={<LoadingScreen />}>
                     {activeChatMatch ? (
@@ -1217,6 +1245,7 @@ const App: React.FC = () => {
                                 setShowChatEntryDissolve(false);
                             }}
                             onUnmatch={handleUnmatch}
+                            onUpdateMatch={(matchId, updates) => updateMatch(matchId, updates)}
                             userProfile={userProfile}
                             templates={messageTemplates}
                             onAddTemplate={handleAddTemplate}
@@ -1247,7 +1276,7 @@ const App: React.FC = () => {
                     ) : (
                         <>
                             {currentView === 'home' && renderHome()}
-                            {currentView === 'matches' && <MatchesView matches={matches} onMatchSelect={setActiveChatMatch} />}
+                            {currentView === 'matches' && <MatchesView matches={matches} onMatchSelect={setActiveChatMatch} onExtendMatch={extendMatch} isPremium={isPremium} dailyExtensions={dailyExtensions} />}
                             {currentView === 'notifications' && (
                                 <NotificationsView
                                     notifications={notifications}

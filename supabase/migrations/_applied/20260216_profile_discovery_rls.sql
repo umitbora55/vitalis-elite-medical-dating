@@ -18,6 +18,7 @@ USING (auth.uid() = id);
 
 -- Policy 2: Users can discover other verified profiles (with privacy filters)
 -- This enables the core matching/discovery functionality
+DROP POLICY IF EXISTS "Users can discover verified profiles" ON profiles;
 CREATE POLICY "Users can discover verified profiles"
 ON profiles FOR SELECT
 USING (

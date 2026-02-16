@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Profile, ProfileQuestion } from '../types';
 import { PREDEFINED_QUESTIONS } from '../constants';
-import { Camera, X, Check, ChevronRight, BadgeCheck, CheckCheck, Settings, AlertTriangle, PauseCircle, Trash2, ShieldCheck, Mail, Smartphone, CheckCircle, Scale, KeyRound, MessageSquare, Users, UserCheck, SlidersHorizontal } from 'lucide-react';
+import { Camera, X, Check, ChevronRight, BadgeCheck, CheckCheck, Settings, AlertTriangle, PauseCircle, Trash2, ShieldCheck, Mail, Smartphone, CheckCircle, Scale, KeyRound, MessageSquare, Users, UserCheck, SlidersHorizontal, Stethoscope, Clock } from 'lucide-react';
 import { CommunityGuidelines } from './CommunityGuidelines';
 import { VerificationCenter } from './profile/VerificationCenter';
 import { AccountSettings } from './profile/AccountSettings';
@@ -328,6 +328,69 @@ export const MyProfileView: React.FC<MyProfileViewProps> = ({
                         </button>
                     ))}
                 </div>
+            </div>
+
+            {/* --- Nöbet Modu (On-Call Mode) --- */}
+            <div className="mb-6 bg-white dark:bg-slate-900/50 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm transition-all hover:shadow-md">
+                <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <Stethoscope size={16} className="text-blue-500" />
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Nöbet Modu</h3>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 mb-3">
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${profile.isOnCall ? 'bg-blue-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-400'} transition-colors`}>
+                            <Stethoscope size={18} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-slate-900 dark:text-white">Nöbetteyim</p>
+                            <p className="text-[10px] text-slate-500">Aktifken eşleşme sürelerine +24h eklenir</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => {
+                            if (profile.isOnCall) {
+                                onUpdateProfile({ ...profile, isOnCall: false, onCallEndsAt: undefined });
+                            } else {
+                                // Default 12h on-call
+                                onUpdateProfile({ ...profile, isOnCall: true, onCallEndsAt: Date.now() + 12 * 60 * 60 * 1000 });
+                            }
+                        }}
+                        className={`relative w-12 h-6 rounded-full transition-colors ${profile.isOnCall ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                    >
+                        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${profile.isOnCall ? 'left-[26px]' : 'left-0.5'}`} />
+                    </button>
+                </div>
+
+                {profile.isOnCall && (
+                    <div className="space-y-2">
+                        <p className="text-[10px] text-slate-500 font-bold uppercase">Nöbet Süresi</p>
+                        <div className="flex gap-2">
+                            {[6, 12, 24].map((hours) => {
+                                const endAt = Date.now() + hours * 60 * 60 * 1000;
+                                const isSelected = profile.onCallEndsAt && Math.abs((profile.onCallEndsAt - Date.now()) / 3_600_000 - hours) < 1;
+                                return (
+                                    <button
+                                        key={hours}
+                                        onClick={() => onUpdateProfile({ ...profile, onCallEndsAt: endAt })}
+                                        className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-1.5 border ${isSelected
+                                                ? 'bg-blue-600/10 border-blue-500 text-blue-400'
+                                                : 'border-slate-200 dark:border-slate-700 text-slate-400 hover:border-blue-400/50'
+                                            }`}
+                                    >
+                                        <Clock size={12} />
+                                        {hours}s
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {profile.onCallEndsAt && (
+                            <p className="text-[10px] text-blue-400/70 text-center mt-1">
+                                Nöbet bitiş: {new Date(profile.onCallEndsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                        )}
+                    </div>
+                )}
             </div>
 
             <VerificationCenter profile={profile} onStartVerification={startVerification} />

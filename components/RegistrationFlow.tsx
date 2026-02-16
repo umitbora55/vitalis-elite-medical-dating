@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MedicalRole, Specialty, ROLE_SPECIALTIES } from '../types';
-import { ChevronRight, Upload, FileCheck, ShieldCheck, CheckCircle2, AlertCircle, Loader2, User, Mail, Building2, Stethoscope, ChevronLeft, Lock, Info } from 'lucide-react';
+import { ChevronRight, Upload, FileCheck, ShieldCheck, CheckCircle2, AlertCircle, Loader2, User, Mail, Building2, Stethoscope, ChevronLeft, Lock, Info, GraduationCap } from 'lucide-react';
 import { CommunityGuidelines } from './CommunityGuidelines';
 import { getVerifiedDomain, sendVerificationOtp, verifyOtp } from '../services/verificationService';
 
@@ -40,6 +40,8 @@ const registrationSchema = z.object({
       return Number.isFinite(parsed) && parsed >= 18 && parsed <= 100;
     }, 'Enter a valid age'),
   gender: z.string().optional(),
+  genderPreference: z.string().min(1, 'Kimi görmek istediğini seç'),
+  city: z.string().min(2, 'Şehir gereklidir'),
   email: z.string().email('Enter a valid email'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   phone: z.string().optional(),
@@ -49,6 +51,12 @@ const registrationSchema = z.object({
     .refine((value) => Object.values(MedicalRole).includes(value as MedicalRole), 'Select a role'),
   specialty: z.string(),
   institution: z.string().optional(),
+  university: z.string().min(2, 'Üniversite gereklidir'),
+  graduationYear: z.string().optional(),
+  experienceYears: z.string().optional(),
+  lookingFor: z.string().optional(),
+  smoking: z.string().optional(),
+  drinking: z.string().optional(),
   document: z.string().min(1, 'Upload a document to continue'),
 }).superRefine((data, ctx) => {
   const role = data.role as MedicalRole;
@@ -185,12 +193,20 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
       name: '',
       age: '',
       gender: '',
+      genderPreference: '',
+      city: '',
       email: '',
       password: '',
       phone: '',
       role: '',
       specialty: '',
       institution: '',
+      university: '',
+      graduationYear: '',
+      experienceYears: '',
+      lookingFor: '',
+      smoking: '',
+      drinking: '',
       document: '',
     },
   });
@@ -223,12 +239,12 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
   const getFieldErrorId = (field: keyof RegistrationFormData): string => `registration-${field}-error`;
 
   const handleBasicNext = async () => {
-    const isValid = await trigger(['name', 'age', 'email', 'password']);
+    const isValid = await trigger(['name', 'age', 'genderPreference', 'city', 'email', 'password']);
     if (isValid) setStep('PROFESSIONAL');
   };
 
   const handleProfessionalNext = async () => {
-    const isValid = await trigger(['role', 'specialty']);
+    const isValid = await trigger(['role', 'specialty', 'university']);
     if (isValid) {
       if (isPersonalEmail) {
         // Personal email users skip OTP and go directly to document upload
@@ -467,6 +483,38 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
           </div>
         </div>
 
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label htmlFor="registration-genderPreference" className="text-xs font-bold text-slate-500 uppercase ml-1">Kimi Görmek İstiyorsun?</label>
+            <select
+              id="registration-genderPreference"
+              {...register('genderPreference')}
+              aria-invalid={Boolean(getFieldError('genderPreference'))}
+              aria-describedby={getFieldError('genderPreference') ? getFieldErrorId('genderPreference') : undefined}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none"
+            >
+              <option value="">Seçiniz</option>
+              <option value="MALE">Erkek</option>
+              <option value="FEMALE">Kadın</option>
+              <option value="EVERYONE">Herkes</option>
+            </select>
+            {errors.genderPreference && <p id={getFieldErrorId('genderPreference')} className="text-xs text-red-400 mt-1" role="alert">{errors.genderPreference.message}</p>}
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="registration-city" className="text-xs font-bold text-slate-500 uppercase ml-1">Şehir</label>
+            <input
+              id="registration-city"
+              type="text"
+              placeholder="İstanbul"
+              {...register('city')}
+              aria-invalid={Boolean(getFieldError('city'))}
+              aria-describedby={getFieldError('city') ? getFieldErrorId('city') : undefined}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors"
+            />
+            {errors.city && <p id={getFieldErrorId('city')} className="text-xs text-red-400 mt-1" role="alert">{errors.city.message}</p>}
+          </div>
+        </div>
+
         <div className="space-y-1">
           <label htmlFor="registration-email" className="text-xs font-bold text-slate-500 uppercase ml-1">Email</label>
           <div className="relative">
@@ -550,7 +598,7 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
           onClick={() => {
             void handleBasicNext();
           }}
-          disabled={!formData.name || !formData.age || !formData.email || !formData.password}
+          disabled={!formData.name || !formData.age || !formData.email || !formData.password || !formData.genderPreference || !formData.city}
           className="flex-1 py-4 rounded-xl bg-gradient-to-r from-gold-600 to-gold-400 text-slate-950 font-bold text-lg shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Continue <ChevronRight size={20} />
@@ -631,13 +679,112 @@ export const RegistrationFlow: React.FC<RegistrationFlowProps> = ({ onComplete, 
             />
           </div>
         </div>
+
+        {/* --- University (Required) --- */}
+        <div className="space-y-1">
+          <label htmlFor="registration-university" className="text-xs font-bold text-slate-500 uppercase ml-1">Üniversite</label>
+          <div className="relative">
+            <GraduationCap className="absolute left-4 top-3.5 text-slate-500" size={18} />
+            <input
+              id="registration-university"
+              type="text"
+              placeholder="İstanbul Tıp Fakültesi"
+              {...register('university')}
+              aria-invalid={Boolean(getFieldError('university'))}
+              aria-describedby={getFieldError('university') ? getFieldErrorId('university') : undefined}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors"
+            />
+          </div>
+          {errors.university && <p id={getFieldErrorId('university')} className="text-xs text-red-400 mt-1" role="alert">{errors.university.message}</p>}
+        </div>
+
+        {/* --- Optional Fields (Tier 2) --- */}
+        <div className="mt-2 pt-4 border-t border-slate-800/60">
+          <p className="text-xs font-bold text-slate-500 uppercase ml-1 mb-3">Opsiyonel Bilgiler</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label htmlFor="registration-graduationYear" className="text-xs font-bold text-slate-500 uppercase ml-1">Mezuniyet Yılı</label>
+              <select
+                id="registration-graduationYear"
+                {...register('graduationYear')}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none"
+              >
+                <option value="">Seçiniz</option>
+                {Array.from({ length: 40 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                  <option key={year} value={String(year)}>{year}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="registration-experienceYears" className="text-xs font-bold text-slate-500 uppercase ml-1">Deneyim (Yıl)</label>
+              <select
+                id="registration-experienceYears"
+                {...register('experienceYears')}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none"
+              >
+                <option value="">Seçiniz</option>
+                {Array.from({ length: 41 }, (_, i) => i).map(y => (
+                  <option key={y} value={String(y)}>{y === 0 ? 'Yeni Mezun' : `${y} yıl`}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1 mt-4">
+            <label className="text-xs font-bold text-slate-500 uppercase ml-1">Ne Arıyorsun?</label>
+            <div className="flex gap-2">
+              {([['SERIOUS', 'Ciddi İlişki'], ['FRIENDSHIP', 'Arkadaşlık'], ['OPEN', 'Açık']] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setValue('lookingFor', formData.lookingFor === value ? '' : value)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${formData.lookingFor === value
+                    ? 'border-gold-500 bg-gold-500/10 text-gold-400'
+                    : 'border-slate-800 bg-slate-900 text-slate-400 hover:border-slate-600'
+                    }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div className="space-y-1">
+              <label htmlFor="registration-smoking" className="text-xs font-bold text-slate-500 uppercase ml-1">Sigara</label>
+              <select
+                id="registration-smoking"
+                {...register('smoking')}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none"
+              >
+                <option value="">Seçiniz</option>
+                <option value="YES">İçiyorum</option>
+                <option value="NO">İçmiyorum</option>
+                <option value="SOCIAL">Sosyal</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="registration-drinking" className="text-xs font-bold text-slate-500 uppercase ml-1">Alkol</label>
+              <select
+                id="registration-drinking"
+                {...register('drinking')}
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none"
+              >
+                <option value="">Seçiniz</option>
+                <option value="YES">İçiyorum</option>
+                <option value="NO">İçmiyorum</option>
+                <option value="SOCIAL">Sosyal</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
 
       <button
         onClick={() => {
           void handleProfessionalNext();
         }}
-        disabled={!formData.role || (roleHasSpecialties && !formData.specialty)}
+        disabled={!formData.role || (roleHasSpecialties && !formData.specialty) || !formData.university}
         className="w-full mt-8 py-4 rounded-xl bg-gradient-to-r from-gold-600 to-gold-400 text-slate-950 font-bold text-lg shadow-lg hover:scale-[1.02] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Next Step <ChevronRight size={20} />

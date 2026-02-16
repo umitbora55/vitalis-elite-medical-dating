@@ -99,6 +99,19 @@ export type SwipeAction = 'LIKE' | 'PASS' | 'SUPER_LIKE';
 
 export type ThemePreference = 'LIGHT' | 'DARK' | 'SYSTEM';
 
+// Tier 1 — Registration (Required)
+export type GenderPreference = 'MALE' | 'FEMALE' | 'EVERYONE';
+
+// Tier 2 — Registration (Optional)
+export type LookingFor = 'SERIOUS' | 'FRIENDSHIP' | 'OPEN';
+export type SubstanceUsage = 'YES' | 'NO' | 'SOCIAL';
+
+// Tier 3 — Profile Completion (Post-onboarding)
+export type WorkStyle = 'FULL_TIME' | 'PART_TIME' | 'FREELANCE' | 'ACADEMIC';
+export type ShiftFrequency = 'NONE' | 'WEEKLY_1_2' | 'WEEKLY_3_4' | 'DAILY';
+export type LivingStatus = 'ALONE' | 'FAMILY' | 'ROOMMATE';
+export type SalaryRange = 'RANGE_1' | 'RANGE_2' | 'RANGE_3' | 'RANGE_4' | 'PREFER_NOT';
+
 export interface SwipeHistoryItem {
   id: string;
   profile: Profile;
@@ -252,6 +265,26 @@ export interface Profile {
   themePreference?: ThemePreference; // New: App theme preference
   verificationStatus?: VerificationStatus;
   premiumTier?: PremiumTier;
+  // Tier 1 — Registration (Required)
+  genderPreference: GenderPreference;
+  university: string;
+  city: string;
+  // Tier 2 — Registration (Optional)
+  graduationYear?: number;
+  experienceYears?: number;
+  lookingFor?: LookingFor;
+  smoking?: SubstanceUsage;
+  drinking?: SubstanceUsage;
+  // Tier 3 — Profile Completion (Post-onboarding)
+  workStyle?: WorkStyle;
+  shiftFrequency?: ShiftFrequency;
+  livingStatus?: LivingStatus;
+  salaryRange?: SalaryRange;
+  abroadExperience?: boolean;
+  // On-call & Quick Reply
+  isOnCall?: boolean;
+  onCallEndsAt?: number;
+  quickReplyBadge?: boolean;
 }
 
 export interface CallInfo {
@@ -280,9 +313,13 @@ export interface Match {
   timestamp: number;
   lastMessage?: string;
   theme?: ChatTheme; // Custom theme for this chat
-  isFirstMessagePending?: boolean; // New: Is it waiting for the first move?
-  allowedSenderId?: string | null; // New: 'me', 'them', or null (anyone)
-  expiresAt?: number; // New: Timestamp when match expires if no message sent
+  isFirstMessagePending?: boolean; // Is it waiting for the first move?
+  allowedSenderId?: string | null; // 'me', 'them', or null (anyone)
+  expiresAt?: number; // Timestamp when match expires if no message sent
+  extended?: boolean; // Whether the timer was already extended
+  isActive?: boolean; // false = expired or unmatched
+  expiredReason?: 'timeout' | 'unmatched'; // Why the match ended
+  firstMessageSentAt?: number; // Timestamp of first message for quick reply badge
 }
 
 export interface Notification {

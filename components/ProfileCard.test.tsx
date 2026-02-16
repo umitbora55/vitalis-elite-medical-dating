@@ -28,19 +28,22 @@ const buildProfile = (): Profile => ({
   readReceiptsEnabled: true,
   stories: [],
   storyPrivacy: 'ALL_MATCHES',
+  genderPreference: 'FEMALE',
+  university: 'İstanbul Tıp Fakültesi',
+  city: 'İstanbul',
 });
 
 describe('ProfileCard', () => {
   it('renders name and age', () => {
     const profile = buildProfile();
-    render(<ProfileCard profile={profile} onShowDetails={() => {}} currentUser={profile} />);
+    render(<ProfileCard profile={profile} onShowDetails={() => { }} currentUser={profile} />);
 
     expect(screen.getByText('Dr. Jane, 32')).toBeInTheDocument();
   });
 
   it('shows specialty', () => {
     const profile = buildProfile();
-    render(<ProfileCard profile={profile} onShowDetails={() => {}} currentUser={profile} />);
+    render(<ProfileCard profile={profile} onShowDetails={() => { }} currentUser={profile} />);
 
     expect(screen.getByText(/Cardiology/)).toBeInTheDocument();
   });

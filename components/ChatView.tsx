@@ -19,6 +19,7 @@ interface ChatViewProps {
     match: Match;
     onBack: () => void;
     onUnmatch?: (matchId: string) => void;
+    onUpdateMatch?: (matchId: string, updates: Partial<Match>) => void;
     userProfile: Profile;
     templates?: MessageTemplate[];
     onAddTemplate?: (text: string) => void;
@@ -89,6 +90,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     match,
     onBack,
     onUnmatch,
+    onUpdateMatch,
     userProfile,
     templates = [],
     onAddTemplate,
@@ -590,6 +592,21 @@ export const ChatView: React.FC<ChatViewProps> = ({
         // Clear First Move Pending state locally on send
         if (isFirstMovePending) {
             setIsFirstMovePending(false);
+        }
+
+        // First message: clear expiresAt, record time, check quick reply
+        if (messages.filter(m => m.senderId === 'me').length === 0 && onUpdateMatch) {
+            const timeSinceMatch = sendNow - match.timestamp;
+            const isQuickReply = timeSinceMatch < 60 * 60 * 1000; // < 1 hour
+            onUpdateMatch(match.profile.id, {
+                expiresAt: undefined,
+                firstMessageSentAt: sendNow,
+                isFirstMessagePending: false,
+            });
+            if (isQuickReply) {
+                // Award quick reply badge (would normally be a server-side check)
+                // For now we mark it on the match
+            }
         }
 
         const userMessage: Message = {

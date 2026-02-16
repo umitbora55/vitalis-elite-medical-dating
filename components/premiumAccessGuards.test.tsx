@@ -29,6 +29,9 @@ const buildProfile = (id: string, name: string): Profile => ({
   readReceiptsEnabled: true,
   stories: [],
   storyPrivacy: 'ALL_MATCHES',
+  genderPreference: 'FEMALE',
+  university: 'İstanbul Tıp Fakültesi',
+  city: 'İstanbul',
 });
 
 describe('Premium access guards', () => {

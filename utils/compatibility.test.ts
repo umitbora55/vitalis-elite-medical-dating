@@ -27,6 +27,9 @@ const baseProfile = (overrides: Partial<Profile>): Profile => ({
   readReceiptsEnabled: true,
   stories: [],
   storyPrivacy: 'ALL_MATCHES',
+  genderPreference: 'FEMALE',
+  university: 'İstanbul Tıp Fakültesi',
+  city: 'İstanbul',
   ...overrides,
 });
 

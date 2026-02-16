@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Profile } from '../types';
-import { BadgeCheck, Info, MapPin, Stethoscope, Navigation, Flame, Zap } from 'lucide-react';
+import { BadgeCheck, Info, MapPin, Stethoscope, Zap, Star } from 'lucide-react';
 import { calculateCompatibility } from '../utils/compatibility';
-import { PERSONALITY_OPTIONS } from '../constants';
+
 
 const INITIAL_NOW_MS = Date.now();
 
@@ -36,13 +36,14 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, onShowDetails
     }
   };
 
-  const statusColor = useMemo((): string => {
-    if (profile.isOnlineHidden) return 'hidden'; // Don't show if hidden on swipe card
+  // --- Status Logic ---
+  const statusInfo = useMemo(() => {
+    if (profile.isOnlineHidden) return null;
 
     const diff = nowMs - profile.lastActive;
-    if (diff < 15 * 60 * 1000) return 'bg-green-500'; // < 15 mins
-    if (diff < 24 * 60 * 60 * 1000) return 'bg-orange-500'; // < 24 hours
-    return 'bg-slate-400'; // > 24 hours
+    if (diff < 15 * 60 * 1000) return { label: 'Online', color: 'bg-emerald-500', text: 'text-emerald-100' };
+    if (diff < 24 * 60 * 60 * 1000) return { label: 'Recently', color: 'bg-amber-500', text: 'text-amber-100' };
+    return null;
   }, [nowMs, profile.isOnlineHidden, profile.lastActive]);
 
   // Check availability status validity
@@ -53,8 +54,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, onShowDetails
   // Location & Distance Logic
   const getDistanceText = (): string => {
     if (profile.isLocationHidden) return 'Nearby';
-    if (profile.distance > 50) return '50+ km away';
-    return `${profile.distance} km away`;
+    if (profile.distance > 50) return '50+ km';
+    return `${profile.distance} km`;
   };
 
   const isVeryClose = !profile.isLocationHidden && profile.distance < 5;
@@ -69,161 +70,127 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile, onShowDetails
   };
 
   return (
-    <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl bg-slate-900 border border-slate-800/60 select-none group">
-      {/* Image Layer - Agent 6: Better image treatment */}
+    <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl bg-slate-950 border border-slate-800/40 select-none group">
+      {/* Image Layer */}
       <div
-        className="absolute inset-0 bg-cover bg-center transition-all duration-500 ease-out"
+        className="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-out transform group-hover:scale-105"
         style={{ backgroundImage: `url(${profile.images[currentImageIndex]})` }}
         onClick={nextImage}
       >
-        {/* Premium gradient overlay - Agent 3 */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 via-60% to-transparent" />
-        {/* Subtle vignette for depth */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.2)_100%)]" />
+        {/* Premium gradient overlay - darker bottom for text legibility */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 via-60% to-slate-950/30" />
       </div>
 
-      {/* Image Indicator Bars - Agent 1: Better spacing */}
-      <div className="absolute top-5 left-5 right-5 flex gap-1.5 z-10">
+      {/* Image Indicators */}
+      <div className="absolute top-4 left-4 right-4 flex gap-1.5 z-10">
         {profile.images.map((_, idx) => (
           <div
             key={idx}
-            className={`h-1 flex-1 rounded-full backdrop-blur-sm transition-all duration-300 ease-out ${idx === currentImageIndex ? 'bg-white shadow-sm' : 'bg-white/25'}`}
+            className={`h-1 flex-1 rounded-full backdrop-blur-md transition-all duration-300 ease-out ${idx === currentImageIndex ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.5)]' : 'bg-white/20'
+              }`}
           />
         ))}
       </div>
 
-      {/* Info Button (Top Right) - Agent 4: Better touch target */}
-      <button
-        type="button"
-        aria-label="Open profile details"
-        onClick={(e) => { e.stopPropagation(); onShowDetails(); }}
-        className="absolute top-10 right-5 z-20 w-11 h-11 rounded-full glass-dark flex items-center justify-center text-white/90 hover:bg-white/20 hover:text-white transition-all duration-200 active:scale-95"
-      >
-        <Info size={18} strokeWidth={2} />
-      </button>
+      {/* --- Top Bar (Badges) --- */}
+      <div className="absolute top-8 left-4 right-4 flex justify-between items-start z-20 pointer-events-none">
 
-      {/* Top-Left Badge Stack — Premium Glassmorphism - Agent 3 */}
-      <div className="absolute top-10 left-5 z-20 flex flex-col gap-2">
-        {/* Online Status - Agent 3: Premium badge styling */}
-        {statusColor !== 'hidden' && (
-          <div className="flex items-center gap-2 glass-dark px-3 py-2 rounded-xl w-fit">
-            <div className={`w-2 h-2 rounded-full ${statusColor} ${statusColor === 'bg-green-500' ? 'animate-pulse' : ''}`}></div>
-            <span className="text-caption font-semibold text-white/80 tracking-wider uppercase">
-              {statusColor === 'bg-green-500' ? 'Online' : statusColor === 'bg-orange-500' ? 'Recently' : 'Away'}
-            </span>
-          </div>
-        )}
+        {/* Left Stack: Essential Status Only */}
+        <div className="flex flex-col gap-2 pointer-events-auto">
+          {/* Priority 1: On-Call (Most important status) */}
+          {profile.isOnCall && (
+            <div className="flex items-center gap-2 bg-blue-600/90 backdrop-blur-xl px-3 py-1.5 rounded-full border border-blue-400/30 shadow-lg shadow-blue-900/20 animate-fade-in-up">
+              <Stethoscope size={12} className="text-white" fill="white" />
+              <span className="text-[10px] font-bold text-white uppercase tracking-wider">On Call</span>
+            </div>
+          )}
 
-        {/* Compatibility - Agent 3: Premium look */}
-        <div className="flex items-center gap-2 glass-dark px-3 py-2 rounded-xl w-fit">
-          <Zap size={12} className="text-gold-400" />
-          <span className="text-caption font-bold text-white/90 tracking-wide">
-            {matchStats.score}%
-          </span>
+          {/* Priority 2: Available / Online */}
+          {!profile.isOnCall && isAvailableNow ? (
+            <div className="flex items-center gap-2 bg-emerald-500/90 backdrop-blur-xl px-3 py-1.5 rounded-full border border-emerald-400/30 shadow-lg shadow-emerald-900/20 animate-fade-in-up">
+              <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              <span className="text-[10px] font-bold text-white uppercase tracking-wider">Available</span>
+            </div>
+          ) : !profile.isOnCall && statusInfo ? (
+            <div className="flex items-center gap-2 bg-slate-900/60 backdrop-blur-xl px-3 py-1.5 rounded-full border border-white/10 shadow-lg animate-fade-in-up">
+              <div className={`w-1.5 h-1.5 rounded-full ${statusInfo.color}`} />
+              <span className="text-[10px] font-bold text-white/90 uppercase tracking-wider">{statusInfo.label}</span>
+            </div>
+          ) : null}
+
+          {/* Quick Reply Badge */}
+          {profile.quickReplyBadge && (
+            <div className="flex items-center gap-1.5 bg-amber-500/90 backdrop-blur-xl px-3 py-1.5 rounded-full border border-amber-400/30 shadow-lg shadow-amber-900/20 w-fit animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+              <Zap size={10} className="text-white" fill="white" />
+              <span className="text-[10px] font-bold text-white uppercase tracking-wider">Quick Reply</span>
+            </div>
+          )}
         </div>
 
-        {/* Available - Agent 3 */}
-        {isAvailableNow && (
-          <div className="flex items-center gap-2 bg-emerald-500/15 backdrop-blur-xl px-3 py-2 rounded-xl border border-emerald-400/25 w-fit">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
-            <span className="text-caption font-semibold text-emerald-300 tracking-wider uppercase">Available</span>
+        {/* Right Stack: Match Score & Info */}
+        <div className="flex flex-col gap-2 items-end pointer-events-auto">
+          <div className="flex items-center gap-1.5 bg-slate-900/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-gold-500/30 shadow-lg">
+            <span className="text-xs font-bold text-gold-400">{matchStats.score}%</span>
+            <Star size={10} className="text-gold-500" fill="currentColor" />
           </div>
-        )}
 
-        {/* Proximity - Agent 3 */}
-        {isVeryClose && (
-          <div className="flex items-center gap-2 bg-amber-500/15 backdrop-blur-xl px-3 py-2 rounded-xl border border-amber-400/25 w-fit">
-            <Flame size={12} className="text-amber-400" />
-            <span className="text-caption font-semibold text-amber-300 tracking-wider uppercase">Nearby</span>
-          </div>
-        )}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onShowDetails(); }}
+            className="w-9 h-9 rounded-full bg-slate-900/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/20 hover:text-white transition-all active:scale-95"
+          >
+            <Info size={16} />
+          </button>
+        </div>
       </div>
 
-      {/* Content Layer - Agent 1, 2, 3: Premium spacing & typography */}
+
+      {/* --- Footer Content --- */}
       <div
-        className="absolute bottom-0 w-full cursor-pointer"
+        className="absolute bottom-0 w-full cursor-pointer bg-gradient-to-t from-slate-950 via-slate-950/90 via-40% to-transparent pt-32 pb-32 px-6"
         onClick={(e) => { e.stopPropagation(); onShowDetails(); }}
         role="button"
         tabIndex={0}
         onKeyDown={handleCardKeyDown}
-        aria-label={`Open ${profile.name} profile details`}
       >
-        <div className="px-6 pb-28 pt-16 bg-gradient-to-t from-slate-950 via-slate-950/90 via-50% to-transparent text-white">
-
-          {/* Name - Agent 2: Better typography */}
-          <h2 className="text-3xl font-serif font-bold text-white drop-shadow-lg mb-1.5 tracking-tight">{profile.name}, {profile.age}</h2>
-
-          {/* Verified Badge - Agent 3: Premium styling */}
+        {/* Name & Verified Badge */}
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-3xl font-serif font-bold text-white leading-tight tracking-tight drop-shadow-sm">
+            {profile.name}, {profile.age}
+          </h2>
           {profile.verified && (
-            <div className="flex items-center gap-2 mb-3">
-              <BadgeCheck size={14} className="text-emerald-400" fill="currentColor" stroke="black" />
-              <span className="text-caption font-bold text-emerald-400 uppercase tracking-widest">Verified Professional</span>
-            </div>
+            <BadgeCheck
+              size={20}
+              className="text-blue-500"
+              fill="currentColor"
+              stroke="black" // Creates a border effect for visibility on dark bg
+              strokeWidth={1.5}
+            />
           )}
+        </div>
 
-          {/* Role & Specialty - Agent 2: Better hierarchy */}
-          <div className="flex items-center gap-2 mb-3">
-            <div className="flex items-center gap-2 text-gold-400">
-              <Stethoscope size={15} strokeWidth={2.5} />
-              <span className="text-xs font-bold uppercase tracking-wider">{profile.role}</span>
-            </div>
-            <span className="text-slate-500">•</span>
-            <span className="text-sm text-slate-200 font-medium">{profile.subSpecialty || profile.specialty}</span>
+        {/* Role & Hospital */}
+        <div className="flex flex-col gap-1 mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-gold-400 uppercase tracking-wide flex items-center gap-1.5">
+              <Stethoscope size={14} className="mb-0.5" />
+              {profile.role}
+            </span>
           </div>
 
-          {/* Location - Agent 1: Better spacing */}
-          <div className="flex items-center gap-3 text-slate-400 text-sm mb-4">
-            <div className="flex items-center gap-1.5">
-              <MapPin size={14} strokeWidth={2} />
-              <span className="truncate max-w-[180px]">{profile.institutionHidden ? 'Private' : profile.hospital}</span>
-            </div>
-            <span className="text-slate-600">•</span>
-            <div className="flex items-center gap-1.5">
-              <Navigation size={12} strokeWidth={2} />
-              <span>{getDistanceText()}</span>
-            </div>
+          <div className="flex items-center gap-2 text-slate-300 text-sm font-medium">
+            <span className="truncate">{profile.subSpecialty || profile.specialty}</span>
+            <span className="text-slate-600 text-xs">•</span>
+            <span className="truncate opacity-80">{profile.institutionHidden ? 'Private Practice' : profile.hospital}</span>
           </div>
+        </div>
 
-          {/* Tags Row - Agent 3: Premium tag styling */}
-          <div className="flex flex-wrap gap-2">
-            {(profile.personalityTags || []).slice(0, 2).map(tagId => {
-              const tag = PERSONALITY_OPTIONS.find(opt => opt.id === tagId);
-              if (!tag) return null;
-              const isMatch = (currentUser?.personalityTags || []).includes(tagId);
-              return (
-                <span
-                  key={tagId}
-                  className={`text-micro px-3 py-1.5 rounded-full flex items-center gap-1.5 font-semibold transition-all ${isMatch
-                    ? 'bg-gradient-to-r from-gold-500 to-gold-400 text-slate-950 shadow-glow-gold'
-                    : 'glass-dark text-white/90'
-                    }`}
-                >
-                  <span>{tag.emoji}</span>
-                  <span>{tag.label}</span>
-                </span>
-              );
-            })}
-            {profile.interests.slice(0, 3).map(interest => {
-              const isCommon = currentUser?.interests.includes(interest);
-              return (
-                <span
-                  key={interest}
-                  className={`text-caption px-3 py-1.5 rounded-full font-medium transition-all ${isCommon
-                    ? 'bg-gold-500/20 border border-gold-400/40 text-gold-300'
-                    : 'glass-dark text-slate-300'
-                    }`}
-                >
-                  {interest}
-                </span>
-              );
-            })}
-            {profile.interests.length > 3 && (
-              <span className="text-caption px-3 py-1.5 rounded-full glass-dark text-slate-400 font-medium">
-                +{profile.interests.length - 3}
-              </span>
-            )}
-          </div>
-
+        {/* Location Display */}
+        <div className="flex items-center gap-1.5 text-slate-400">
+          <MapPin size={12} className={isVeryClose ? "text-amber-400" : "text-slate-500"} />
+          <span className={`text-xs font-medium ${isVeryClose ? "text-amber-100" : "text-slate-400"}`}>
+            {getDistanceText()}
+          </span>
         </div>
       </div>
     </div>

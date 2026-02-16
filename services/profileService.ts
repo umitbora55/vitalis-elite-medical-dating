@@ -24,6 +24,22 @@ const mapProfileToRow = (profile: Profile) => {
     theme_preference: profile.themePreference || 'SYSTEM',
     first_message_preference: profile.firstMessagePreference || 'ANYONE',
     last_active_at: new Date(profile.lastActive).toISOString(),
+    // Tier 1
+    gender_preference: profile.genderPreference || 'EVERYONE',
+    university: profile.university || null,
+    city: profile.city || null,
+    // Tier 2
+    graduation_year: profile.graduationYear || null,
+    experience_years: profile.experienceYears || null,
+    looking_for: profile.lookingFor || null,
+    smoking: profile.smoking || null,
+    drinking: profile.drinking || null,
+    // Tier 3
+    work_style: profile.workStyle || null,
+    on_call_frequency: profile.shiftFrequency || null,
+    lifestyle_preference: profile.livingStatus || null,
+    salary_range: profile.salaryRange || null,
+    abroad_experience: profile.abroadExperience ?? null,
     updated_at: new Date().toISOString(),
   };
 };
