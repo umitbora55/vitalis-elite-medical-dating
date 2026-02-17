@@ -3,6 +3,16 @@
   <head>
     <meta charset="UTF-8" />
 	    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	    <!-- CSP: 'unsafe-inline' needed for Vite dev server React Refresh; tighten for production -->
+	    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' blob: data: https://*.supabase.co https://*.supabase.in https://images.unsplash.com; connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://generativelanguage.googleapis.com https://api.stripe.com https://api.ipify.org ws://localhost:* wss://localhost:*; frame-src https://checkout.stripe.com; object-src 'none'; base-uri 'self';" />
+	    <meta name="referrer" content="strict-origin-when-cross-origin" />
+	    <meta name="description" content="Vitalis connects verified medical professionals for meaningful relationships. Exclusive dating for doctors, surgeons, and healthcare leaders." />
+	    <meta name="theme-color" content="#020617" />
+	    <meta name="apple-mobile-web-app-capable" content="yes" />
+	    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+	    <meta property="og:title" content="Vitalis | Exclusive Medical Dating" />
+	    <meta property="og:description" content="Where verified medical professionals find meaningful connections." />
+	    <meta property="og:type" content="website" />
 	    <title>Vitalis | Exclusive Medical Dating</title>
 	    <link rel="stylesheet" href="/index.css" />
 	    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
