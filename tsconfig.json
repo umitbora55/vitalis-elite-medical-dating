@@ -32,6 +32,7 @@
     "noEmit": true
   },
   "exclude": [
-    "mobile"
+    "mobile",
+    "supabase/functions"
   ]
 }

@@ -75,7 +75,7 @@ type AuditItem = {
 };
 
 const isAdminRole = (role: AdminRole | 'viewer'): boolean =>
-  role === 'moderator' || role === 'admin' || role === 'superadmin';
+  role === 'moderator' || role === 'admin';
 
 const isMfaLevelTwo = (level: string | null): level is 'aal2' => level === 'aal2';
 

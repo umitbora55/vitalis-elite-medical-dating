@@ -76,7 +76,7 @@ export const mapRowToProfile = (row: Record<string, unknown>, fallback: Profile)
     ...(typeof row.verification_method === 'string' ? { verificationMethod: row.verification_method as Profile['verificationMethod'] } : {}),
     ...(typeof row.user_role === 'string' ? { userRole: row.user_role as Profile['userRole'] } : {}),
     ...(typeof row.risk_flags === 'object' && row.risk_flags !== null ? { riskFlags: row.risk_flags as Record<string, unknown> } : {}),
-    ...(typeof row.suspended_until === 'string' ? { suspendedUntil: row.suspended_until } : {}),
+    ...(typeof row.suspended_until === 'string' ? { suspendedUntil: Date.parse(row.suspended_until) } : {}),
     ...(typeof row.is_frozen === 'boolean' ? { isFrozen: row.is_frozen } : {}),
     ...(typeof row.institution_hidden === 'boolean' ? { institutionHidden: row.institution_hidden } : {}),
     ...(typeof row.is_location_hidden === 'boolean' ? { isLocationHidden: row.is_location_hidden } : {}),
