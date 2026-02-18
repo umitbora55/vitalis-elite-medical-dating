@@ -1,0 +1,2 @@
+Missing required env: SUPABASE_PROJECT_REF
+Canary aborted. Log: /Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating-admin-moderation/release/evidence/admin/canary-20260218T162503Z.txt

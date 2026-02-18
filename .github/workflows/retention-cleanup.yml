@@ -1,0 +1,37 @@
+name: Retention Cleanup
+
+on:
+  schedule:
+    - cron: '15 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  call-retention-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate required secrets
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          RETENTION_SECRET: ${{ secrets.RETENTION_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_PROJECT_REF}" ]; then
+            echo "Missing secret: SUPABASE_PROJECT_REF" >&2
+            exit 1
+          fi
+          if [ -z "${RETENTION_SECRET}" ]; then
+            echo "Missing secret: RETENTION_SECRET" >&2
+            exit 1
+          fi
+
+      - name: Invoke scheduled-retention-cleanup
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          RETENTION_SECRET: ${{ secrets.RETENTION_SECRET }}
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST \
+            "https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/scheduled-retention-cleanup" \
+            -H "x-retention-secret: ${RETENTION_SECRET}" \
+            -H "content-type: application/json" \
+            --data '{}'
