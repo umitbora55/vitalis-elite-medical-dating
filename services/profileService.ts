@@ -1,4 +1,4 @@
-import { Profile } from '../types';
+import { MedicalRole, Profile, Specialty } from '../types';
 import { supabase } from '../src/lib/supabase';
 
 const mapProfileToRow = (profile: Profile) => {
@@ -41,6 +41,53 @@ const mapProfileToRow = (profile: Profile) => {
     salary_range: profile.salaryRange || null,
     abroad_experience: profile.abroadExperience ?? null,
     updated_at: new Date().toISOString(),
+    verification_status: profile.verificationStatus ?? null,
+    verification_method: profile.verificationMethod ?? null,
+    user_role: profile.userRole ?? 'viewer',
+    risk_flags: profile.riskFlags ?? {},
+    suspended_until: profile.suspendedUntil ?? null,
+  };
+};
+
+export const mapRowToProfile = (row: Record<string, unknown>, fallback: Profile): Profile => {
+  const role = row.role;
+  const specialty = row.specialty;
+  const locationCity = row.location_city;
+  const lastActiveAt = row.last_active_at;
+
+  return {
+    ...fallback,
+    ...(typeof row.name === 'string' ? { name: row.name } : {}),
+    ...(typeof row.age === 'number' ? { age: row.age } : {}),
+    ...(typeof role === 'string' && Object.values(MedicalRole).includes(role as MedicalRole)
+      ? { role: role as MedicalRole }
+      : {}),
+    ...(typeof specialty === 'string' && Object.values(Specialty).includes(specialty as Specialty)
+      ? { specialty: specialty as Specialty }
+      : {}),
+    ...(typeof row.sub_specialty === 'string' ? { subSpecialty: row.sub_specialty } : {}),
+    ...(typeof row.hospital === 'string' ? { hospital: row.hospital } : {}),
+    ...(typeof row.bio === 'string' ? { bio: row.bio } : {}),
+    ...(typeof row.education === 'string' ? { education: row.education } : {}),
+    ...(typeof locationCity === 'string' ? { location: locationCity } : {}),
+    ...(typeof row.city === 'string' ? { city: row.city } : {}),
+    ...(typeof row.university === 'string' ? { university: row.university } : {}),
+    ...(typeof row.verification_status === 'string' ? { verificationStatus: row.verification_status as Profile['verificationStatus'] } : {}),
+    ...(typeof row.verification_method === 'string' ? { verificationMethod: row.verification_method as Profile['verificationMethod'] } : {}),
+    ...(typeof row.user_role === 'string' ? { userRole: row.user_role as Profile['userRole'] } : {}),
+    ...(typeof row.risk_flags === 'object' && row.risk_flags !== null ? { riskFlags: row.risk_flags as Record<string, unknown> } : {}),
+    ...(typeof row.suspended_until === 'string' ? { suspendedUntil: row.suspended_until } : {}),
+    ...(typeof row.is_frozen === 'boolean' ? { isFrozen: row.is_frozen } : {}),
+    ...(typeof row.institution_hidden === 'boolean' ? { institutionHidden: row.institution_hidden } : {}),
+    ...(typeof row.is_location_hidden === 'boolean' ? { isLocationHidden: row.is_location_hidden } : {}),
+    ...(typeof row.is_online_hidden === 'boolean' ? { isOnlineHidden: row.is_online_hidden } : {}),
+    ...(typeof row.is_available === 'boolean' ? { isAvailable: row.is_available } : {}),
+    ...(typeof row.availability_expires_at === 'string'
+      ? { availabilityExpiresAt: new Date(row.availability_expires_at).getTime() }
+      : {}),
+    ...(typeof lastActiveAt === 'string'
+      ? { lastActive: new Date(lastActiveAt).getTime() }
+      : {}),
   };
 };
 

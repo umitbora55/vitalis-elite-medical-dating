@@ -24,7 +24,7 @@ import { useBoost } from './hooks/useBoost';
 import { useSwipeLimit } from './hooks/useSwipeLimit';
 import { signUpWithEmail, signOut, onAuthStateChange, getCurrentUser } from './services/authService';
 import { blockProfile as persistBlockProfile, reportProfile as persistReportProfile } from './services/safetyService';
-import { upsertProfile } from './services/profileService';
+import { getMyProfile, mapRowToProfile, upsertProfile } from './services/profileService';
 import { getActiveSubscription } from './services/subscriptionService';
 import {
     AnalyticsConsent,
@@ -36,12 +36,16 @@ import {
 import { PendingVerificationView } from './components/PendingVerificationView';
 import {
     createVerificationRequest,
+    getVerificationPolicy,
+    getVerificationSettings,
     saveVerifiedEmail,
     updateProfileVerificationStatus,
     uploadVerificationDocument,
+    upsertVerificationDocument,
 } from './services/verificationService';
 import { supabase } from './src/lib/supabase';
 import { accountService } from './services/accountService';
+import { AdminPanel } from './components/admin/AdminPanel';
 // AUDIT-FIX: SEC-004 — Verification status now set via server-side RPC (complete_email_verification)
 
 const MatchesView = lazy(() => import('./components/MatchesView').then((m) => ({ default: m.MatchesView })));
@@ -93,6 +97,9 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 const LoadingScreen: React.FC = () => (
     <LoadingSpinner fullScreen message="Loading Vitalis..." />
 );
+
+const VERIFIED_STATUSES = new Set(['VERIFIED', 'AUTO_VERIFIED']);
+const RESTRICTED_DEFAULT_ACTIONS = ['swipe', 'chat', 'premium'];
 
 const App: React.FC = () => {
     const authStep = useAuthStore((state) => state.authStep);
@@ -156,27 +163,41 @@ const App: React.FC = () => {
 
     // nowMs polling removed: server-side discovery handles time-based filtering
 
-    // AUDIT-FIX: SEC-005/BE-008 — Use getUser() (server-validated) instead of getSession() (local JWT)
+    const hydrateProfile = useCallback(async () => {
+        const { data } = await getMyProfile();
+        if (data) {
+            const mapped = mapRowToProfile(data as Record<string, unknown>, USER_PROFILE);
+            setUserProfile(mapped);
+        }
+    }, [setUserProfile]);
+
     useEffect(() => {
-        // Initial user check on mount (server-validated, not local JWT)
         getCurrentUser().then(({ data }) => {
-            if (data.user) {
-                // The PendingVerificationView guard at line ~1174 handles unverified users
-                setAuthStep('APP');
-            }
+            if (!data.user) return;
+            setAuthStep('APP');
+            void hydrateProfile();
         });
 
-        // Listen for auth state changes (sign in, sign out, token refresh)
         const { data: { subscription } } = onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session) {
                 setAuthStep('APP');
+                void hydrateProfile();
             } else if (event === 'SIGNED_OUT') {
                 setAuthStep('LANDING');
             }
         });
 
         return () => subscription.unsubscribe();
-    }, [setAuthStep]);
+    }, [hydrateProfile, setAuthStep]);
+
+    useEffect(() => {
+        if (authStep !== 'APP') return;
+        getVerificationSettings().then((result) => {
+            if (!result.error && result.limitedActions.length > 0) {
+                setLimitedActions(result.limitedActions);
+            }
+        });
+    }, [authStep]);
 
     const handleUpdateProfile = useCallback((updatedProfile: Profile) => {
         setUserProfile(updatedProfile);
@@ -223,11 +244,24 @@ const App: React.FC = () => {
     const [showBoostConfirm, setShowBoostConfirm] = useState(false);
     const [showPremiumAlert, setShowPremiumAlert] = useState(false);
     const [analyticsConsent, setAnalyticsConsentState] = useState<AnalyticsConsent | null>(() => getAnalyticsConsent());
+    const [limitedActions, setLimitedActions] = useState<string[]>(RESTRICTED_DEFAULT_ACTIONS);
 
     const showToast = useCallback((msg: string) => {
         setToastMessage(msg);
         setTimeout(() => setToastMessage(null), 2500);
     }, []);
+
+    const verificationStatus = userProfile.verificationStatus || (userProfile.verified ? 'VERIFIED' : 'UNVERIFIED');
+    const isVerificationRestricted = !VERIFIED_STATUSES.has(verificationStatus);
+    const restrictedActionSet = useMemo(() => new Set((limitedActions || RESTRICTED_DEFAULT_ACTIONS).map((item) => item.toLowerCase())), [limitedActions]);
+    const isActionRestricted = useCallback((action: 'swipe' | 'chat' | 'premium') => {
+        return isVerificationRestricted && restrictedActionSet.has(action);
+    }, [isVerificationRestricted, restrictedActionSet]);
+    const guardRestrictedAction = useCallback((action: 'swipe' | 'chat' | 'premium', message: string): boolean => {
+        if (!isActionRestricted(action)) return true;
+        showToast(message);
+        return false;
+    }, [isActionRestricted, showToast]);
 
     const isNearbySmokeMode = typeof window !== 'undefined'
         ? new URLSearchParams(window.location.search).get('e2eNearby') === '1'
@@ -358,6 +392,14 @@ const App: React.FC = () => {
     }, []);
 
     const handleRegistrationComplete = useCallback(async (data: RegistrationData, verification: VerificationPayload) => {
+        const policyResult = await getVerificationPolicy();
+        const verificationPolicy = policyResult.policy;
+
+        if (verification.method === 'DOCUMENT' && verificationPolicy === 'CORPORATE_ONLY') {
+            showToast('Personal email signups are disabled by verification policy.');
+            return;
+        }
+
         const email = data.email?.trim();
         const password = data.password;
 
@@ -383,6 +425,12 @@ const App: React.FC = () => {
         }
 
         const parsedAge = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
+        const isDocumentPath = verification.method === 'DOCUMENT';
+        const shouldAutoApprove = isDocumentPath && verificationPolicy === 'AUTO_APPROVE';
+        const nextVerificationStatus: Profile['verificationStatus'] = verification.method === 'EMAIL'
+            ? 'AUTO_VERIFIED'
+            : (shouldAutoApprove ? 'AUTO_VERIFIED' : 'PENDING');
+        const nextVerificationMethod: Profile['verificationMethod'] = verification.method === 'EMAIL' ? 'CORPORATE_EMAIL' : 'DOCUMENTS';
 
         // Update user profile with registered data
         const nextProfile: Profile = {
@@ -409,8 +457,9 @@ const App: React.FC = () => {
             lookingFor: (data.lookingFor as Profile['lookingFor']) || userProfile.lookingFor,
             smoking: (data.smoking as Profile['smoking']) || userProfile.smoking,
             drinking: (data.drinking as Profile['drinking']) || userProfile.drinking,
-            verificationStatus:
-                verification.method === 'EMAIL' ? 'VERIFIED' : 'PENDING_VERIFICATION',
+            verificationStatus: nextVerificationStatus,
+            verificationMethod: nextVerificationMethod,
+            verified: nextVerificationStatus === 'AUTO_VERIFIED',
         };
 
         updateUserProfile(nextProfile);
@@ -433,29 +482,52 @@ const App: React.FC = () => {
                 return;
             }
         } else {
-            if (!verification.documentFile) {
+            if (!verification.documentFile && !shouldAutoApprove) {
                 showToast('Verification document is missing.');
                 return;
             }
 
-            const uploadResult = await uploadVerificationDocument(
-                verification.documentFile,
-            );
-            if (uploadResult.error || !uploadResult.documentPath) {
-                showToast(uploadResult.error?.message || 'Verification document upload failed.');
-                return;
+            if (verification.documentFile && !shouldAutoApprove) {
+                const requestId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                    ? crypto.randomUUID()
+                    : `${Date.now()}`;
+                const uploadResult = await uploadVerificationDocument(
+                    verification.documentFile,
+                    requestId,
+                );
+                if (uploadResult.error || !uploadResult.documentPath) {
+                    showToast(uploadResult.error?.message || 'Verification document upload failed.');
+                    return;
+                }
+
+                const createRequestResult = await createVerificationRequest({
+                    requestId,
+                    emailType: 'personal',
+                    method: 'DOCUMENTS',
+                    initialStatus: 'PENDING',
+                    documentPath: uploadResult.documentPath,
+                });
+                if (createRequestResult.error) {
+                    showToast('Verification request could not be created.');
+                    return;
+                }
+
+                const docResult = await upsertVerificationDocument(requestId, uploadResult.documentPath, {
+                    docType: 'DOCUMENT',
+                    size: uploadResult.documentSize,
+                    mime: verification.documentFile.type,
+                    sha256: uploadResult.sha256,
+                });
+                if (docResult.error) {
+                    showToast('Document metadata could not be saved.');
+                    return;
+                }
             }
 
-            const createRequestResult = await createVerificationRequest(
-                'DOCUMENT',
-                uploadResult.documentPath,
+            const updateStatusResult = await updateProfileVerificationStatus(
+                shouldAutoApprove ? 'AUTO_VERIFIED' : 'PENDING',
+                nextVerificationMethod,
             );
-            if (createRequestResult.error) {
-                showToast('Verification request could not be created.');
-                return;
-            }
-
-            const updateStatusResult = await updateProfileVerificationStatus('PENDING_VERIFICATION');
             if (updateStatusResult.error) {
                 showToast('Verification status update failed.');
                 return;
@@ -469,7 +541,7 @@ const App: React.FC = () => {
         } else {
             setAuthStep('PROFILE_COMPLETION');
         }
-        if (nextProfile.verificationStatus === 'VERIFIED') {
+        if (nextProfile.verificationStatus === 'AUTO_VERIFIED') {
             showToast('Welcome to Vitalis!');
         } else {
             showToast('Verification pending. You will be notified when approved.');
@@ -644,6 +716,10 @@ const App: React.FC = () => {
 
     // --- Nearby Logic ---
     const handleSayHiToNearby = useCallback((profile: Profile) => {
+        if (!guardRestrictedAction('chat', 'Verification in progress. Chat is unlocked after approval.')) {
+            return;
+        }
+
         // Create a match if not exists and open chat, OR just toast
         // For demo, we'll treat it like a "Wave" notification or start a chat if matched
 
@@ -657,7 +733,7 @@ const App: React.FC = () => {
             showToast(`Waved at ${profile.name}! 👋`);
             // In real app, this sends a notification
         }
-    }, [matches, setActiveChatMatch, setCurrentView, showToast]);
+    }, [guardRestrictedAction, matches, setActiveChatMatch, setCurrentView, showToast]);
 
     const handleUpdatePrivacy = useCallback((showInNearby: boolean) => {
         setUserProfile({
@@ -670,6 +746,10 @@ const App: React.FC = () => {
     }, [setUserProfile, userProfile]);
 
     const handleSwipe = useCallback((direction: SwipeDirection) => {
+        if (!guardRestrictedAction('swipe', 'Verification in progress. Swipe is temporarily disabled.')) {
+            return;
+        }
+
         // 0. Check daily limit if not premium
         if (!isPremium && dailySwipesRemaining <= 0) {
             setShowPremiumAlert(true); // Or simply don't do anything, UI handles display
@@ -754,7 +834,7 @@ const App: React.FC = () => {
 
             setSwipeDirection(null);
         }, 400); // Matches transition duration
-    }, [addMatch, addSwipeHistory, addSwipedProfile, dailySwipesRemaining, decrementSuperLike, decrementSwipe, isPremium, removeDiscoveryProfile, superLikesCount, swipeDirection, currentProfile, setCurrentMatch, setLastSwipedId, setShowPremiumAlert, setSwipeDirection, trackEvent, userProfile.firstMessagePreference, userProfile.isOnCall]);
+    }, [addMatch, addSwipeHistory, addSwipedProfile, currentProfile, dailySwipesRemaining, decrementSuperLike, decrementSwipe, guardRestrictedAction, isPremium, removeDiscoveryProfile, setCurrentMatch, setLastSwipedId, setShowPremiumAlert, setSwipeDirection, superLikesCount, swipeDirection, trackEvent, userProfile.firstMessagePreference, userProfile.isOnCall]);
 
     const handleRewind = useCallback(() => {
         if (!lastSwipedId) return;
@@ -819,12 +899,16 @@ const App: React.FC = () => {
     // --- Notification Logic ---
 
     const handleViewChange = useCallback((view: 'home' | 'profile' | 'matches' | 'notifications' | 'likesYou' | 'premium' | 'history' | 'nearby') => {
+        if (view === 'premium' && !guardRestrictedAction('premium', 'Premium upgrades unlock after verification approval.')) {
+            return;
+        }
+
         setCurrentView(view);
         if (view === 'notifications') {
             // Mark all as read when opening notifications
             markAllNotificationsRead();
         }
-    }, [markAllNotificationsRead, setCurrentView]);
+    }, [guardRestrictedAction, markAllNotificationsRead, setCurrentView]);
 
     const isNotificationProfileLocked = useCallback((notification: Notification): boolean => {
         const requiresPremiumIdentity =
@@ -835,6 +919,10 @@ const App: React.FC = () => {
     }, [premiumTier]);
 
     const handleNotificationClick = useCallback((notification: Notification) => {
+        if (notification.type === NotificationType.MATCH && !guardRestrictedAction('chat', 'Verification in progress. Chat is locked until approval.')) {
+            return;
+        }
+
         if (isNotificationProfileLocked(notification)) {
             setCurrentView('premium');
             showToast('Bu profili gormek icin Forte veya Ultra gerekli.');
@@ -860,7 +948,7 @@ const App: React.FC = () => {
             // For LIKE or SUPER_LIKE, show the profile details
             setViewingProfile(notification.senderProfile);
         }
-    }, [isNotificationProfileLocked, matches, setActiveChatMatch, setCurrentView, setViewingProfile, showToast]);
+    }, [guardRestrictedAction, isNotificationProfileLocked, matches, setActiveChatMatch, setCurrentView, setViewingProfile, showToast]);
 
 
     const getCardStyle = () => {
@@ -1093,6 +1181,12 @@ const App: React.FC = () => {
         )
     };
 
+    const isAdminRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+
+    if (isAdminRoute) {
+        return <AdminPanel />;
+    }
+
     // --- RENDER LANDING PAGE ---
     if (authStep === 'LANDING') {
         return (
@@ -1161,10 +1255,10 @@ const App: React.FC = () => {
         );
     }
 
-    if (authStep === 'APP' && userProfile.verificationStatus && userProfile.verificationStatus !== 'VERIFIED') {
+    if (authStep === 'APP' && verificationStatus === 'SUSPENDED') {
         return (
             <PendingVerificationView
-                status={userProfile.verificationStatus}
+                status='REJECTED'
                 onRetryVerification={() => setAuthStep('REGISTRATION')}
                 onLogout={() => {
                     void signOut().finally(() => setAuthStep('LANDING'));
@@ -1211,6 +1305,12 @@ const App: React.FC = () => {
                 <div className="w-full bg-purple-900/40 border-b border-purple-500/30 text-purple-200 text-xs font-bold uppercase tracking-widest py-1 text-center animate-fade-in flex items-center justify-center gap-2 backdrop-blur-sm fixed top-16 z-layer-banner">
                     <Ghost size={12} />
                     Ghost Mode Active
+                </div>
+            )}
+
+            {isVerificationRestricted && (
+                <div className="w-full bg-amber-900/40 border-b border-amber-500/30 text-amber-200 text-xs font-semibold py-1 text-center backdrop-blur-sm fixed top-16 z-layer-banner">
+                    Verification pending. Limited mode is active until approval.
                 </div>
             )}
 
