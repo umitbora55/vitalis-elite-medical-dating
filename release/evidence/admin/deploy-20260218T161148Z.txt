@@ -1,0 +1,19 @@
+=== Supabase Admin Moderation Deploy ===
+UTC: 2026-02-18T16:11:48Z
+Repo: /Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating-admin-moderation
+supabase version: 2.75.0
+PROJECT_REF is not set. Skipping supabase link.
+Applying migrations with supabase db push
+Initialising login role...
+Connecting to remote database...
+Do you want to push these migrations to the remote database?
+ • 20260321_admin_verification_hardening.sql
+
+ [Y/n] 
+Applying migration 20260321_admin_verification_hardening.sql...
+NOTICE (00000): constraint "verification_requests_status_check" of relation "verification_requests" does not exist, skipping
+ERROR: relation "app_settings" does not exist (SQLSTATE 42P01)
+At statement: 4                                               
+INSERT INTO app_settings (key, value)                         
+            ^                                                 
+Try rerunning the command with --debug to troubleshoot the error.

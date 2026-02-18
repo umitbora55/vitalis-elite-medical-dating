@@ -1,0 +1,72 @@
+
+> vitalis---medical-dating@0.0.0 test:e2e
+> playwright test
+
+
+Running 2 tests using 1 worker
+
+  ✘  1 [chromium] › e2e/basic.spec.ts:3:1 › landing renders (471ms)
+  ✘  2 [chromium] › e2e/basic.spec.ts:9:1 › nearby map page renders list with seeded deterministic data (5.2s)
+
+
+  1) [chromium] › e2e/basic.spec.ts:3:1 › landing renders ──────────────────────────────────────────
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText('VITALIS')
+    Expected: visible
+    Error: strict mode violation: getByText('VITALIS') resolved to 9 elements:
+        1) <a class="file-link">/Users/umitboragunaydin/Desktop/Eski Masaüstü/vit…</a> aka getByText('/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating-')
+        2) <a class="file-link">///Users/umitboragunaydin/Desktop/Eski%20Masa%C3%…</a> aka getByText('///Users/umitboragunaydin/').first()
+        3) <a class="file-link">///Users/umitboragunaydin/Desktop/Eski%20Masa%C3%…</a> aka getByText('///Users/umitboragunaydin/').nth(1)
+        4) <a class="file-link">///Users/umitboragunaydin/Desktop/Eski%20Masa%C3%…</a> aka getByText('///Users/umitboragunaydin/').nth(2)
+        5) <a class="file-link">///Users/umitboragunaydin/Desktop/Eski%20Masa%C3%…</a> aka getByText('///Users/umitboragunaydin/').nth(3)
+        6) <a class="file-link">///Users/umitboragunaydin/Desktop/Eski%20Masa%C3%…</a> aka getByText('///Users/umitboragunaydin/').nth(4)
+        7) <a class="file-link">///Users/umitboragunaydin/Desktop/Eski%20Masa%C3%…</a> aka getByText('///Users/umitboragunaydin/').nth(5)
+        8) <a class="file-link">///Users/umitboragunaydin/Desktop/Eski%20Masa%C3%…</a> aka locator('a:nth-child(8)')
+        9) <a class="file-link">///Users/umitboragunaydin/Desktop/Eski%20Masa%C3%…</a> aka locator('a:nth-child(9)')
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByText('VITALIS')[22m
+
+
+      3 | test('landing renders', async ({ page }) => {
+      4 |   await page.goto('/');
+    > 5 |   await expect(page.getByText('VITALIS')).toBeVisible();
+        |                                           ^
+      6 |   await expect(page.getByRole('button', { name: 'Apply Now' })).toBeVisible();
+      7 | });
+      8 |
+        at /Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating-admin-moderation/e2e/basic.spec.ts:5:43
+
+    Error Context: test-results/basic-landing-renders-chromium/error-context.md
+
+  2) [chromium] › e2e/basic.spec.ts:9:1 › nearby map page renders list with seeded deterministic data 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('heading', { name: 'Nearby Active' })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByRole('heading', { name: 'Nearby Active' })[22m
+
+
+      10 |   await page.goto('/?e2eNearby=1');
+      11 |
+    > 12 |   await expect(page.getByRole('heading', { name: 'Nearby Active' })).toBeVisible();
+         |                                                                      ^
+      13 |   await expect(page.getByText('Smoke Nearby Alpha')).toBeVisible();
+      14 |   await expect(page.getByText('Smoke Nearby Beta')).toBeVisible();
+      15 |   await page.screenshot({ path: 'release/evidence/map_fix/nearby-page-smoke.png', fullPage: true });
+        at /Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating-admin-moderation/e2e/basic.spec.ts:12:70
+
+    Error Context: test-results/basic-nearby-map-page-rend-e8e79-h-seeded-deterministic-data-chromium/error-context.md
+
+  2 failed
+    [chromium] › e2e/basic.spec.ts:3:1 › landing renders ───────────────────────────────────────────
+    [chromium] › e2e/basic.spec.ts:9:1 › nearby map page renders list with seeded deterministic data 

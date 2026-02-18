@@ -1,0 +1,2 @@
+Command: npx -y @cyclonedx/cdxgen -t npm -o ../release/SBOM/cyclonedx-mobile.json .
+exit:0

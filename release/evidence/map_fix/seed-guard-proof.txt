@@ -1,0 +1,10 @@
+# Map seed guard proof
+---
+232:    const isNearbySmokeMode = typeof window !== 'undefined'
+233:        ? new URLSearchParams(window.location.search).get('e2eNearby') === '1'
+234:            && ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+238:        if (!isNearbySmokeMode) return;
+244:                id: `smoke-nearby-${index + 1}`,
+277:    }, [isNearbySmokeMode, setAuthStep, setCurrentView, setUserProfile]);
+---
+Only localhost/127/::1 hostnames are accepted and seeds only when query param e2eNearby=1

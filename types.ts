@@ -221,11 +221,22 @@ export interface VerificationBadges {
   license: boolean; // Main professional verification
 }
 
+export type UserRole = 'viewer' | 'moderator' | 'admin';
+export type VerificationPolicy = 'CORPORATE_ONLY' | 'HYBRID' | 'AUTO_APPROVE';
+export type VerificationMethod = 'CORPORATE_EMAIL' | 'DOCUMENTS' | 'THIRD_PARTY';
+
 export type VerificationStatus =
-  | 'PENDING_VERIFICATION'
-  | 'EMAIL_VERIFICATION_SENT'
+  | 'UNVERIFIED'
+  | 'AUTO_VERIFIED'
+  | 'PENDING'
+  | 'UNDER_REVIEW'
+  | 'NEED_MORE_INFO'
+  | 'VERIFIED'
   | 'REJECTED'
-  | 'VERIFIED';
+  | 'SUSPENDED'
+  // Legacy compat
+  | 'PENDING_VERIFICATION'
+  | 'EMAIL_VERIFICATION_SENT';
 
 export interface Profile {
   id: string;
@@ -264,6 +275,10 @@ export interface Profile {
   referralData?: ReferralData; // New: Referral system data
   themePreference?: ThemePreference; // New: App theme preference
   verificationStatus?: VerificationStatus;
+  verificationMethod?: VerificationMethod;
+  userRole?: UserRole;
+  riskFlags?: Record<string, unknown>;
+  suspendedUntil?: number | null;
   premiumTier?: PremiumTier;
   // Tier 1 — Registration (Required)
   genderPreference: GenderPreference;

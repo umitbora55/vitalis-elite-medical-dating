@@ -6,5 +6,13 @@ module.exports = defineConfig([
   expoConfig,
   {
     ignores: ['dist/*'],
+    rules: {
+      'import/no-unresolved': [
+        'error',
+        {
+          ignore: ['^expo-linear-gradient$', '^expo-secure-store$'],
+        },
+      ],
+    },
   },
 ]);

@@ -1,0 +1,21 @@
+Store artifact prep run
+Timestamp: 2026-02-18T12:58:46Z
+Repository: /Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating
+Branch: release/hardening-rc
+Commit: bc9a54d097322e34d61184e435cd6d1e49cee614
+Platform: all
+Expo app slug: mobile
+Expo owner: YOUR_EXPO_ACCOUNT
+iOS bundle id: com.vitalis.elitemedicaldating
+Android package: com.vitalis.elitemedicaldating
+
+Pre-flight checks:
+- Node: v24.12.0
+- npm: 11.6.2
+- EXPO_TOKEN: missing (manual upload required)
+
+Where to find artifacts after EAS upload:
+- Expo dashboard: https://expo.dev/accounts/YOUR_EXPO_ACCOUNT/projects/mobile/builds
+- iOS .ipa: Apple App Store Connect > My Apps > TestFlight
+- Android .aab: Google Play Console > Internal testing track
+

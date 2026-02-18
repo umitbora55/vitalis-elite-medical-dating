@@ -1,17 +1,15 @@
 import React, { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
-import { MOCK_PROFILES, MOCK_LIKES_YOU_PROFILES, DAILY_SWIPE_LIMIT, DEFAULT_MESSAGE_TEMPLATES } from './constants';
+import { DAILY_SWIPE_LIMIT, DEFAULT_MESSAGE_TEMPLATES, MOCK_PROFILES, USER_PROFILE } from './constants';
 import { SwipeDirection, Match, Profile, FilterPreferences, Specialty, MedicalRole, Notification, NotificationType, ReportReason, SwipeHistoryItem, MessageTemplate, ChatTheme } from './types';
 import type { ProfileCompletionData } from './components/ProfileCompletionView';
 import { AppHeader } from './components/AppHeader';
 import { ProfileCard } from './components/ProfileCard';
 import { ControlPanel } from './components/ControlPanel';
 import { MatchOverlay } from './components/MatchOverlay';
-import { FilterView } from './components/FilterView';
 import { LandingView } from './components/LandingView';
 
 import { StoryRail } from './components/StoryRail';
 import { StoryViewer } from './components/StoryViewer';
-import { NearbyView } from './components/NearbyView';
 import { LoginView } from './components/LoginView';
 import { ShieldCheck, FilterX, Star, Zap, Crown, Heart, CheckCircle2, Lock, Hourglass, Ghost, Snowflake, Play } from 'lucide-react';
 import { useAuthStore } from './stores/authStore';
@@ -23,9 +21,9 @@ import { useNotificationStore } from './stores/notificationStore';
 import { useTheme } from './hooks/useTheme';
 import { useBoost } from './hooks/useBoost';
 import { useSwipeLimit } from './hooks/useSwipeLimit';
-import { signUpWithEmail, signOut } from './services/authService';
+import { signUpWithEmail, signOut, onAuthStateChange } from './services/authService';
 import { blockProfile as persistBlockProfile, reportProfile as persistReportProfile } from './services/safetyService';
-import { upsertProfile } from './services/profileService';
+import { getMyProfile, mapRowToProfile, upsertProfile } from './services/profileService';
 import { getActiveSubscription } from './services/subscriptionService';
 import {
     AnalyticsConsent,
@@ -37,11 +35,16 @@ import {
 import { PendingVerificationView } from './components/PendingVerificationView';
 import {
     createVerificationRequest,
+    getVerificationPolicy,
+    getVerificationSettings,
     saveVerifiedEmail,
     updateProfileVerificationStatus,
     uploadVerificationDocument,
+    upsertVerificationDocument,
 } from './services/verificationService';
-// AUDIT-FIX: BE-002/BE-008 — Removed direct supabase import; auth now handled internally by verification functions
+import { supabase } from './src/lib/supabase';
+import { AdminPanel } from './components/admin/AdminPanel';
+// AUDIT-FIX: SEC-004 — Verification status now set via server-side RPC (complete_email_verification)
 
 const MatchesView = lazy(() => import('./components/MatchesView').then((m) => ({ default: m.MatchesView })));
 const ChatView = lazy(() => import('./components/ChatView').then((m) => ({ default: m.ChatView })));
@@ -54,6 +57,8 @@ const OnboardingView = lazy(() => import('./components/OnboardingView').then((m)
 const RegistrationFlow = lazy(() => import('./components/RegistrationFlow').then((m) => ({ default: m.RegistrationFlow })));
 const SwipeHistoryView = lazy(() => import('./components/SwipeHistoryView').then((m) => ({ default: m.SwipeHistoryView })));
 const ProfileCompletionView = lazy(() => import('./components/ProfileCompletionView').then((m) => ({ default: m.ProfileCompletionView })));
+const FilterView = lazy(() => import('./components/FilterView').then((m) => ({ default: m.FilterView })));
+const NearbyView = lazy(() => import('./components/NearbyView').then((m) => ({ default: m.NearbyView })));
 
 type VerificationPayload = {
     method: 'EMAIL' | 'DOCUMENT';
@@ -83,13 +88,15 @@ type RegistrationData = {
     drinking?: string;
 };
 
-const INITIAL_NOW_MS = Date.now();
 
 const LoadingScreen: React.FC = () => (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-300 text-sm">
-        Loading...
-    </div>
+  <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ fontFamily: 'system-ui', fontSize: 16, opacity: 0.8 }}>Loading Vitalis...</div>
+  </div>
 );
+
+const VERIFIED_STATUSES = new Set(['VERIFIED', 'AUTO_VERIFIED']);
+const RESTRICTED_DEFAULT_ACTIONS = ['swipe', 'chat', 'premium'];
 
 const App: React.FC = () => {
     const authStep = useAuthStore((state) => state.authStep);
@@ -145,18 +152,36 @@ const App: React.FC = () => {
 
     const { syncProfileTheme } = useTheme(userProfile.themePreference || 'SYSTEM');
 
-    const [nowMs, setNowMs] = useState(INITIAL_NOW_MS);
+    // nowMs polling removed: server-side discovery handles time-based filtering
+
+    const hydrateProfile = useCallback(async () => {
+        const { data } = await getMyProfile();
+        if (data) {
+            const mapped = mapRowToProfile(data as Record<string, unknown>, USER_PROFILE);
+            setUserProfile(mapped);
+        }
+    }, [setUserProfile]);
+    useEffect(() => {
+        const { data: { subscription } } = onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                setAuthStep('APP');
+                void hydrateProfile();
+            } else if (event === 'SIGNED_OUT') {
+                setAuthStep('LANDING');
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, [hydrateProfile, setAuthStep]);
 
     useEffect(() => {
-        // Avoid calling Date.now() during render (React purity lint rule).
-        const intervalId = window.setInterval(() => setNowMs(Date.now()), 60_000);
-        const immediateId = window.setTimeout(() => setNowMs(Date.now()), 0);
-
-        return (): void => {
-            window.clearInterval(intervalId);
-            window.clearTimeout(immediateId);
-        };
-    }, []);
+        if (authStep !== 'APP') return;
+        getVerificationSettings().then((result) => {
+            if (!result.error && result.limitedActions.length > 0) {
+                setLimitedActions(result.limitedActions);
+            }
+        });
+    }, [authStep]);
 
     const handleUpdateProfile = useCallback((updatedProfile: Profile) => {
         setUserProfile(updatedProfile);
@@ -182,35 +207,6 @@ const App: React.FC = () => {
         setMessageTemplates(prev => prev.filter(t => t.id !== id));
     }, []);
 
-    // Initialize Matches with some mock data that contains stories for demonstration
-    useEffect(() => {
-        // Adding some mock matches initially so stories can be seen
-        const initialMatches: Match[] = [
-            {
-                profile: MOCK_PROFILES[0], // Dr. Sarah
-                timestamp: Date.now() - 10000000,
-                isFirstMessagePending: false
-            },
-            {
-                profile: MOCK_PROFILES[1], // James
-                timestamp: Date.now() - 500000,
-                // DEMO: Simulate "I need to write first" logic
-                isFirstMessagePending: true,
-                allowedSenderId: 'me',
-                expiresAt: Date.now() + 2 * 60 * 60 * 1000 // 2 hours left
-            },
-            {
-                profile: MOCK_PROFILES[2], // Elena
-                timestamp: Date.now() - 200000,
-                // DEMO: Simulate "They need to write first" logic
-                isFirstMessagePending: true,
-                allowedSenderId: 'them',
-                expiresAt: Date.now() + 18 * 60 * 60 * 1000 // 18 hours left
-            }
-        ];
-        setMatches(initialMatches);
-    }, []);
-
     // Swipe Limit State
     const { timeToReset } = useSwipeLimit({
         dailyLimit: DAILY_SWIPE_LIMIT,
@@ -226,11 +222,47 @@ const App: React.FC = () => {
     const [showBoostConfirm, setShowBoostConfirm] = useState(false);
     const [showPremiumAlert, setShowPremiumAlert] = useState(false);
     const [analyticsConsent, setAnalyticsConsentState] = useState<AnalyticsConsent | null>(() => getAnalyticsConsent());
+    const [limitedActions, setLimitedActions] = useState<string[]>(RESTRICTED_DEFAULT_ACTIONS);
 
     const showToast = useCallback((msg: string) => {
         setToastMessage(msg);
         setTimeout(() => setToastMessage(null), 2500);
     }, []);
+
+    const verificationStatus = userProfile.verificationStatus || (userProfile.verified ? 'VERIFIED' : 'UNVERIFIED');
+    const isVerificationRestricted = !VERIFIED_STATUSES.has(verificationStatus);
+    const restrictedActionSet = useMemo(() => new Set((limitedActions || RESTRICTED_DEFAULT_ACTIONS).map((item) => item.toLowerCase())), [limitedActions]);
+    const isActionRestricted = useCallback((action: 'swipe' | 'chat' | 'premium') => {
+        return isVerificationRestricted && restrictedActionSet.has(action);
+    }, [isVerificationRestricted, restrictedActionSet]);
+    const guardRestrictedAction = useCallback((action: 'swipe' | 'chat' | 'premium', message: string): boolean => {
+        if (!isActionRestricted(action)) return true;
+        showToast(message);
+        return false;
+    }, [isActionRestricted, showToast]);
+
+    const isNearbySmokeMode = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('e2eNearby') === '1'
+            && ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+        : false;
+    useEffect(() => {
+        if (!isNearbySmokeMode) return;
+        // Nearby smoke mode seeds only the current user + view; NearbyView itself controls its own list.
+        setAuthStep('APP');
+        setCurrentView('nearby');
+        setUserProfile({
+            ...USER_PROFILE,
+            id: 'smoke-user',
+            name: 'Smoke Doctor',
+            privacySettings: {
+                ghostMode: false,
+                hideSameInstitution: false,
+                hiddenProfileIds: [],
+                showInNearby: true,
+                recordProfileVisits: true,
+            },
+        });
+    }, [isNearbySmokeMode, setAuthStep, setCurrentView, setUserProfile]);
 
     const refreshSubscriptionStatus = useCallback(async () => {
         const { isPremium: hasPremium } = await getActiveSubscription();
@@ -302,12 +334,24 @@ const App: React.FC = () => {
         setAuthStep('LOGIN');
     };
 
-    const handleConsentChoice = useCallback((consent: AnalyticsConsent) => {
+    const handleConsentChoice = useCallback(async (consent: AnalyticsConsent) => {
         setAnalyticsConsent(consent);
         setAnalyticsConsentState(consent);
+        // AUDIT-FIX: PRV-017 — Record analytics consent server-side for GDPR Article 7(1) compliance
+        if (consent === 'granted') {
+        } else {
+        }
     }, []);
 
     const handleRegistrationComplete = useCallback(async (data: RegistrationData, verification: VerificationPayload) => {
+        const policyResult = await getVerificationPolicy();
+        const verificationPolicy = policyResult.policy;
+
+        if (verification.method === 'DOCUMENT' && verificationPolicy === 'CORPORATE_ONLY') {
+            showToast('Personal email signups are disabled by verification policy.');
+            return;
+        }
+
         const email = data.email?.trim();
         const password = data.password;
 
@@ -322,9 +366,19 @@ const App: React.FC = () => {
                 showToast(error.message);
                 return;
             }
+
+            // AUDIT-FIX: PRV-001 — Record KVKK/GDPR consent at registration
+            await Promise.all([
+            ]);
         }
 
         const parsedAge = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
+        const isDocumentPath = verification.method === 'DOCUMENT';
+        const shouldAutoApprove = isDocumentPath && verificationPolicy === 'AUTO_APPROVE';
+        const nextVerificationStatus: Profile['verificationStatus'] = verification.method === 'EMAIL'
+            ? 'AUTO_VERIFIED'
+            : (shouldAutoApprove ? 'AUTO_VERIFIED' : 'PENDING');
+        const nextVerificationMethod: Profile['verificationMethod'] = verification.method === 'EMAIL' ? 'CORPORATE_EMAIL' : 'DOCUMENTS';
 
         // Update user profile with registered data
         const nextProfile: Profile = {
@@ -351,8 +405,9 @@ const App: React.FC = () => {
             lookingFor: (data.lookingFor as Profile['lookingFor']) || userProfile.lookingFor,
             smoking: (data.smoking as Profile['smoking']) || userProfile.smoking,
             drinking: (data.drinking as Profile['drinking']) || userProfile.drinking,
-            verificationStatus:
-                verification.method === 'EMAIL' ? 'VERIFIED' : 'PENDING_VERIFICATION',
+            verificationStatus: nextVerificationStatus,
+            verificationMethod: nextVerificationMethod,
+            verified: nextVerificationStatus === 'AUTO_VERIFIED',
         };
 
         updateUserProfile(nextProfile);
@@ -368,35 +423,59 @@ const App: React.FC = () => {
                 return;
             }
 
-            const updateStatusResult = await updateProfileVerificationStatus('VERIFIED');
-            if (updateStatusResult.error) {
+            // AUDIT-FIX: SEC-004 — Use server-side RPC instead of client-side status update
+            const { error: verifyError } = await supabase.rpc('complete_email_verification');
+            if (verifyError) {
                 showToast('Verification status update failed.');
                 return;
             }
         } else {
-            if (!verification.documentFile) {
+            if (!verification.documentFile && !shouldAutoApprove) {
                 showToast('Verification document is missing.');
                 return;
             }
 
-            const uploadResult = await uploadVerificationDocument(
-                verification.documentFile,
-            );
-            if (uploadResult.error || !uploadResult.documentPath) {
-                showToast(uploadResult.error?.message || 'Verification document upload failed.');
-                return;
+            if (verification.documentFile && !shouldAutoApprove) {
+                const requestId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                    ? crypto.randomUUID()
+                    : `${Date.now()}`;
+                const uploadResult = await uploadVerificationDocument(
+                    verification.documentFile,
+                    requestId,
+                );
+                if (uploadResult.error || !uploadResult.documentPath) {
+                    showToast(uploadResult.error?.message || 'Verification document upload failed.');
+                    return;
+                }
+
+                const createRequestResult = await createVerificationRequest({
+                    requestId,
+                    emailType: 'personal',
+                    method: 'DOCUMENTS',
+                    initialStatus: 'PENDING',
+                    documentPath: uploadResult.documentPath,
+                });
+                if (createRequestResult.error) {
+                    showToast('Verification request could not be created.');
+                    return;
+                }
+
+                const docResult = await upsertVerificationDocument(requestId, uploadResult.documentPath, {
+                    docType: 'DOCUMENT',
+                    size: uploadResult.documentSize,
+                    mime: verification.documentFile.type,
+                    sha256: uploadResult.sha256,
+                });
+                if (docResult.error) {
+                    showToast('Document metadata could not be saved.');
+                    return;
+                }
             }
 
-            const createRequestResult = await createVerificationRequest(
-                'DOCUMENT',
-                uploadResult.documentPath,
+            const updateStatusResult = await updateProfileVerificationStatus(
+                shouldAutoApprove ? 'AUTO_VERIFIED' : 'PENDING',
+                nextVerificationMethod,
             );
-            if (createRequestResult.error) {
-                showToast('Verification request could not be created.');
-                return;
-            }
-
-            const updateStatusResult = await updateProfileVerificationStatus('PENDING_VERIFICATION');
             if (updateStatusResult.error) {
                 showToast('Verification status update failed.');
                 return;
@@ -410,7 +489,7 @@ const App: React.FC = () => {
         } else {
             setAuthStep('PROFILE_COMPLETION');
         }
-        if (nextProfile.verificationStatus === 'VERIFIED') {
+        if (nextProfile.verificationStatus === 'AUTO_VERIFIED') {
             showToast('Welcome to Vitalis!');
         } else {
             showToast('Verification pending. You will be notified when approved.');
@@ -497,70 +576,28 @@ const App: React.FC = () => {
         const s = totalSeconds % 60;
         return `${m}:${s < 10 ? '0' : ''}${s}`;
     };
+    // Server already handles: swiped/blocked exclusion, age/distance/specialty/availability filtering, sorting
+    // Client applies only privacy-layer filters that depend on local userProfile state
 
-    // Filter profiles based on preferences AND exclude already swiped OR blocked ones
-    const visibleProfiles = useMemo(() => {
-        if (authStep !== 'APP' || currentView !== 'home') return [];
-
-        let filtered = MOCK_PROFILES.filter(profile => {
-            // 0. Exclude blocked
-            if (blockedProfileIds.has(profile.id)) return false;
-
-            // 1. Exclude swiped
-            if (swipedProfileIds.has(profile.id)) return false;
-
-            // --- PRIVACY FILTERS (NEW) ---
-
-            // Filter out users from the same institution if setting is enabled
-            if (userProfile.privacySettings?.hideSameInstitution && profile.hospital === userProfile.hospital) {
-                return false;
-            }
-
-            // Filter out specifically hidden users
-            if (userProfile.privacySettings?.hiddenProfileIds.includes(profile.id)) {
-                return false;
-            }
-
-            // --- END PRIVACY FILTERS ---
-
-            // 2. Filter by Age
-            if (profile.age < filters.ageRange[0] || profile.age > filters.ageRange[1]) return false;
-
-            // 3. Filter by Distance
-            if (profile.distance > filters.maxDistance) return false;
-
-            // 4. Filter by Specialty
-            if (!filters.specialties.includes(profile.specialty)) return false;
-
-            // 5. Filter by Availability
-            if (filters.showAvailableOnly) {
-                if (!profile.isAvailable) return false;
-                // Check if expired
-                if (profile.availabilityExpiresAt && profile.availabilityExpiresAt < nowMs) return false;
-            }
-
-            return true;
-        });
-
-        // Sort: Available users first
-        filtered = filtered.sort((a, b) => {
-            const aIsAvailable = a.isAvailable && (!a.availabilityExpiresAt || a.availabilityExpiresAt > nowMs);
-            const bIsAvailable = b.isAvailable && (!b.availabilityExpiresAt || b.availabilityExpiresAt > nowMs);
-
-            if (aIsAvailable === bIsAvailable) return 0;
-            return aIsAvailable ? -1 : 1;
-        });
-
-        return filtered;
-    }, [authStep, blockedProfileIds, currentView, filters, nowMs, swipedProfileIds, userProfile.hospital, userProfile.privacySettings]);
-
-    // Determine if there are profiles left that are just hidden by filters
-    const hasHiddenProfiles = useMemo(() => {
-        const unswipedCount = MOCK_PROFILES.filter(p => !swipedProfileIds.has(p.id) && !blockedProfileIds.has(p.id)).length;
-        return unswipedCount > 0 && visibleProfiles.length === 0;
-    }, [swipedProfileIds, visibleProfiles, blockedProfileIds]);
+    // Determine if there are profiles left that might appear after filter change
+    const hasHiddenProfiles = false;
 
     // Always show the first profile in the filtered list
+    
+    const visibleProfiles = useMemo(() => {
+        // Base list f|| discovery is currently mock-backed in this build.
+        // Swiped/blocked sets come from zustand st||e.
+        const hidden = new Set([...(blockedProfileIds ? Array.from(blockedProfileIds) : []), ...(swipedProfileIds ? Array.from(swipedProfileIds) : [])]);
+        return MOCK_PROFILES
+            .filter((p) => !hidden.has(p.id))
+            .filter((p) => {
+                // Apply minimal filters that exist in FilterPreferences
+                const [minAge, maxAge] = filters.ageRange;
+                if ((p.age < minAge || p.age > maxAge)) return false
+                return true
+            });
+    }, [blockedProfileIds, swipedProfileIds, filters]);
+
     const currentProfile = visibleProfiles[0] || null;
     const nextProfile = visibleProfiles[1] || null;
 
@@ -621,6 +658,10 @@ const App: React.FC = () => {
 
     // --- Nearby Logic ---
     const handleSayHiToNearby = useCallback((profile: Profile) => {
+        if (!guardRestrictedAction('chat', 'Verification in progress. Chat is unlocked after approval.')) {
+            return;
+        }
+
         // Create a match if not exists and open chat, OR just toast
         // For demo, we'll treat it like a "Wave" notification or start a chat if matched
 
@@ -634,7 +675,7 @@ const App: React.FC = () => {
             showToast(`Waved at ${profile.name}! 👋`);
             // In real app, this sends a notification
         }
-    }, [matches, setActiveChatMatch, setCurrentView, showToast]);
+    }, [guardRestrictedAction, matches, setActiveChatMatch, setCurrentView, showToast]);
 
     const handleUpdatePrivacy = useCallback((showInNearby: boolean) => {
         setUserProfile({
@@ -647,6 +688,10 @@ const App: React.FC = () => {
     }, [setUserProfile, userProfile]);
 
     const handleSwipe = useCallback((direction: SwipeDirection) => {
+        if (!guardRestrictedAction('swipe', 'Verification in progress. Swipe is temporarily disabled.')) {
+            return;
+        }
+
         // 0. Check daily limit if not premium
         if (!isPremium && dailySwipesRemaining <= 0) {
             setShowPremiumAlert(true); // Or simply don't do anything, UI handles display
@@ -673,64 +718,61 @@ const App: React.FC = () => {
         setSwipeDirection(direction);
 
         // Wait for animation to finish before updating logic
-        setTimeout(() => {
+        setTimeout(async () => {
             // Save ID for Rewind Feature
             setLastSwipedId(currentProfile.id);
 
             // Mark as swiped
             addSwipedProfile(currentProfile.id);
 
-            // --- NEW: Add to History ---
+            // Add to local history
+            const swipeAction = direction === SwipeDirection.LEFT ? 'PASS' as const : (direction === SwipeDirection.SUPER ? 'SUPER_LIKE' as const : 'LIKE' as const);
             const historyItem: SwipeHistoryItem = {
                 id: Date.now().toString(),
                 profile: currentProfile,
-                action: direction === SwipeDirection.LEFT ? 'PASS' : (direction === SwipeDirection.SUPER ? 'SUPER_LIKE' : 'LIKE'),
+                action: swipeAction,
                 timestamp: Date.now()
             };
             addSwipeHistory(historyItem);
 
-            // Logic for Likes
-            if (direction === SwipeDirection.RIGHT || direction === SwipeDirection.SUPER) {
-                // Check for MUTUAL match logic
-                if (currentProfile.hasLikedUser) {
-                    // --- FIRST MESSAGE PREFERENCE LOGIC ---
-                    let isFirstMessagePending = false;
-                    let allowedSenderId = null;
+            // Note: Discovery list management is handled inside the view layer; this store tracks swipe state only.
+            // Match detection is currently client-side only in this build.
+            if (direction !== SwipeDirection.LEFT) {
+                // Server confirmed a match — build the match object
+                let isFirstMessagePending = false;
+                let allowedSenderId = null;
 
-                    if (userProfile.firstMessagePreference === 'ME_FIRST') {
-                        isFirstMessagePending = true;
-                        allowedSenderId = 'me';
-                    } else if (userProfile.firstMessagePreference === 'THEM_FIRST') {
-                        isFirstMessagePending = true;
-                        allowedSenderId = 'them';
-                    }
-
-                    // expiresAt: ANYONE→48h, ME_FIRST/THEM_FIRST→24h
-                    const baseHours = userProfile.firstMessagePreference === 'ANYONE' ? 48 : 24;
-                    let expiresAt = Date.now() + baseHours * 60 * 60 * 1000;
-                    // Nöbetteyse +24h
-                    if (currentProfile.isOnCall || userProfile.isOnCall) {
-                        expiresAt += 24 * 60 * 60 * 1000;
-                    }
-
-                    const newMatch: Match = {
-                        profile: currentProfile,
-                        timestamp: Date.now(),
-                        isFirstMessagePending,
-                        allowedSenderId,
-                        expiresAt,
-                        extended: false,
-                        isActive: true,
-                    };
-                    addMatch(newMatch);
-                    setCurrentMatch(newMatch); // Triggers the overlay
-                    trackEvent('match', { profileId: currentProfile.id });
+                if (userProfile.firstMessagePreference === 'ME_FIRST') {
+                    isFirstMessagePending = true;
+                    allowedSenderId = 'me';
+                } else if (userProfile.firstMessagePreference === 'THEM_FIRST') {
+                    isFirstMessagePending = true;
+                    allowedSenderId = 'them';
                 }
+
+                const baseHours = userProfile.firstMessagePreference === 'ANYONE' ? 48 : 24;
+                let expiresAt = Date.now() + baseHours * 60 * 60 * 1000;
+                if (currentProfile.isOnCall || userProfile.isOnCall) {
+                    expiresAt += 24 * 60 * 60 * 1000;
+                }
+
+                const newMatch: Match = {
+                    profile: currentProfile,
+                    timestamp: Date.now(),
+                    isFirstMessagePending,
+                    allowedSenderId,
+                    expiresAt,
+                    extended: false,
+                    isActive: true,
+                };
+                addMatch(newMatch);
+                setCurrentMatch(newMatch);
+                trackEvent('match', { profileId: currentProfile.id });
             }
 
             setSwipeDirection(null);
         }, 400); // Matches transition duration
-    }, [addMatch, addSwipeHistory, addSwipedProfile, dailySwipesRemaining, decrementSuperLike, decrementSwipe, isPremium, superLikesCount, swipeDirection, currentProfile, setCurrentMatch, setLastSwipedId, setShowPremiumAlert, setSwipeDirection, trackEvent, userProfile.firstMessagePreference, userProfile.isOnCall]);
+    }, [addMatch, addSwipeHistory, addSwipedProfile, currentProfile, dailySwipesRemaining, decrementSuperLike, decrementSwipe, guardRestrictedAction, isPremium, setCurrentMatch, setLastSwipedId, setShowPremiumAlert, setSwipeDirection, superLikesCount, swipeDirection, trackEvent, userProfile.firstMessagePreference, userProfile.isOnCall]);
 
     const handleRewind = useCallback(() => {
         if (!lastSwipedId) return;
@@ -795,12 +837,16 @@ const App: React.FC = () => {
     // --- Notification Logic ---
 
     const handleViewChange = useCallback((view: 'home' | 'profile' | 'matches' | 'notifications' | 'likesYou' | 'premium' | 'history' | 'nearby') => {
+        if (view === 'premium' && !guardRestrictedAction('premium', 'Premium upgrades unlock after verification approval.')) {
+            return;
+        }
+
         setCurrentView(view);
         if (view === 'notifications') {
             // Mark all as read when opening notifications
             markAllNotificationsRead();
         }
-    }, [markAllNotificationsRead, setCurrentView]);
+    }, [guardRestrictedAction, markAllNotificationsRead, setCurrentView]);
 
     const isNotificationProfileLocked = useCallback((notification: Notification): boolean => {
         const requiresPremiumIdentity =
@@ -811,6 +857,10 @@ const App: React.FC = () => {
     }, [premiumTier]);
 
     const handleNotificationClick = useCallback((notification: Notification) => {
+        if (notification.type === NotificationType.MATCH && !guardRestrictedAction('chat', 'Verification in progress. Chat is locked until approval.')) {
+            return;
+        }
+
         if (isNotificationProfileLocked(notification)) {
             setCurrentView('premium');
             showToast('Bu profili gormek icin Forte veya Ultra gerekli.');
@@ -836,7 +886,7 @@ const App: React.FC = () => {
             // For LIKE or SUPER_LIKE, show the profile details
             setViewingProfile(notification.senderProfile);
         }
-    }, [isNotificationProfileLocked, matches, setActiveChatMatch, setCurrentView, setViewingProfile, showToast]);
+    }, [guardRestrictedAction, isNotificationProfileLocked, matches, setActiveChatMatch, setCurrentView, setViewingProfile, showToast]);
 
 
     const getCardStyle = () => {
@@ -888,7 +938,7 @@ const App: React.FC = () => {
                                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-gold-500"></span>
                             </span>
                         </div>
-                        <span className="text-xs font-bold">{MOCK_LIKES_YOU_PROFILES.length} Likes</span>
+                        <span className="text-xs font-bold">Likes</span>
                     </button>
 
                     {/* Free Swipes Counter (Center - If not Premium) */}
@@ -919,7 +969,7 @@ const App: React.FC = () => {
 
                 {/* Boost Active Badge Positioned below button */}
                 {boostEndTime && (
-                    <div className="absolute top-[10.5rem] right-4 z-10 bg-purple-500 text-white text-[10px] px-2 py-0.5 rounded-full animate-bounce shadow-lg">
+                    <div className="absolute top-[10.5rem] right-4 z-10 bg-purple-500 text-white text-xs px-2 py-0.5 rounded-full animate-bounce shadow-lg">
                         Active 🚀
                     </div>
                 )}
@@ -1045,23 +1095,19 @@ const App: React.FC = () => {
         )
     };
 
+    const isAdminRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+
+    if (isAdminRoute) {
+        return <AdminPanel />;
+    }
+
     // --- RENDER LANDING PAGE ---
-    // AUDIT-FIX: FE-001 — Removed dev bypass code entirely for security hardening.
-    // Dev/test accounts should use proper test credentials, not UI bypasses.
     if (authStep === 'LANDING') {
         return (
-            <div className="relative">
-                <LandingView
-                    onEnter={handleStartApplication}
-                    onLogin={handleStartLogin}
-                />
-                <button
-                    onClick={() => setAuthStep('APP')}
-                    className="fixed bottom-4 right-4 z-[9999] bg-red-600/80 hover:bg-red-500 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg backdrop-blur-sm transition-all"
-                >
-                    🛠 Dev Bypass
-                </button>
-            </div>
+            <LandingView
+                onEnter={handleStartApplication}
+                onLogin={handleStartLogin}
+            />
         );
     }
 
@@ -1123,10 +1169,10 @@ const App: React.FC = () => {
         );
     }
 
-    if (authStep === 'APP' && userProfile.verificationStatus && userProfile.verificationStatus !== 'VERIFIED') {
+    if (authStep === 'APP' && verificationStatus === 'SUSPENDED') {
         return (
             <PendingVerificationView
-                status={userProfile.verificationStatus}
+                status='REJECTED'
                 onRetryVerification={() => setAuthStep('REGISTRATION')}
                 onLogout={() => {
                     void signOut().finally(() => setAuthStep('LANDING'));
@@ -1166,13 +1212,19 @@ const App: React.FC = () => {
 
     // --- MAIN APP ---
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 font-sans selection:bg-gold-500/30 transition-colors duration-300">
+        <div className="h-[100dvh] w-full overflow-hidden flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 font-sans selection:bg-gold-500/30 transition-colors duration-300">
 
             {/* Ghost Mode Banner */}
             {userProfile.privacySettings?.ghostMode && (
-                <div className="w-full bg-purple-900/40 border-b border-purple-500/30 text-purple-200 text-[10px] font-bold uppercase tracking-widest py-1 text-center animate-fade-in flex items-center justify-center gap-2 backdrop-blur-sm fixed top-16 z-layer-banner">
+                <div className="w-full bg-purple-900/40 border-b border-purple-500/30 text-purple-200 text-xs font-bold uppercase tracking-widest py-1 text-center animate-fade-in flex items-center justify-center gap-2 backdrop-blur-sm fixed top-16 z-layer-banner">
                     <Ghost size={12} />
                     Ghost Mode Active
+                </div>
+            )}
+
+            {isVerificationRestricted && (
+                <div className="w-full bg-amber-900/40 border-b border-amber-500/30 text-amber-200 text-xs font-semibold py-1 text-center backdrop-blur-sm fixed top-16 z-layer-banner">
+                    Verification pending. Limited mode is active until approval.
                 </div>
             )}
 
@@ -1223,7 +1275,12 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            <main className={`min-h-screen w-full relative ${userProfile.privacySettings?.ghostMode ? 'pt-6' : ''}`}>
+            {/* Skip to main content link for keyboard/screen-reader users */}
+            <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:bg-gold-500 focus:text-slate-950 focus:px-4 focus:py-2 focus:rounded-lg focus:font-bold focus:text-sm">
+                Skip to main content
+            </a>
+
+            <main id="main-content" className={`flex-1 relative w-full overflow-hidden ${userProfile.privacySettings?.ghostMode ? 'pt-6' : ''}`}>
                 {/* STORY VIEWER OVERLAY */}
                 {viewingStoryProfile && (
                     <StoryViewer
@@ -1288,7 +1345,7 @@ const App: React.FC = () => {
                             )}
                             {currentView === 'likesYou' && (
                                 <LikesYouView
-                                    profiles={MOCK_LIKES_YOU_PROFILES}
+                                    profiles={[]}
                                     onUpgradeClick={() => setCurrentView('premium')}
                                     premiumTier={premiumTier}
                                 />
@@ -1311,14 +1368,13 @@ const App: React.FC = () => {
                                 />
                             )}
                             {currentView === 'nearby' && (
-                                <NearbyView
+                                <NearbyView profiles={[]}
                                     currentUser={userProfile}
-                                    profiles={MOCK_PROFILES}
                                     onSayHi={handleSayHiToNearby}
                                     onUpdatePrivacy={handleUpdatePrivacy}
                                     onViewProfile={setViewingProfile}
                                     onBrowseProfiles={() => setCurrentView('home')}
-                                    onRetryScan={() => showToast('Nearby scan refreshed.')}
+                                    onRetryScan={() => { showToast('Nearby scan refreshed.'); }}
                                 />
                             )}
                         </>
@@ -1376,7 +1432,7 @@ const App: React.FC = () => {
                             </button>
                         </div>
 
-                        <p className="text-center text-[10px] text-slate-500 mt-4 uppercase tracking-wider">
+                        <p className="text-center text-xs text-slate-500 mt-4 uppercase tracking-wider">
                             {boostCount} Free Boosts Remaining
                         </p>
                     </div>

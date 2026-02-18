@@ -1,0 +1,157 @@
+components/PremiumView.tsx:165:          aria-label="Close premium plans"
+components/MatchesView.tsx:130:            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-sm text-slate-300 focus:outline-none focus:border-gold-500/50 transition-all placeholder:text-slate-600"
+components/MatchesView.tsx:138:            aria-label="Sort matches"
+components/MatchesView.tsx:141:            className="h-11 w-11 bg-slate-900 dark:bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 dark:hover:text-white hover:border-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gold-500"
+components/MatchesView.tsx:218:                          <img src={match.profile.images[0]} alt={match.profile.name} className="w-full h-full object-cover" loading="lazy" />
+components/MatchesView.tsx:251:                            <img src={match.profile.images[0]} alt={match.profile.name} className="w-full h-full object-cover" loading="lazy" />
+components/SwipeHistoryView.tsx:130:                    className="bg-transparent text-xs font-bold text-slate-400 focus:outline-none uppercase px-2"
+components/SwipeHistoryView.tsx:156:                            className="relative w-12 h-12 rounded-full overflow-hidden border border-slate-700 cursor-pointer flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+components/SwipeHistoryView.tsx:158:                            aria-label={`View ${item.profile.name}'s profile`}
+components/SwipeHistoryView.tsx:160:                            <img src={item.profile.images[0]} alt={item.profile.name} className="w-full h-full object-cover" loading="lazy" />
+components/SwipeHistoryView.tsx:164:                        <button type="button" className="flex-1 min-w-0 text-left focus:outline-none focus:ring-2 focus:ring-gold-500 rounded-lg" onClick={() => onViewProfile(item.profile)} aria-label={`View ${item.profile.name}, ${item.profile.age} — ${item.profile.specialty}`}>
+components/SwipeHistoryView.tsx:183:                                    className="p-2 rounded-full bg-slate-800 text-green-500 hover:bg-green-500 hover:text-white transition-colors border border-slate-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+components/SwipeHistoryView.tsx:184:                                    aria-label={`Re-like ${item.profile.name}`}
+components/SwipeHistoryView.tsx:191:                                    className="p-2 rounded-full bg-slate-800 text-slate-400 hover:bg-red-500 hover:text-white transition-colors border border-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+components/SwipeHistoryView.tsx:192:                                    aria-label={`Undo like on ${item.profile.name}`}
+components/ProfileDetailView.tsx:89:                aria-label="Open profile actions"
+components/ProfileDetailView.tsx:120:          aria-label="Close profile details"
+components/ProfileDetailView.tsx:135:                        alt={`${profile.name} - photo ${idx + 1}`}
+components/ProfileDetailView.tsx:185:                        aria-label="Open verification details"
+components/ProfileDetailView.tsx:388:          <div className="fixed inset-0 z-[70] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label="Verification details">
+components/ProfileDetailView.tsx:394:                      <button onClick={() => setShowTrustScore(false)} aria-label="Close verification details" className="text-slate-500 hover:text-white">
+components/ProfileDetailView.tsx:463:        <div className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label={`Block ${profile.name}`}>
+components/ProfileDetailView.tsx:492:          <div className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label={`Report ${profile.name}`}>
+components/ProfileDetailView.tsx:496:                      <button onClick={() => setShowReportModal(false)} aria-label="Close report modal" className="text-slate-500 hover:text-white"><X size={20}/></button>
+mobile/app/(tabs)/_layout.tsx:16:  focused: boolean;
+mobile/app/(tabs)/_layout.tsx:19:function TabBarIcon({ name, color, focused }: TabBarIconProps) {
+mobile/app/(tabs)/_layout.tsx:23:      {focused && <View style={styles.activeIndicator} />}
+mobile/app/(tabs)/_layout.tsx:50:          tabBarIcon: ({ color, focused }) => (
+mobile/app/(tabs)/_layout.tsx:51:            <TabBarIcon name="flame" color={color} focused={focused} />
+mobile/app/(tabs)/_layout.tsx:59:          tabBarIcon: ({ color, focused }) => (
+mobile/app/(tabs)/_layout.tsx:60:            <TabBarIcon name="heart" color={color} focused={focused} />
+mobile/app/(tabs)/_layout.tsx:68:          tabBarIcon: ({ color, focused }) => (
+mobile/app/(tabs)/_layout.tsx:69:            <TabBarIcon name="chatbubbles" color={color} focused={focused} />
+mobile/app/(tabs)/_layout.tsx:77:          tabBarIcon: ({ color, focused }) => (
+mobile/app/(tabs)/_layout.tsx:78:            <TabBarIcon name="person" color={color} focused={focused} />
+components/LikesYouView.tsx:53:                alt={isForteOrAbove ? "Profile" : "Locked profile"}
+components/ControlPanel.tsx:25:        className={`pointer-events-auto w-11 h-11 rounded-full backdrop-blur border transition-all shadow-lg flex items-center justify-center group focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 focus:ring-offset-slate-950 ${
+components/ControlPanel.tsx:31:        aria-label={isRewindDisabled ? "Rewind (Premium feature)" : "Rewind last swipe"}
+components/ControlPanel.tsx:37:      {/* Pass Button - Accessibility Fix (Agent 08): Added aria-label */}
+components/ControlPanel.tsx:40:        aria-label="Pass on this profile"
+components/ControlPanel.tsx:41:        className="pointer-events-auto w-14 h-14 rounded-full bg-slate-900/80 backdrop-blur border border-slate-700 text-slate-300 hover:text-red-400 hover:border-red-400/50 transition-all shadow-lg flex items-center justify-center group active:scale-95 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+components/ControlPanel.tsx:46:      {/* Super Like Button - Accessibility Fix (Agent 08): Added aria-label */}
+components/ControlPanel.tsx:51:          aria-label={isSuperLikeDisabled ? `Super like disabled, ${remainingSuperLikes} remaining` : `Super like this profile, ${remainingSuperLikes} remaining`}
+components/ControlPanel.tsx:53:          className={`w-12 h-12 rounded-full backdrop-blur border transition-all shadow-lg flex items-center justify-center group active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-950 ${
+components/ControlPanel.tsx:70:      {/* Like Button - Accessibility Fix (Agent 08): Added aria-label */}
+components/ControlPanel.tsx:73:        aria-label="Like this profile"
+components/ControlPanel.tsx:74:        className="pointer-events-auto w-14 h-14 rounded-full bg-gradient-to-tr from-gold-600 to-gold-400 text-white shadow-lg shadow-gold-500/30 flex items-center justify-center group active:scale-95 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+components/LoadingSpinner.tsx:32:          role="status"
+components/LoadingSpinner.tsx:33:          aria-label="Loading"
+components/LoadingSpinner.tsx:55:        role="status"
+components/LoadingSpinner.tsx:56:        aria-live="polite"
+components/LoadingSpinner.tsx:67:      role="status"
+components/LoadingSpinner.tsx:68:      aria-live="polite"
+components/NotificationsView.tsx:137:                aria-label={isRestricted ? 'Upgrade to unlock this notification' : `Open notification: ${n.type}`}
+components/NotificationsView.tsx:150:                      alt={isRestricted ? 'Locked profile' : 'Profile'}
+components/MyProfileView.tsx:259:                <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[80] animate-fade-in" role="status" aria-live="polite" aria-atomic="true">
+components/MyProfileView.tsx:480:                    <div className="fixed inset-0 z-[110] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label="Delete account confirmation">
+components/MyProfileView.tsx:486:                                <button onClick={() => setShowDeleteConfirm(false)} aria-label="Close delete account dialog" className="text-slate-500 hover:text-white">
+components/MyProfileView.tsx:515:                                                    className="w-4 h-4 text-red-500 bg-slate-800 border-slate-600 focus:ring-red-500"
+components/MyProfileView.tsx:533:                                            className="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-red-500 focus-visible:ring-2 focus-visible:ring-red-500/30 transition-colors text-sm"
+components/MyProfileView.tsx:594:                    <div className="fixed inset-0 z-[60] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label="Freeze account confirmation">
+components/MyProfileView.tsx:602:                                    <button onClick={() => setShowFreezeModal(false)} aria-label="Close freeze account dialog" className="text-slate-500 hover:text-white">
+components/MyProfileView.tsx:639:                                                    className="w-4 h-4 text-blue-500 bg-slate-800 border-slate-600 focus:ring-blue-500"
+components/MyProfileView.tsx:671:                    <div className="fixed inset-0 z-[80] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label="Verification flow">
+components/MyProfileView.tsx:681:                                    <button onClick={closeVerificationModal} aria-label="Close verification dialog" className="text-slate-500 hover:text-white">
+components/MyProfileView.tsx:763:                    <div className="fixed inset-0 z-[70] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label="Question selection">
+components/MyProfileView.tsx:767:                                <button onClick={() => setIsQuestionModalOpen(false)} aria-label="Close question dialog" className="text-slate-500 hover:text-white"><X size={20} /></button>
+components/MyProfileView.tsx:789:                                                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white text-sm focus:border-gold-500 outline-none"
+components/NearbyView.tsx:97:                        aria-label="Toggle nearby visibility"
+components/NearbyView.tsx:101:                    <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+components/NearbyView.tsx:158:                                aria-label={`Open ${user.name} profile`}
+components/NearbyView.tsx:163:                                    <img src={user.images[0]} alt={user.name} className="w-full h-full object-cover" loading="lazy" />
+components/NearbyView.tsx:170:                                aria-label={`View details for ${user.name}`}
+components/NearbyView.tsx:191:                                aria-label={`Say hi to ${user.name}`}
+components/MatchOverlay.tsx:119:    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-xl overflow-hidden" role="dialog" aria-modal="true" aria-label="Match celebration">
+components/MatchOverlay.tsx:132:        aria-label={isMuted ? 'Enable celebration sound' : 'Mute celebration sound'}
+components/MatchOverlay.tsx:165:                    <img src={USER_PROFILE.images[0]} alt="Me" className="w-full h-full rounded-full object-cover" />
+components/MatchOverlay.tsx:176:                    <img src={match.profile.images[0]} alt="Match" className="w-full h-full rounded-full object-cover" />
+components/RegistrationFlow.tsx:534:            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors text-lg"
+components/RegistrationFlow.tsx:568:            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-4 px-4 text-white text-lg focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none"
+components/RegistrationFlow.tsx:698:            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors text-lg"
+components/RegistrationFlow.tsx:735:            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-4 px-4 text-white text-lg focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none"
+components/RegistrationFlow.tsx:773:            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-4 px-4 text-white text-lg focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none"
+components/RegistrationFlow.tsx:814:            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors text-lg"
+components/RegistrationFlow.tsx:852:              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors text-lg"
+components/RegistrationFlow.tsx:901:              className="w-[100px] bg-slate-900 border border-slate-800 rounded-xl py-3 px-3 text-white text-lg focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors appearance-none flex-shrink-0"
+components/RegistrationFlow.tsx:917:                className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors text-lg"
+components/RegistrationFlow.tsx:957:            className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-12 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors text-lg"
+components/RegistrationFlow.tsx:963:            className="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gold-500 rounded-lg"
+components/RegistrationFlow.tsx:1010:                className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors text-lg"
+components/RegistrationFlow.tsx:1031:              className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 px-4 text-center text-white text-2xl tracking-widest focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors"
+components/LoginView.tsx:76:          aria-label="Go back to landing page"
+components/LoginView.tsx:77:          className="btn-ghost mb-8 -ml-2 text-slate-400 hover:text-white min-h-[44px] min-w-[44px] flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-gold-500 rounded-lg"
+components/LoginView.tsx:129:                aria-label={showPassword ? 'Hide password' : 'Show password'}
+components/LoginView.tsx:130:                className="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gold-500 rounded-lg"
+components/LoginView.tsx:140:              <p id="login-error" className="text-sm text-red-400 font-medium" role="alert">
+components/StoryRail.tsx:30:          aria-label={hasMyStories ? 'View my story' : 'Add story'}
+components/StoryRail.tsx:39:            alt="My Story"
+components/StoryRail.tsx:59:              aria-label={`View ${match.profile.name} story`}
+components/StoryRail.tsx:71:                alt={match.profile.name}
+components/chat/ChatInput.tsx:123:              className={`flex-1 rounded-full px-5 py-3.5 text-sm focus:outline-none focus:ring-1 border transition-all w-full shadow-lg ${currentTheme.isDark
+components/chat/ChatInput.tsx:124:                  ? `bg-slate-950 text-slate-200 ${isFirstMovePending ? (isUrgent ? 'border-red-500/50' : 'border-amber-500/50') : 'border-slate-800 focus:ring-gold-500/50 focus:border-gold-500/30'} placeholder:text-slate-600`
+components/chat/ChatInput.tsx:125:                  : `bg-slate-50 text-slate-800 ${isFirstMovePending ? (isUrgent ? 'border-red-500/50' : 'border-amber-500/50') : 'border-slate-200 focus:ring-gold-500/50 focus:border-gold-500/30'} placeholder:text-slate-400`
+components/FilterView.tsx:44:          aria-label="Close filters"
+components/FilterView.tsx:91:                  className="bg-transparent text-white font-serif text-2xl outline-none focus:text-gold-400 transition-colors"
+components/FilterView.tsx:103:                  className="bg-transparent text-white font-serif text-2xl outline-none focus:text-gold-400 transition-colors"
+components/chat/TemplatesModal.tsx:76:              className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-white focus:border-gold-500 focus:outline-none"
+components/chat/CallOverlay.tsx:45:            alt="Call Background"
+components/chat/CallOverlay.tsx:52:              alt="Call Background"
+components/chat/CallOverlay.tsx:65:              alt="Avatar"
+components/chat/CallOverlay.tsx:91:          <img src={userProfile.images[0]} alt="Me" className="w-full h-full object-cover" />
+components/StoryViewer.tsx:91:    <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-fade-in" role="dialog" aria-modal="true" aria-label={`${profile.name} stories`}>
+components/StoryViewer.tsx:111:                    <img src={profile.images[0]} alt={profile.name} className="w-full h-full object-cover" loading="lazy" />
+components/StoryViewer.tsx:120:            <button onClick={onClose} aria-label="Close story viewer" className="p-2 text-white hover:bg-white/10 rounded-full">
+components/StoryViewer.tsx:129:                alt="Story" 
+components/StoryViewer.tsx:173:                                             <img src={viewer.avatar} alt={viewer.name} className="w-full h-full object-cover" loading="lazy" />
+components/StoryViewer.tsx:206:                                className="w-full bg-white/10 backdrop-blur-md border border-white/30 rounded-full px-5 py-3 text-white placeholder:text-white/60 focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 focus:bg-black/40 transition-all text-sm"
+components/StoryViewer.tsx:221:                                    aria-label={`Send ${emoji} reaction`}
+components/StoryViewer.tsx:231:                        <p className="text-xs text-green-300" role="status" aria-live="polite">
+components/AppHeader.tsx:32:        aria-label="Go to home"
+components/AppHeader.tsx:47:          aria-label="Open nearby"
+components/AppHeader.tsx:56:          aria-label="Open swipe history"
+components/AppHeader.tsx:65:          aria-label="Open likes"
+components/AppHeader.tsx:74:          aria-label="Open notifications"
+components/AppHeader.tsx:88:          aria-label="Open matches"
+components/AppHeader.tsx:97:          aria-label="Open my profile"
+components/chat/VideoBubble.tsx:21:      <img src={thumbnailUrl} className="w-full h-full object-cover opacity-80" alt="Video message" />
+components/chat/ChatHeader.tsx:46:        {/* Touch Target Fix: 44px minimum for mobile accessibility */}
+components/chat/ChatHeader.tsx:49:          aria-label="Go back to matches"
+components/chat/ChatHeader.tsx:65:              alt={match.profile.name}
+components/chat/ChatHeader.tsx:102:          aria-label="Search in conversation"
+components/chat/ChatHeader.tsx:111:          aria-label="Start voice call"
+components/chat/ChatHeader.tsx:119:          aria-label="Start video call"
+components/chat/ChatHeader.tsx:127:          <button onClick={onToggleMenu} aria-label="Open chat actions" className="w-11 h-11 flex items-center justify-center hover:text-gold-400 transition-colors rounded-full hover:bg-slate-800/50 active:scale-95">
+components/chat/SearchOverlay.tsx:47:            className="w-full bg-slate-800 border border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-gold-500"
+components/chat/SearchOverlay.tsx:70:            className="bg-transparent text-xs font-bold text-slate-300 focus:outline-none py-1 px-1"
+components/chat/SearchOverlay.tsx:83:            className="bg-transparent text-xs font-bold text-slate-300 focus:outline-none py-1 px-1"
+components/chat/SearchOverlay.tsx:111:                      <img src={matchImageUrl} alt="Match" className="w-full h-full rounded-full object-cover" loading="lazy" />
+components/ProfileCard.tsx:85:        role="img"
+components/ProfileCard.tsx:86:        aria-label={`${profile.name}'s photo ${currentImageIndex + 1} of ${profile.images.length}. Click or press arrow keys to navigate.`}
+components/ProfileCard.tsx:87:        tabIndex={0}
+components/ProfileCard.tsx:146:          {/* Touch Target Fix (Agent 01): Minimum 44x44px for mobile accessibility */}
+components/ProfileCard.tsx:150:            aria-label={`View ${profile.name}'s full profile`}
+components/ProfileCard.tsx:151:            className="w-11 h-11 rounded-full bg-slate-900/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/20 hover:text-white transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+components/ProfileCard.tsx:163:        role="button"
+components/ProfileCard.tsx:164:        tabIndex={0}
+components/chat/MessageBubble.tsx:82:            alt="Shared"
+components/profile/SafetyCenter.tsx:172:              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-sm text-slate-900 dark:text-white focus:border-gold-500 outline-none mb-3"
+components/ChatView.tsx:949:                                                        aria-label="Edit scheduled message"
+components/ChatView.tsx:956:                                                        aria-label="Cancel scheduled message"
+components/ChatView.tsx:990:                                    <img src={match.profile.images[0]} alt="Avatar" className="w-full h-full object-cover" />
+components/ChatView.tsx:1071:                <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label="Schedule message">
+components/ChatView.tsx:1095:                                        className="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 pl-12 pr-4 text-white focus-visible:outline-none focus-visible:border-gold-500 focus-visible:ring-2 focus-visible:ring-gold-500/40 transition-colors text-sm"
+components/ChatView.tsx:1165:                <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center animate-fade-in p-4" role="dialog" aria-modal="true" aria-label="Image viewer">
+components/ChatView.tsx:1168:                        aria-label="Close image viewer"
+components/ChatView.tsx:1175:                        alt="Full screen"
+components/ChatView.tsx:1183:                <div className="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in" role="dialog" aria-modal="true" aria-label={`Unmatch ${match.profile.name}`}>
