@@ -29,4 +29,4 @@ dist/assets/MyProfileView-Crj3nP7b.js          127.26 kB │ gzip:  26.78 kB
 dist/assets/RegistrationFlow-sDUUvdgl.js       158.86 kB │ gzip:  48.87 kB
 dist/assets/vendor-supabase-CDGuCRB-.js        173.02 kB │ gzip:  45.62 kB
 dist/assets/index-DBHNQP1j.js                  376.08 kB │ gzip: 117.65 kB
-✓ built in 1.85s
+✓ built in 1.93s

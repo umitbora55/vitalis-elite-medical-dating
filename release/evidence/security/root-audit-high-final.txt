@@ -1,17 +1,1 @@
-# npm audit report
-
-ajv  <8.18.0
-Severity: moderate
-ajv has ReDoS when using `$data` option - https://github.com/advisories/GHSA-2g4f-4pwh-qvx6
-fix available via `npm audit fix`
-node_modules/ajv
-
-qs  6.7.0 - 6.14.1
-qs's arrayLimit bypass in comma parsing allows denial of service - https://github.com/advisories/GHSA-w7fw-mjwx-w883
-fix available via `npm audit fix`
-node_modules/qs
-
-2 vulnerabilities (1 low, 1 moderate)
-
-To address all issues, run:
-  npm audit fix
+found 0 vulnerabilities

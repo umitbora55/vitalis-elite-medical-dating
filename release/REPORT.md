@@ -11,10 +11,11 @@
 ## RC readiness outcome
 - Blockers (open): **No**
 - High-severity remaining: **No**
+- External store evidence: **Pending (Required external evidence only)** for TestFlight + Google Play pre-launch.
 
 ### Accepted residual risks
-- Root dependency vulnerabilities are moderate/low only (`ajv`, `qs`) and remain in transitive closure; tracked separately as low-priority maintenance.
-- App Store/Play proof is not yet completed externally. Required external store evidence is documented as medium risk in `release/STORE_COMPLIANCE.md` and `release/EVIDENCE_INDEX.md` until TestFlight + pre-launch artifacts are attached.
+- `npm audit --omit=dev --audit-level=high` is currently clean for root and mobile (`0` high).
+- App Store/Play proof is still required as external evidence; placeholders and runbooks are ready and marked **Required External Evidence**.
 
 ## How to run locally/CI
 - `npm install`

@@ -23,25 +23,38 @@
 ## Store runbook
 
 ### Apple TestFlight smoke (required external evidence)
-1. Build upload: use the normal App Store Connect / CI flow from latest release branch artifact.
-2. Add at least 1 tester in internal group and install the build.
-3. Execute smoke matrix on at least 2 iOS devices:
+1. Build & upload path:
+   - Run `scripts/store_prepare_artifacts.sh --platform ios --build` if you already have `EXPO_TOKEN` + EAS CLI configured.
+   - If using App Store Connect manually, build/submission flow is in `.github/workflows/mobile-release.yml` (`eas build` + `eas submit`).
+   - If `EXPO_TOKEN` is not set, stop here and follow manual upload path with placeholders.
+2. In App Store Connect (`https://appstoreconnect.apple.com`):
+   - Open **My Apps** → **Your App** → **TestFlight**.
+   - Open the latest internal build and ensure processing is complete.
+   - Add 1+ internal tester and install the build on at least 2 iOS devices.
+3. Smoke matrix:
    - auth/login
    - nearby map render and visibility states
    - chat open/message
    - checkout/payment guardrails
-4. Capture required artifacts:
+4. Required artifacts:
    - screenshots or short video for map render and login/chat/checkout happy paths
    - crash-free duration + any issues list
-   - TestFlight build link
+   - TestFlight build link and tester/build identifiers
 5. Paste/upload results into `release/evidence/store/testflight-smoke-notes.md`.
+6. Run `scripts/store_evidence_collect.sh testflight --build-version "<version>" --build-link "<tf-link>" --artifacts "<release/evidence/store/..."` to stamp the placeholder with timestamped evidence metadata.
 
 ### Google Play pre-launch (required external evidence)
-1. Upload staging build to a Google Play internal testing track.
-2. Open pre-launch report and run compatibility checks.
-3. Validate nearby/map navigation and major P0 paths on default target Android devices from report.
-4. Record any critical findings and resolutions.
-5. Paste report URL, device failures, and screenshots into `release/evidence/store/play-prelaunch-report.md`.
+1. Build/upload path:
+   - Run `scripts/store_prepare_artifacts.sh --platform android --build` to prepare a production Android artifact through EAS.
+   - In Google Play Console, go to **Testing** → **Internal testing** for `com.vitalis.elitemedicaldating` and upload the AAB from the matching EAS release.
+   - If Google Play service account credentials are not present, stop here and complete manual internal-track steps.
+2. In Google Play Console:
+   - Open the internal track build and run **Pre-launch report**.
+   - Review device compatibility notes and crash/anomaly summaries.
+3. Validate nearby/map navigation and major P0 paths against the pre-launch matrix output.
+4. Record critical findings and resolutions.
+5. Paste report URL, screenshots, and any failure list into `release/evidence/store/play-prelaunch-report.md`.
+6. Run `scripts/store_evidence_collect.sh play --build-version "<version>" --report-url "<prelaunch-url>" --artifacts "<release/evidence/store/..."` to stamp the placeholder with timestamped evidence metadata.
 
 ## Store release pipeline evidence
 
@@ -51,5 +64,5 @@
 
 ## Evidence notes
 - Add real TestFlight and Play pre-launch URLs plus artifacts when uploaded.
-- RC remains Medium until required external evidence files are completed in `release/evidence/store/`.
-- Keep this file updated with acceptance artifacts (play console pre-launch report / App Review notes).
+- Both TestFlight and Play artifacts are **Required External Evidence**. RC cannot be marked blocked-free in store tooling until these are attached.
+- Keep this file updated with artifacts (play console pre-launch report / App Review notes) and screenshot paths under `release/evidence/store/`.

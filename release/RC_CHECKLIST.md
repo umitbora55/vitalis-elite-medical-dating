@@ -3,7 +3,7 @@
 ## Pre-cut verification
 1. Checkout release branch `release/hardening-rc` from latest signed-off commit.
 2. Ensure dependencies are installed:
-   - `npm install`
+   - `npm install` (or `npm install --legacy-peer-deps` if the Expo/React peer resolution in this repo requires it)
    - `cd mobile && npm install`
 3. Run hardening and verification commands (capture output files):
    - `npm run type-check | tee release/evidence/release/type-check-final.txt`
@@ -15,9 +15,11 @@
    - `npm audit --omit=dev --audit-level=high | tee release/evidence/security/root-audit-high-final.txt`
    - `cd mobile && npm audit --omit=dev --audit-level=high | tee ../release/evidence/security/mobile-audit-high-final.txt`
 5. Confirm map fix evidence exists:
+   - `release/evidence/map_fix/seed-guard-proof.txt`
    - `release/evidence/map_fix/nearbyview-test.txt`
    - `release/evidence/map_fix/nearby-page-smoke-preview.txt`
    - `release/evidence/map_fix/nearby-page-smoke.png`
+   - `release/evidence/release/test-e2e-final.txt` (includes deterministic nearby smoke)
 6. Confirm release/security/privacy docs exist and are complete:
    - `release/REPORT.md`
    - `release/RELEASE_READINESS_BACKLOG.md`
@@ -32,15 +34,19 @@
    - `cd mobile && npx -y @cyclonedx/cdxgen -t npm -o ../release/SBOM/cyclonedx-mobile.json . | tee ../release/evidence/release/sbom-mobile.txt`
 8. Confirm map runtime smoke in production-like mode:
    - `E2E_PREVIEW=1 npm run test:e2e -- --grep "nearby map page renders list with seeded deterministic data"`
-9. Confirm evidence index is exhaustive:
+9. Confirm e2e seed mode guardrail proof:
+   - `release/evidence/map_fix/seed-guard-proof.txt` contains localhost-only conditions.
+10. Confirm evidence index is exhaustive:
    - `release/EVIDENCE_INDEX.md`
-10. Confirm release notes/recovery notes prepared (user-facing changes are unchanged).
+11. Confirm release notes/recovery notes prepared (user-facing changes are unchanged).
 
 ## Store submission path
-11. Internal/staged build:
-   - Trigger CI workflow and ensure `.github/workflows/ci.yml` passes.
+12. Internal/staged build:
+   - Trigger `.github/workflows/ci.yml` and ensure it passes.
    - Trigger `.github/workflows/mobile-release.yml` only after mobile lint/build gates are stable.
-12. Follow Store runbook in `release/STORE_COMPLIANCE.md`:
+13. Follow Store runbook in `release/STORE_COMPLIANCE.md`:
+   - Use `scripts/store_prepare_artifacts.sh` for pre-upload artifact checks.
+   - Use `scripts/store_evidence_collect.sh` after screenshots/upload info are available.
    - Apple TestFlight smoke evidence: `release/evidence/store/testflight-smoke-notes.md` (required external evidence)
    - Google Play pre-launch evidence: `release/evidence/store/play-prelaunch-report.md` (required external evidence)
 

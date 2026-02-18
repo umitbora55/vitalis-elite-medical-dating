@@ -42,5 +42,5 @@
 | RC documentation complete | Evidence index, backlog, checklist, report all present and single-source. | `release/EVIDENCE_INDEX.md`, `release/RELEASE_READINESS_BACKLOG.md`, `release/RC_CHECKLIST.md`, `release/REPORT.md`. | Pass |
 
 ## Residual risks (known)
-- High-severity dependency findings are zero after remediation; root has moderate/low-only transitive vulnerabilities (`ajv`, `qs`).
+- High-severity dependency findings are zero after remediation; root and mobile `npm audit --omit=dev` report no blocking vulnerabilities at time of capture.
 - Required external store evidence artifacts are pending (TestFlight + Play pre-launch) and are tracked as medium residuals in `release/RELEASE_READINESS_BACKLOG.md`.

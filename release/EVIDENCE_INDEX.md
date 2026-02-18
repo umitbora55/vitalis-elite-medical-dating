@@ -13,8 +13,11 @@
 - `release/evidence/map_fix/nearbyview-test.txt` — unit/e2e map-fix test output.
 - `release/evidence/map_fix/nearby-page-smoke-preview.txt` — Playwright preview smoke output.
 - `release/evidence/map_fix/nearby-page-smoke.png` — nearby render screenshot proof.
+- `release/evidence/map_fix/seed-guard-proof.txt` — proof that e2e seed mode is localhost-only.
 - `components/NearbyView.test.tsx` — regression test for map/nearby edge case.
 - `e2e/basic.spec.ts` — added deterministic nearby smoke flow.
+- `scripts/store_prepare_artifacts.sh` — store artifact prep helper (manual or with EAS).
+- `scripts/store_evidence_collect.sh` — store evidence stamping helper.
 
 ## QA / Release checks
 - `release/evidence/release/type-check.txt` — refreshed type-check.

@@ -5,15 +5,15 @@
 
  RUN  v4.0.18 /Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating
 
- ✓ hooks/useSwipeLimit.test.ts (2 tests) 11ms
- ✓ utils/compatibility.test.ts (4 tests) 3ms
- ✓ hooks/useTheme.test.ts (2 tests) 11ms
- ✓ components/ProfileCard.test.tsx (3 tests) 70ms
- ✓ components/NearbyView.test.tsx (2 tests) 85ms
- ✓ components/premiumAccessGuards.test.tsx (2 tests) 81ms
+ ✓ hooks/useSwipeLimit.test.ts (2 tests) 10ms
+ ✓ utils/compatibility.test.ts (4 tests) 2ms
+ ✓ hooks/useTheme.test.ts (2 tests) 15ms
+ ✓ components/premiumAccessGuards.test.tsx (2 tests) 69ms
+ ✓ components/ProfileCard.test.tsx (3 tests) 75ms
+ ✓ components/NearbyView.test.tsx (2 tests) 80ms
 
  Test Files  6 passed (6)
       Tests  15 passed (15)
-   Start at  15:31:54
-   Duration  1.02s (transform 452ms, setup 1.03s, import 466ms, tests 261ms, environment 3.37s)
+   Start at  15:58:11
+   Duration  940ms (transform 345ms, setup 719ms, import 418ms, tests 251ms, environment 3.28s)
 
