@@ -1,0 +1,19 @@
+
+> vitalis---medical-dating@0.0.0 prepare
+> husky install
+
+
+added 1193 packages, and audited 1194 packages in 6s
+
+226 packages are looking for funding
+  run `npm fund` for details
+
+4 vulnerabilities (1 low, 3 moderate)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.

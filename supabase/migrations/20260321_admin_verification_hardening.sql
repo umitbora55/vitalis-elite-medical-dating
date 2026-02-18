@@ -47,6 +47,9 @@ VALUES
   ('immediate_delete_on_verify', 'false')
 ON CONFLICT (key) DO NOTHING;
 
+ALTER TABLE verification_requests
+  ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 CREATE INDEX IF NOT EXISTS idx_verification_requests_status_submitted_at
   ON verification_requests (status, submitted_at);
 CREATE INDEX IF NOT EXISTS idx_verification_requests_claimed

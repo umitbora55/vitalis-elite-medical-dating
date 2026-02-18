@@ -1,0 +1,19 @@
+=== Supabase Admin Moderation Deploy ===
+UTC: 2026-02-18T16:12:53Z
+Repo: /Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating-admin-moderation
+supabase version: 2.75.0
+PROJECT_REF is not set. Skipping supabase link.
+Applying migrations with supabase db push
+Initialising login role...
+Connecting to remote database...
+Do you want to push these migrations to the remote database?
+ • 20260321_admin_verification_hardening.sql
+
+ [Y/n] y
+Applying migration 20260321_admin_verification_hardening.sql...
+NOTICE (00000): constraint "verification_requests_status_check" of relation "verification_requests" does not exist, skipping
+ERROR: column "submitted_at" does not exist (SQLSTATE 42703)            
+At statement: 5                                                         
+CREATE INDEX IF NOT EXISTS idx_verification_requests_status_submitted_at
+  ON verification_requests (status, submitted_at)                       
+Try rerunning the command with --debug to troubleshoot the error.

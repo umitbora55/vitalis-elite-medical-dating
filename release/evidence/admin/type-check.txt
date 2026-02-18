@@ -1,0 +1,68 @@
+
+> vitalis---medical-dating@0.0.0 type-check
+> tsc --noEmit
+
+App.tsx(3,29): error TS2307: Cannot find module './services/discoveryService' or its corresponding type declarations.
+App.tsx(25,55): error TS2305: Module '"./services/authService"' has no exported member 'getCurrentUser'.
+App.tsx(47,10): error TS2305: Module '"./services/accountService"' has no exported member 'accountService'.
+App.tsx(94,31): error TS2307: Cannot find module './components/ErrorBoundary' or its corresponding type declarations.
+App.tsx(95,32): error TS2307: Cannot find module './components/LoadingSpinner' or its corresponding type declarations.
+App.tsx(121,66): error TS2339: Property 'profiles' does not exist on type 'DiscoveryState'.
+App.tsx(122,65): error TS2339: Property 'isLoading' does not exist on type 'DiscoveryState'.
+App.tsx(123,63): error TS2339: Property 'fetchError' does not exist on type 'DiscoveryState'.
+App.tsx(124,62): error TS2339: Property 'fetchProfiles' does not exist on type 'DiscoveryState'.
+App.tsx(125,71): error TS2339: Property 'removeProfile' does not exist on type 'DiscoveryState'.
+App.tsx(146,55): error TS2339: Property 'addMessage' does not exist on type 'MatchState'.
+App.tsx(175,34): error TS7031: Binding element 'data' implicitly has an 'any' type.
+App.tsx(301,17): error TS2353: Object literal may only specify known properties, and 'profiles' does not exist in type 'DiscoveryState | Partial<DiscoveryState> | ((state: DiscoveryState) => DiscoveryState | Partial<DiscoveryState>)'.
+App.tsx(430,15): error TS2322: Type '"PENDING" | "AUTO_VERIFIED"' is not assignable to type 'VerificationStatus | undefined'.
+  Type '"PENDING"' is not assignable to type 'VerificationStatus | undefined'.
+App.tsx(433,47): error TS2339: Property 'verificationMethod' does not exist on type 'Profile'.
+App.tsx(461,13): error TS2353: Object literal may only specify known properties, and 'verificationMethod' does not exist in type 'Profile'.
+App.tsx(462,23): error TS2367: This comparison appears to be unintentional because the types 'VerificationStatus | undefined' and '"AUTO_VERIFIED"' have no overlap.
+App.tsx(544,13): error TS2367: This comparison appears to be unintentional because the types 'VerificationStatus | undefined' and '"AUTO_VERIFIED"' have no overlap.
+App.tsx(638,41): error TS7006: Parameter 'profile' implicitly has an 'any' type.
+App.tsx(1258,31): error TS2367: This comparison appears to be unintentional because the types 'VerificationStatus | "UNVERIFIED"' and '"SUSPENDED"' have no overlap.
+App.tsx(1392,29): error TS2322: Type '{ match: Match; onBack: () => void; onUnmatch: (matchId: string) => void; onUpdateMatch: (matchId: string, updates: Partial<Match>) => void; onSendMessage: any; userProfile: Profile; ... 6 more ...; onEntryDissolveDone: () => void; }' is not assignable to type 'IntrinsicAttributes & ChatViewProps'.
+  Property 'onSendMessage' does not exist on type 'IntrinsicAttributes & ChatViewProps'.
+services/adminModerationService.ts(1,15): error TS2305: Module '"../types"' has no exported member 'UserRole'.
+services/profileService.ts(45,34): error TS2339: Property 'verificationMethod' does not exist on type 'Profile'.
+services/profileService.ts(46,24): error TS2339: Property 'userRole' does not exist on type 'Profile'.
+services/profileService.ts(47,25): error TS2339: Property 'riskFlags' does not exist on type 'Profile'.
+services/profileService.ts(48,30): error TS2339: Property 'suspendedUntil' does not exist on type 'Profile'.
+services/profileService.ts(76,112): error TS2339: Property 'verificationMethod' does not exist on type 'Profile'.
+services/profileService.ts(77,82): error TS2339: Property 'userRole' does not exist on type 'Profile'.
+services/verificationService.ts(1,15): error TS2305: Module '"../types"' has no exported member 'VerificationMethod'.
+services/verificationService.ts(1,35): error TS2305: Module '"../types"' has no exported member 'VerificationPolicy'.
+supabase/functions/_shared/admin.ts(1,51): error TS2307: Cannot find module 'https://esm.sh/@supabase/supabase-js@2.95.3' or its corresponding type declarations.
+supabase/functions/_shared/admin.ts(16,17): error TS2304: Cannot find name 'Deno'.
+supabase/functions/admin-audit-logs/index.ts(1,23): error TS2307: Cannot find module 'https://deno.land/std@0.224.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/admin-audit-logs/index.ts(4,14): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/admin-audit-logs/index.ts(23,29): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+supabase/functions/admin-claim-verification-request/index.ts(1,23): error TS2307: Cannot find module 'https://deno.land/std@0.224.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/admin-claim-verification-request/index.ts(4,14): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/admin-decide-verification/index.ts(1,23): error TS2307: Cannot find module 'https://deno.land/std@0.224.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/admin-decide-verification/index.ts(18,14): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/admin-get-verification-doc-url/index.ts(1,23): error TS2307: Cannot find module 'https://deno.land/std@0.224.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/admin-get-verification-doc-url/index.ts(6,14): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/admin-get-verification-doc-url/index.ts(24,64): error TS7006: Parameter 'doc' implicitly has an 'any' type.
+supabase/functions/admin-settings/index.ts(1,23): error TS2307: Cannot find module 'https://deno.land/std@0.224.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/admin-settings/index.ts(9,14): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/admin-verification-case/index.ts(1,23): error TS2307: Cannot find module 'https://deno.land/std@0.224.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/admin-verification-case/index.ts(4,14): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/admin-verification-case/index.ts(60,36): error TS7006: Parameter 'doc' implicitly has an 'any' type.
+supabase/functions/admin-verification-queue/index.ts(1,23): error TS2307: Cannot find module 'https://deno.land/std@0.224.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/admin-verification-queue/index.ts(4,14): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/admin-verification-queue/index.ts(33,60): error TS7006: Parameter 'item' implicitly has an 'any' type.
+supabase/functions/admin-verification-queue/index.ts(38,52): error TS7006: Parameter 'profile' implicitly has an 'any' type.
+supabase/functions/admin-verification-queue/index.ts(39,39): error TS7006: Parameter 'request' implicitly has an 'any' type.
+supabase/functions/admin-verification-queue/index.ts(48,53): error TS2339: Property 'name' does not exist on type '{}'.
+supabase/functions/admin-verification-queue/index.ts(50,53): error TS2339: Property 'city' does not exist on type '{}'.
+supabase/functions/scheduled-retention-cleanup/index.ts(1,23): error TS2307: Cannot find module 'https://deno.land/std@0.224.0/http/server.ts' or its corresponding type declarations.
+supabase/functions/scheduled-retention-cleanup/index.ts(11,14): error TS7006: Parameter 'req' implicitly has an 'any' type.
+supabase/functions/scheduled-retention-cleanup/index.ts(15,22): error TS2304: Cannot find name 'Deno'.
+supabase/functions/scheduled-retention-cleanup/index.ts(23,53): error TS7006: Parameter 'item' implicitly has an 'any' type.
+supabase/functions/scheduled-retention-cleanup/index.ts(24,37): error TS2345: Argument of type '{} | null' is not assignable to parameter of type 'string | null'.
+  Type '{}' is not assignable to type 'string'.
+supabase/functions/scheduled-retention-cleanup/index.ts(39,51): error TS7006: Parameter 'item' implicitly has an 'any' type.
+supabase/functions/scheduled-retention-cleanup/index.ts(47,42): error TS7006: Parameter 'doc' implicitly has an 'any' type.

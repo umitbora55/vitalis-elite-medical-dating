@@ -1,0 +1,7 @@
+
+> vitalis---medical-dating@0.0.0 build
+> vite build
+
+vite v6.4.1 building for production...
+transforming...
+✓ 1699 modules transformed.

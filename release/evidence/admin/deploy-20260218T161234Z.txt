@@ -1,0 +1,29 @@
+=== Supabase Admin Moderation Deploy ===
+UTC: 2026-02-18T16:12:34Z
+Repo: /Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating-admin-moderation
+supabase version: 2.75.0
+PROJECT_REF is not set. Skipping supabase link.
+Applying migrations with supabase db push
+Initialising login role...
+Connecting to remote database...
+Do you want to push these migrations to the remote database?
+ • 20260320_admin_verification_foundation.sql
+ • 20260321_admin_verification_hardening.sql
+
+ [Y/n] y
+Applying migration 20260320_admin_verification_foundation.sql...
+NOTICE (00000): constraint "profiles_verification_method_check" of relation "profiles" does not exist, skipping
+NOTICE (00000): constraint "profiles_user_role_check" of relation "profiles" does not exist, skipping
+NOTICE (42701): column "reviewed_by" of relation "verification_requests" already exists, skipping
+NOTICE (42701): column "reviewed_at" of relation "verification_requests" already exists, skipping
+NOTICE (00000): policy "Authenticated users can read app settings" for relation "app_settings" does not exist, skipping
+NOTICE (00000): policy "Admins can write app settings" for relation "app_settings" does not exist, skipping
+NOTICE (00000): policy "Moderators can read audit logs" for relation "admin_audit_logs" does not exist, skipping
+NOTICE (00000): policy "Moderators can insert audit logs" for relation "admin_audit_logs" does not exist, skipping
+Applying migration 20260321_admin_verification_hardening.sql...
+NOTICE (00000): constraint "verification_requests_status_check" of relation "verification_requests" does not exist, skipping
+ERROR: column "submitted_at" does not exist (SQLSTATE 42703)            
+At statement: 5                                                         
+CREATE INDEX IF NOT EXISTS idx_verification_requests_status_submitted_at
+  ON verification_requests (status, submitted_at)                       
+Try rerunning the command with --debug to troubleshoot the error.

@@ -1,0 +1,74 @@
+=== Supabase Admin Moderation Deploy ===
+UTC: 2026-02-18T16:13:07Z
+Repo: /Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating-admin-moderation
+supabase version: 2.75.0
+PROJECT_REF is not set. Skipping supabase link.
+Applying migrations with supabase db push
+Initialising login role...
+Connecting to remote database...
+Do you want to push these migrations to the remote database?
+ • 20260321_admin_verification_hardening.sql
+
+ [Y/n] y
+Applying migration 20260321_admin_verification_hardening.sql...
+NOTICE (00000): constraint "verification_requests_status_check" of relation "verification_requests" does not exist, skipping
+NOTICE (00000): policy "Users can view own verification documents" for relation "verification_documents" does not exist, skipping
+NOTICE (00000): policy "Users can read own verification documents" for relation "verification_documents" does not exist, skipping
+NOTICE (00000): policy "Users can select own verification documents" for relation "verification_documents" does not exist, skipping
+NOTICE (00000): policy "Moderators can manage verification documents" for relation "verification_documents" does not exist, skipping
+NOTICE (00000): policy "Users can read own verification documents" for relation "storage.objects" does not exist, skipping
+NOTICE (00000): policy "Moderators can read any verification-docs" for relation "storage.objects" does not exist, skipping
+Finished supabase db push.
+Deploying function: admin-verification-queue
+WARNING: Docker is not running
+Uploading asset (admin-verification-queue): supabase/functions/admin-verification-queue/index.ts
+Uploading asset (admin-verification-queue): supabase/functions/_shared/admin.ts
+Deployed Functions on project gntagqjqtxjmjqtojnin: admin-verification-queue
+You can inspect your deployment in the Dashboard: https://supabase.com/dashboard/project/gntagqjqtxjmjqtojnin/functions
+Deploying function: admin-verification-case
+WARNING: Docker is not running
+Uploading asset (admin-verification-case): supabase/functions/admin-verification-case/index.ts
+Uploading asset (admin-verification-case): supabase/functions/_shared/admin.ts
+Deployed Functions on project gntagqjqtxjmjqtojnin: admin-verification-case
+You can inspect your deployment in the Dashboard: https://supabase.com/dashboard/project/gntagqjqtxjmjqtojnin/functions
+Deploying function: admin-claim-verification-request
+WARNING: Docker is not running
+Uploading asset (admin-claim-verification-request): supabase/functions/admin-claim-verification-request/index.ts
+Uploading asset (admin-claim-verification-request): supabase/functions/_shared/admin.ts
+Deployed Functions on project gntagqjqtxjmjqtojnin: admin-claim-verification-request
+You can inspect your deployment in the Dashboard: https://supabase.com/dashboard/project/gntagqjqtxjmjqtojnin/functions
+Deploying function: admin-get-verification-doc-url
+WARNING: Docker is not running
+Uploading asset (admin-get-verification-doc-url): supabase/functions/admin-get-verification-doc-url/index.ts
+Uploading asset (admin-get-verification-doc-url): supabase/functions/_shared/admin.ts
+Deployed Functions on project gntagqjqtxjmjqtojnin: admin-get-verification-doc-url
+You can inspect your deployment in the Dashboard: https://supabase.com/dashboard/project/gntagqjqtxjmjqtojnin/functions
+Deploying function: admin-decide-verification
+WARNING: Docker is not running
+Uploading asset (admin-decide-verification): supabase/functions/admin-decide-verification/index.ts
+Uploading asset (admin-decide-verification): supabase/functions/_shared/admin.ts
+Deployed Functions on project gntagqjqtxjmjqtojnin: admin-decide-verification
+You can inspect your deployment in the Dashboard: https://supabase.com/dashboard/project/gntagqjqtxjmjqtojnin/functions
+Deploying function: admin-settings
+WARNING: Docker is not running
+Uploading asset (admin-settings): supabase/functions/admin-settings/index.ts
+Uploading asset (admin-settings): supabase/functions/_shared/admin.ts
+Deployed Functions on project gntagqjqtxjmjqtojnin: admin-settings
+You can inspect your deployment in the Dashboard: https://supabase.com/dashboard/project/gntagqjqtxjmjqtojnin/functions
+Deploying function: admin-audit-logs
+WARNING: Docker is not running
+Uploading asset (admin-audit-logs): supabase/functions/admin-audit-logs/index.ts
+Uploading asset (admin-audit-logs): supabase/functions/_shared/admin.ts
+Deployed Functions on project gntagqjqtxjmjqtojnin: admin-audit-logs
+You can inspect your deployment in the Dashboard: https://supabase.com/dashboard/project/gntagqjqtxjmjqtojnin/functions
+Deploying function: scheduled-retention-cleanup
+WARNING: Docker is not running
+Uploading asset (scheduled-retention-cleanup): supabase/functions/scheduled-retention-cleanup/index.ts
+Uploading asset (scheduled-retention-cleanup): supabase/functions/_shared/admin.ts
+Deployed Functions on project gntagqjqtxjmjqtojnin: scheduled-retention-cleanup
+You can inspect your deployment in the Dashboard: https://supabase.com/dashboard/project/gntagqjqtxjmjqtojnin/functions
+Bucket verification note:
+- Confirm 'verification-docs' exists and is PRIVATE in Supabase Storage.
+- Confirm signed URL TTL is 60s via admin-get-verification-doc-url smoke.
+=== Deploy completed successfully ===
+Log: /Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating-admin-moderation/release/evidence/admin/deploy-20260218T161307Z.txt
