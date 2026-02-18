@@ -1,0 +1,39 @@
+
+> mobile@1.0.0 lint
+> expo lint
+
+
+/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/mobile/app/(auth)/register.tsx
+  186:15  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/mobile/app/(tabs)/chat.tsx
+   7:38  warning  'useCallback' is defined but never used                                                                                                                             @typescript-eslint/no-unused-vars
+  49:20  warning  'userId' is assigned a value but never used                                                                                                                         @typescript-eslint/no-unused-vars
+  72:6   warning  React Hook useEffect has missing dependencies: 'loadConversations', 'loadMessages', and 'showConversationList'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/mobile/app/(tabs)/index.tsx
+  20:32  error    Unable to resolve path to module 'expo-linear-gradient'                                                          import/no-unresolved
+  26:16  warning  'SCREEN_WIDTH' is assigned a value but never used                                                                @typescript-eslint/no-unused-vars
+  26:38  warning  'SCREEN_HEIGHT' is assigned a value but never used                                                               @typescript-eslint/no-unused-vars
+  40:6   warning  React Hook useEffect has a missing dependency: 'loadProfiles'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/mobile/app/(tabs)/matches.tsx
+  49:6  warning  React Hook useEffect has a missing dependency: 'loadMatches'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+  87:6  warning  React Hook useCallback has a missing dependency: 'loadMatches'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/mobile/app/(tabs)/profile.tsx
+   22:32  error    Unable to resolve path to module 'expo-linear-gradient'                                                         import/no-unresolved
+   36:6   warning  React Hook useEffect has a missing dependency: 'loadProfile'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  174:52  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                 react/no-unescaped-entities
+
+/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/mobile/app/_layout.tsx
+  38:6  warning  React Hook useEffect has a missing dependency: 'router'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/mobile/src/components/SwipeCard.tsx
+  34:32  error  Unable to resolve path to module 'expo-linear-gradient'  import/no-unresolved
+
+/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/mobile/src/services/supabase.ts
+  8:30  error  Unable to resolve path to module 'expo-secure-store'  import/no-unresolved
+
+✖ 16 problems (6 errors, 10 warnings)
+

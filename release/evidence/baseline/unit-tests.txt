@@ -1,0 +1,18 @@
+
+> vitalis---medical-dating@0.0.0 test:ci
+> vitest run
+
+
+ RUN  v4.0.18 /Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating
+
+ ✓ hooks/useSwipeLimit.test.ts (2 tests) 12ms
+ ✓ utils/compatibility.test.ts (4 tests) 3ms
+ ✓ hooks/useTheme.test.ts (2 tests) 11ms
+ ✓ components/ProfileCard.test.tsx (3 tests) 71ms
+ ✓ components/premiumAccessGuards.test.tsx (2 tests) 66ms
+
+ Test Files  5 passed (5)
+      Tests  13 passed (13)
+   Start at  15:09:00
+   Duration  869ms (transform 211ms, setup 575ms, import 257ms, tests 162ms, environment 2.46s)
+

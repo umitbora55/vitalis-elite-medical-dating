@@ -1,0 +1,3 @@
+Command: cd /Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating && npx -y @cyclonedx/cdxgen -t npm -o release/SBOM/cyclonedx-web.json .
+Status: exit 0 (generated release/SBOM/cyclonedx-web.json)
+Timestamp: 2026-02-18T12:33:11Z

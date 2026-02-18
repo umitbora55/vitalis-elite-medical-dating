@@ -1,0 +1,12 @@
+# npm audit report
+
+tar  <7.5.8
+Severity: high
+Arbitrary File Read/Write via Hardlink Target Escape Through Symlink Chain in node-tar Extraction - https://github.com/advisories/GHSA-83g3-92jg-28cx
+fix available via `npm audit fix`
+node_modules/tar
+
+1 high severity vulnerability
+
+To address all issues, run:
+  npm audit fix

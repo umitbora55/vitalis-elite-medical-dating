@@ -1,0 +1,621 @@
+src/lib/supabase.ts:14:try {
+src/lib/supabase.ts:18:} catch {
+supabase/functions/moderate-image/index.ts:33:    error?: { message: string };
+supabase/functions/moderate-image/index.ts:93:    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+supabase/functions/moderate-image/index.ts:102:    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+supabase/functions/moderate-image/index.ts:114:  const { data: { user }, error: authError } = await authClient.auth.getUser();
+supabase/functions/moderate-image/index.ts:116:    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+supabase/functions/moderate-image/index.ts:122:  try {
+supabase/functions/moderate-image/index.ts:127:        JSON.stringify({ error: 'Missing imagePath or bucket' }),
+supabase/functions/moderate-image/index.ts:135:        JSON.stringify({ error: 'Forbidden bucket' }),
+supabase/functions/moderate-image/index.ts:143:        JSON.stringify({ error: 'Forbidden: can only moderate own images' }),
+supabase/functions/moderate-image/index.ts:154:    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+supabase/functions/moderate-image/index.ts:159:      console.error('Signed URL error:', signedUrlError);
+supabase/functions/moderate-image/index.ts:161:        JSON.stringify({ error: 'Image not found', details: signedUrlError?.message }),
+supabase/functions/moderate-image/index.ts:206:      throw new Error(`Vision API error: ${visionResponse.status}`);
+supabase/functions/moderate-image/index.ts:211:    if (visionResult.responses[0]?.error) {
+supabase/functions/moderate-image/index.ts:212:      throw new Error(visionResult.responses[0].error.message);
+supabase/functions/moderate-image/index.ts:243:      const { error: queueError } = await supabase.from('moderation_queue').insert({
+supabase/functions/moderate-image/index.ts:255:        console.error('Moderation queue error:', queueError);
+supabase/functions/moderate-image/index.ts:279:  } catch (err) {
+supabase/functions/moderate-image/index.ts:280:    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+supabase/functions/moderate-image/index.ts:281:    console.error('Moderation error:', errorMessage);
+supabase/functions/moderate-image/index.ts:284:      JSON.stringify({ error: 'Moderation failed', details: errorMessage }),
+src/lib/analytics.ts:79:    })().catch((err: unknown) => {
+supabase/functions/generate-icebreaker/index.ts:43:    return { user: null, error: new Error('Missing authorization token') };
+supabase/functions/generate-icebreaker/index.ts:48:    return { user: null, error: new Error('Missing Supabase configuration') };
+supabase/functions/generate-icebreaker/index.ts:53:  const { data, error } = await authClient.auth.getUser();
+supabase/functions/generate-icebreaker/index.ts:54:  if (error || !data.user) {
+supabase/functions/generate-icebreaker/index.ts:55:    return { user: null, error: new Error('Unauthorized') };
+supabase/functions/generate-icebreaker/index.ts:57:  return { user: data.user, error: null };
+supabase/functions/generate-icebreaker/index.ts:60:const checkRateLimit = (userId: string): { allowed: boolean; retryAfterMs: number } => {
+supabase/functions/generate-icebreaker/index.ts:66:    return { allowed: true, retryAfterMs: 0 };
+supabase/functions/generate-icebreaker/index.ts:70:    return { allowed: false, retryAfterMs: entry.resetAt - now };
+supabase/functions/generate-icebreaker/index.ts:74:  return { allowed: true, retryAfterMs: 0 };
+supabase/functions/generate-icebreaker/index.ts:87:  const { user, error: authError } = await getAuthenticatedUser(req.headers.get('authorization'));
+supabase/functions/generate-icebreaker/index.ts:90:      JSON.stringify({ error: 'Unauthorized', text: 'Authentication required' }),
+supabase/functions/generate-icebreaker/index.ts:99:      JSON.stringify({ error: 'Rate limit exceeded', retryAfterMs: rateLimit.retryAfterMs }),
+supabase/functions/generate-icebreaker/index.ts:105:          'Retry-After': String(Math.ceil(rateLimit.retryAfterMs / 1000)),
+supabase/functions/generate-icebreaker/index.ts:111:  try {
+supabase/functions/generate-icebreaker/index.ts:173:  } catch (error) {
+mobile/src/services/profileService.ts:34:    try {
+mobile/src/services/profileService.ts:35:      const { data, error } = await supabase
+mobile/src/services/profileService.ts:41:      if (error) throw error;
+mobile/src/services/profileService.ts:43:    } catch (err) {
+mobile/src/services/profileService.ts:44:      console.error('Failed to get profile:', err);
+mobile/src/services/profileService.ts:53:    try {
+mobile/src/services/profileService.ts:58:    } catch (err) {
+mobile/src/services/profileService.ts:59:      console.error('Failed to get my profile:', err);
+mobile/src/services/profileService.ts:68:    try {
+mobile/src/services/profileService.ts:69:      const { error } = await supabase
+mobile/src/services/profileService.ts:74:      if (error) throw error;
+mobile/src/services/profileService.ts:76:    } catch (err) {
+mobile/src/services/profileService.ts:77:      console.error('Failed to update profile:', err);
+mobile/src/services/profileService.ts:86:    try {
+mobile/src/services/profileService.ts:108:      const { data, error } = await query;
+mobile/src/services/profileService.ts:110:      if (error) throw error;
+mobile/src/services/profileService.ts:112:    } catch (err) {
+mobile/src/services/profileService.ts:113:      console.error('Failed to get discovery profiles:', err);
+mobile/src/services/profileService.ts:126:    try {
+mobile/src/services/profileService.ts:131:      const { error: swipeError } = await supabase
+mobile/src/services/profileService.ts:167:    } catch (err) {
+mobile/src/services/profileService.ts:168:      console.error('Failed to record swipe:', err);
+mobile/src/services/profileService.ts:177:    try {
+mobile/src/services/profileService.ts:196:      const { data: profiles, error } = await supabase
+mobile/src/services/profileService.ts:201:      if (error) throw error;
+mobile/src/services/profileService.ts:203:    } catch (err) {
+mobile/src/services/profileService.ts:204:      console.error('Failed to get matches:', err);
+mobile/src/services/profileService.ts:213:    try {
+mobile/src/services/profileService.ts:218:      const { error } = await supabase.storage
+mobile/src/services/profileService.ts:225:      if (error) throw error;
+mobile/src/services/profileService.ts:232:    } catch (err) {
+mobile/src/services/profileService.ts:233:      console.error('Failed to upload photo:', err);
+services/photoService.ts:17:  error: Error | null;
+services/photoService.ts:22:  error: Error | null;
+services/photoService.ts:29:  validateFile(file: File | Blob): { valid: boolean; error?: string } {
+services/photoService.ts:31:      return { valid: false, error: `File size must be less than ${MAX_FILE_SIZE / 1024 / 1024}MB` };
+services/photoService.ts:35:      return { valid: false, error: `File type must be one of: ${ALLOWED_TYPES.join(', ')}` };
+services/photoService.ts:45:    try {
+services/photoService.ts:48:        return { path: '', error: new Error('Not authenticated') };
+services/photoService.ts:53:        return { path: '', error: new Error(validation.error) };
+services/photoService.ts:60:      const { error: uploadError } = await supabase.storage
+services/photoService.ts:68:        return { path: '', error: uploadError };
+services/photoService.ts:72:      this.triggerModeration(path).catch(console.error);
+services/photoService.ts:74:      return { path, error: null };
+services/photoService.ts:75:    } catch (err) {
+services/photoService.ts:76:      return { path: '', error: err as Error };
+services/photoService.ts:84:    try {
+services/photoService.ts:87:        return { path: '', error: new Error('Not authenticated') };
+services/photoService.ts:92:        return { path: '', error: new Error(validation.error) };
+services/photoService.ts:98:      const { error: uploadError } = await supabase.storage
+services/photoService.ts:106:        return { path: '', error: uploadError };
+services/photoService.ts:110:      this.triggerModeration(path).catch(console.error);
+services/photoService.ts:112:      return { path, error: null };
+services/photoService.ts:113:    } catch (err) {
+services/photoService.ts:114:      return { path: '', error: err as Error };
+services/photoService.ts:122:    try {
+services/photoService.ts:125:        return { path: '', error: new Error('Not authenticated') };
+services/photoService.ts:132:    } catch (err) {
+services/photoService.ts:133:      return { path: '', error: err as Error };
+services/photoService.ts:141:    try {
+services/photoService.ts:145:    } catch (err) {
+services/photoService.ts:146:      console.error('Moderation trigger failed:', err);
+services/photoService.ts:154:    try {
+services/photoService.ts:155:      const { data, error } = await supabase.storage
+services/photoService.ts:159:      if (error) {
+services/photoService.ts:160:        return { url: null, error };
+services/photoService.ts:163:      return { url: data.signedUrl, error: null };
+services/photoService.ts:164:    } catch (err) {
+services/photoService.ts:165:      return { url: null, error: err as Error };
+services/photoService.ts:177:        try {
+services/photoService.ts:185:        } catch (err) {
+services/photoService.ts:186:          console.error(`Failed to get signed URL for ${path}:`, err);
+services/photoService.ts:197:  async deletePath(path: string): Promise<{ error: Error | null }> {
+services/photoService.ts:198:    try {
+services/photoService.ts:201:        return { error: new Error('Not authenticated') };
+services/photoService.ts:206:        return { error: new Error('Cannot delete photos you do not own') };
+services/photoService.ts:209:      const { error } = await supabase.storage.from(BUCKET).remove([path]);
+services/photoService.ts:211:      if (error) {
+services/photoService.ts:212:        return { error };
+services/photoService.ts:215:      return { error: null };
+services/photoService.ts:216:    } catch (err) {
+services/photoService.ts:217:      return { error: err as Error };
+services/photoService.ts:224:  async updateProfilePhotos(paths: string[]): Promise<{ error: Error | null }> {
+services/photoService.ts:225:    try {
+services/photoService.ts:228:        return { error: new Error('Not authenticated') };
+services/photoService.ts:232:        return { error: new Error(`Maximum ${MAX_PHOTOS} photos allowed`) };
+services/photoService.ts:238:        return { error: new Error('Invalid photo path detected') };
+services/photoService.ts:241:      const { error } = await supabase
+services/photoService.ts:246:      if (error) {
+services/photoService.ts:247:        return { error };
+services/photoService.ts:250:      return { error: null };
+services/photoService.ts:251:    } catch (err) {
+services/photoService.ts:252:      return { error: err as Error };
+services/photoService.ts:259:  async reorderPhotos(newOrder: string[]): Promise<{ error: Error | null }> {
+services/photoService.ts:266:  async getMyPhotoPaths(): Promise<{ paths: string[]; error: Error | null }> {
+services/photoService.ts:267:    try {
+services/photoService.ts:270:        return { paths: [], error: new Error('Not authenticated') };
+services/photoService.ts:273:      const { data, error } = await supabase
+services/photoService.ts:279:      if (error) {
+services/photoService.ts:280:        return { paths: [], error };
+services/photoService.ts:283:      return { paths: data?.photo_paths || [], error: null };
+services/photoService.ts:284:    } catch (err) {
+services/photoService.ts:285:      return { paths: [], error: err as Error };
+services/photoService.ts:324:      img.onerror = () => reject(new Error('Failed to load image'));
+services/photoService.ts:333:    try {
+services/photoService.ts:336:    } catch (err) {
+supabase/functions/webhooks-stripe/index.ts:18:const isDuplicateEventError = (error: unknown): boolean => {
+supabase/functions/webhooks-stripe/index.ts:19:  const code = (error as { code?: string } | null)?.code;
+supabase/functions/webhooks-stripe/index.ts:24:  const { error } = await supabase.from('stripe_webhook_events').insert({
+supabase/functions/webhooks-stripe/index.ts:30:  if (!error) return { duplicate: false, error: null };
+supabase/functions/webhooks-stripe/index.ts:31:  if (isDuplicateEventError(error)) return { duplicate: true, error: null };
+supabase/functions/webhooks-stripe/index.ts:33:  return { duplicate: false, error };
+supabase/functions/webhooks-stripe/index.ts:49:    return new Response(JSON.stringify({ error: 'Missing env vars' }), {
+supabase/functions/webhooks-stripe/index.ts:59:  try {
+supabase/functions/webhooks-stripe/index.ts:63:  } catch (error) {
+supabase/functions/webhooks-stripe/index.ts:64:    return new Response(JSON.stringify({ error: 'Invalid signature' }), {
+supabase/functions/webhooks-stripe/index.ts:70:  const { duplicate, error: idempotencyError } = await persistEventIdempotencyKey(supabase, event);
+supabase/functions/webhooks-stripe/index.ts:73:    return new Response(JSON.stringify({ error: 'Failed to persist event idempotency key' }), {
+supabase/functions/webhooks-stripe/index.ts:85:  try {
+supabase/functions/webhooks-stripe/index.ts:95:          console.error('Missing plan metadata in checkout session', { sessionId: session.id });
+supabase/functions/webhooks-stripe/index.ts:96:          return new Response(JSON.stringify({ error: 'Missing plan metadata' }), {
+supabase/functions/webhooks-stripe/index.ts:103:          console.error('Invalid plan value in checkout session', { sessionId: session.id, plan });
+supabase/functions/webhooks-stripe/index.ts:104:          return new Response(JSON.stringify({ error: 'Invalid plan value' }), {
+supabase/functions/webhooks-stripe/index.ts:114:          const { error } = await supabase.from('subscriptions').upsert(
+supabase/functions/webhooks-stripe/index.ts:132:          if (error) {
+supabase/functions/webhooks-stripe/index.ts:133:            throw error;
+supabase/functions/webhooks-stripe/index.ts:141:        const { error } = await supabase
+supabase/functions/webhooks-stripe/index.ts:153:        if (error) {
+supabase/functions/webhooks-stripe/index.ts:154:          throw error;
+supabase/functions/webhooks-stripe/index.ts:165:  } catch (error) {
+supabase/functions/webhooks-stripe/index.ts:166:    return new Response(JSON.stringify({ error: 'Webhook handler failed' }), {
+supabase/functions/delete-account/index.ts:56:    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+supabase/functions/delete-account/index.ts:65:    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+supabase/functions/delete-account/index.ts:80:    error: authError,
+supabase/functions/delete-account/index.ts:84:    return new Response(JSON.stringify({ error: 'Unauthorized', details: authError?.message }), {
+supabase/functions/delete-account/index.ts:98:  try {
+supabase/functions/delete-account/index.ts:105:        const { data: files, error: listError } = await supabaseAdmin.storage
+supabase/functions/delete-account/index.ts:110:          console.error(`Error listing ${bucket}:`, listError);
+supabase/functions/delete-account/index.ts:117:        const { error: removeError } = await supabaseAdmin.storage.from(bucket).remove(paths);
+supabase/functions/delete-account/index.ts:120:          console.error(`Error removing from ${bucket}:`, removeError);
+supabase/functions/delete-account/index.ts:135:    const { data: participations, error: partError } = await supabaseAdmin
+supabase/functions/delete-account/index.ts:141:      console.error('Error fetching participations:', partError);
+supabase/functions/delete-account/index.ts:149:          const { data: files, error: listError } = await supabaseAdmin.storage
+supabase/functions/delete-account/index.ts:160:            const { error: removeError } = await supabaseAdmin.storage
+supabase/functions/delete-account/index.ts:180:    const { error: dataError } = await supabaseAdmin.rpc('delete_user_data', {
+supabase/functions/delete-account/index.ts:185:      console.error('Error deleting user data:', dataError);
+supabase/functions/delete-account/index.ts:192:    const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+supabase/functions/delete-account/index.ts:195:      console.error('Error deleting auth user:', authDeleteError);
+supabase/functions/delete-account/index.ts:215:  } catch (err) {
+supabase/functions/delete-account/index.ts:216:    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+supabase/functions/delete-account/index.ts:217:    console.error('Account deletion error:', errorMessage);
+supabase/functions/delete-account/index.ts:218:    console.error('Partial deletion log:', deletionLog);
+supabase/functions/delete-account/index.ts:222:        error: 'Deletion failed',
+supabase/functions/delete-account/index.ts:223:        details: errorMessage,
+services/profileService.ts:48:  const { data: authData, error: authError } = await supabase.auth.getUser();
+services/profileService.ts:49:  if (authError) return { data: null, error: authError };
+services/profileService.ts:51:    return { data: null, error: new Error('No authenticated user') };
+services/profileService.ts:62:  const { data: authData, error: authError } = await supabase.auth.getUser();
+services/profileService.ts:63:  if (authError) return { data: null, error: authError };
+services/profileService.ts:65:    return { data: null, error: new Error('No authenticated user') };
+mobile/src/services/authService.ts:13:  error: AuthError | null;
+mobile/src/services/authService.ts:21:    const { data, error } = await supabase.auth.signInWithPassword({
+mobile/src/services/authService.ts:29:      error,
+mobile/src/services/authService.ts:37:    const { data, error } = await supabase.auth.signUp({
+mobile/src/services/authService.ts:45:      error,
+mobile/src/services/authService.ts:52:  async signOut(): Promise<{ error: AuthError | null }> {
+mobile/src/services/authService.ts:53:    const { error } = await supabase.auth.signOut();
+mobile/src/services/authService.ts:54:    return { error };
+mobile/src/services/authService.ts:60:  async getSession(): Promise<{ session: Session | null; error: AuthError | null }> {
+mobile/src/services/authService.ts:61:    const { data, error } = await supabase.auth.getSession();
+mobile/src/services/authService.ts:62:    return { session: data.session, error };
+mobile/src/services/authService.ts:68:  async getUser(): Promise<{ user: User | null; error: AuthError | null }> {
+mobile/src/services/authService.ts:69:    const { data, error } = await supabase.auth.getUser();
+mobile/src/services/authService.ts:70:    return { user: data.user, error };
+mobile/src/services/authService.ts:76:  async resetPassword(email: string): Promise<{ error: AuthError | null }> {
+mobile/src/services/authService.ts:77:    const { error } = await supabase.auth.resetPasswordForEmail(email);
+mobile/src/services/authService.ts:78:    return { error };
+services/checkoutService.ts:5:  const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+services/checkoutService.ts:9:  if (error) {
+services/checkoutService.ts:10:    return { sessionUrl: null, error };
+services/checkoutService.ts:13:  return { sessionUrl: data?.sessionUrl as string | undefined, error: null };
+supabase/functions/create-checkout-session/index.ts:59:    return { user: null, error: new Error('Missing authorization token') };
+supabase/functions/create-checkout-session/index.ts:66:    return { user: null, error: new Error('Missing SUPABASE_URL or SUPABASE_ANON_KEY') };
+supabase/functions/create-checkout-session/index.ts:75:  const { data, error } = await authClient.auth.getUser();
+supabase/functions/create-checkout-session/index.ts:76:  if (error || !data.user) {
+supabase/functions/create-checkout-session/index.ts:77:    return { user: null, error: new Error('Unauthorized') };
+supabase/functions/create-checkout-session/index.ts:80:  return { user: data.user, error: null };
+supabase/functions/create-checkout-session/index.ts:87:  try {
+supabase/functions/create-checkout-session/index.ts:90:  } catch (error) {
+supabase/functions/create-checkout-session/index.ts:91:    return new Response(JSON.stringify({ error: error?.message || 'Invalid app base URL configuration' }), {
+supabase/functions/create-checkout-session/index.ts:104:    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+supabase/functions/create-checkout-session/index.ts:110:  try {
+supabase/functions/create-checkout-session/index.ts:118:      return new Response(JSON.stringify({ error: 'Missing STRIPE_SECRET_KEY' }), {
+supabase/functions/create-checkout-session/index.ts:124:    const { user, error: authError } = await getAuthenticatedUser(req.headers.get('authorization'));
+supabase/functions/create-checkout-session/index.ts:126:      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+supabase/functions/create-checkout-session/index.ts:136:      return new Response(JSON.stringify({ error: 'Invalid plan' }), {
+supabase/functions/create-checkout-session/index.ts:152:      return new Response(JSON.stringify({ error: 'Missing price id' }), {
+supabase/functions/create-checkout-session/index.ts:174:  } catch (error) {
+supabase/functions/create-checkout-session/index.ts:175:    return new Response(JSON.stringify({ error: error?.message || 'Checkout error' }), {
+supabase/functions/push-worker/index.ts:28:  status: 'ok' | 'error';
+supabase/functions/push-worker/index.ts:31:  details?: { error: string };
+supabase/functions/push-worker/index.ts:60:    console.error('Unauthorized: Invalid or missing CRON_SECRET');
+supabase/functions/push-worker/index.ts:61:    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+supabase/functions/push-worker/index.ts:72:  try {
+supabase/functions/push-worker/index.ts:74:    const { data: reclaimedCount, error: reclaimError } = await supabase.rpc(
+supabase/functions/push-worker/index.ts:80:      console.error('Reclaim error:', reclaimError);
+supabase/functions/push-worker/index.ts:86:    const { data: notifications, error: claimError } = await supabase.rpc(
+supabase/functions/push-worker/index.ts:92:      console.error('Claim error:', claimError);
+supabase/functions/push-worker/index.ts:93:      return new Response(JSON.stringify({ error: claimError.message }), {
+supabase/functions/push-worker/index.ts:109:    const { data: tokens, error: tokenError } = await supabase
+supabase/functions/push-worker/index.ts:116:      console.error('Token fetch error:', tokenError);
+supabase/functions/push-worker/index.ts:127:    const results: { id: string; success: boolean; error?: string }[] = [];
+supabase/functions/push-worker/index.ts:136:          p_error_message: 'No active push tokens',
+supabase/functions/push-worker/index.ts:137:          p_retry: false,
+supabase/functions/push-worker/index.ts:139:        results.push({ id: notif.id, success: false, error: 'No tokens' });
+supabase/functions/push-worker/index.ts:158:      try {
+supabase/functions/push-worker/index.ts:169:          throw new Error(`Expo API error: ${response.status}`);
+supabase/functions/push-worker/index.ts:183:          } else if (ticket.details?.error === 'DeviceNotRegistered') {
+supabase/functions/push-worker/index.ts:198:            p_error_message: 'All tokens failed',
+supabase/functions/push-worker/index.ts:199:            p_retry: true,
+supabase/functions/push-worker/index.ts:201:          results.push({ id: notif.id, success: false, error: 'All tokens failed' });
+supabase/functions/push-worker/index.ts:203:      } catch (err) {
+supabase/functions/push-worker/index.ts:204:        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+supabase/functions/push-worker/index.ts:205:        console.error(`Push send error for ${notif.id}:`, errorMessage);
+supabase/functions/push-worker/index.ts:209:          p_error_message: errorMessage,
+supabase/functions/push-worker/index.ts:210:          p_retry: true,
+supabase/functions/push-worker/index.ts:212:        results.push({ id: notif.id, success: false, error: errorMessage });
+supabase/functions/push-worker/index.ts:233:  } catch (err) {
+supabase/functions/push-worker/index.ts:234:    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+supabase/functions/push-worker/index.ts:235:    console.error('Push worker error:', errorMessage);
+supabase/functions/push-worker/index.ts:237:    return new Response(JSON.stringify({ error: errorMessage }), {
+services/geminiService.ts:10:  try {
+services/geminiService.ts:20:    const { data, error } = await supabase.functions.invoke('generate-icebreaker', {
+services/geminiService.ts:27:    if (!error && typeof data?.text === 'string' && data.text.trim()) {
+services/geminiService.ts:30:  } catch {
+services/discoveryService.ts:97:): Promise<{ profiles: Profile[]; error: Error | null }> => {
+services/discoveryService.ts:98:  try {
+services/discoveryService.ts:100:    const { data: rows, error: rpcError } = await supabase.rpc('discover_profiles', {
+services/discoveryService.ts:111:      return { profiles: [], error: new Error(rpcError.message) };
+services/discoveryService.ts:115:      return { profiles: [], error: null };
+services/discoveryService.ts:217:    return { profiles, error: null };
+services/discoveryService.ts:218:  } catch (err) {
+services/discoveryService.ts:219:    return { profiles: [], error: err instanceof Error ? err : new Error('Discovery fetch failed') };
+services/discoveryService.ts:229:): Promise<{ isMatch: boolean; matchId: string | null; error: Error | null }> => {
+services/discoveryService.ts:230:  const { data, error } = await supabase.rpc('record_swipe', {
+services/discoveryService.ts:235:  if (error) {
+services/discoveryService.ts:236:    return { isMatch: false, matchId: null, error: new Error(error.message) };
+services/discoveryService.ts:240:  return { isMatch: result.is_match, matchId: result.match_id, error: null };
+services/discoveryService.ts:249:): Promise<{ profiles: Profile[]; error: Error | null }> => {
+services/discoveryService.ts:250:  const { data, error } = await supabase.rpc('get_likes_you', {
+services/discoveryService.ts:255:  if (error) {
+services/discoveryService.ts:256:    return { profiles: [], error: new Error(error.message) };
+services/discoveryService.ts:260:    return { profiles: [], error: null };
+services/discoveryService.ts:296:  return { profiles, error: null };
+services/safetyService.ts:4:const getAuthUserId = async (): Promise<{ userId: string | null; error: Error | null }> => {
+services/safetyService.ts:5:  const { data, error } = await supabase.auth.getUser();
+services/safetyService.ts:6:  if (error) return { userId: null, error: error as unknown as Error };
+services/safetyService.ts:7:  if (!data.user) return { userId: null, error: new Error('No authenticated user') };
+services/safetyService.ts:8:  return { userId: data.user.id, error: null };
+services/safetyService.ts:12:  const { userId, error: authError } = await getAuthUserId();
+services/safetyService.ts:13:  if (authError || !userId) return { error: authError ?? new Error('No authenticated user') };
+services/safetyService.ts:15:  const { error } = await supabase
+services/safetyService.ts:26:  return { error: (error as unknown as Error) || null };
+services/safetyService.ts:30:  const { userId, error: authError } = await getAuthUserId();
+services/safetyService.ts:31:  if (authError || !userId) return { error: authError ?? new Error('No authenticated user') };
+services/safetyService.ts:33:  const { error } = await supabase.from('reports').insert({
+services/safetyService.ts:40:  return { error: (error as unknown as Error) || null };
+services/pushService.ts:50:  async registerForPushNotificationsWeb(): Promise<{ token: string | null; error: Error | null }> {
+services/pushService.ts:51:    try {
+services/pushService.ts:54:        return { token: null, error: new Error('This browser does not support notifications') };
+services/pushService.ts:61:        return { token: null, error: new Error('Notification permission denied') };
+services/pushService.ts:67:          return { token: null, error: new Error('Notification permission not granted') };
+services/pushService.ts:77:        return { token: null, error: new Error('Firebase not initialized') };
+services/pushService.ts:84:        return { token: null, error: new Error('VAPID key not configured') };
+services/pushService.ts:90:        return { token: null, error: new Error('Failed to get FCM token') };
+services/pushService.ts:96:      return { token, error: null };
+services/pushService.ts:97:    } catch (err) {
+services/pushService.ts:98:      return { token: null, error: err as Error };
+services/pushService.ts:106:  async registerForPushNotificationsMobile(): Promise<{ token: string | null; error: Error | null }> {
+services/pushService.ts:107:    try {
+services/pushService.ts:115:        return { token: null, error: new Error('Push notifications require a physical device') };
+services/pushService.ts:127:        return { token: null, error: new Error('Push notification permission not granted') };
+services/pushService.ts:136:        return { token: null, error: new Error('Missing EAS projectId') };
+services/pushService.ts:157:      return { token, error: null };
+services/pushService.ts:158:    } catch (err) {
+services/pushService.ts:160:      console.error('Mobile push registration failed:', err);
+services/pushService.ts:161:      return { token: null, error: err as Error };
+services/pushService.ts:168:  async registerForPushNotifications(): Promise<{ token: string | null; error: Error | null }> {
+services/pushService.ts:179:  async saveToken(token: string, platform: 'ios' | 'android' | 'web'): Promise<{ error: Error | null }> {
+services/pushService.ts:180:    try {
+services/pushService.ts:183:        return { error: new Error('Not authenticated') };
+services/pushService.ts:186:      const { error } = await supabase
+services/pushService.ts:201:      if (error) {
+services/pushService.ts:202:        return { error };
+services/pushService.ts:205:      return { error: null };
+services/pushService.ts:206:    } catch (err) {
+services/pushService.ts:207:      return { error: err as Error };
+services/pushService.ts:214:  async removeToken(token?: string): Promise<{ error: Error | null }> {
+services/pushService.ts:215:    try {
+services/pushService.ts:218:        return { error: new Error('Not authenticated') };
+services/pushService.ts:230:      const { error } = await query;
+services/pushService.ts:232:      if (error) {
+services/pushService.ts:233:        return { error };
+services/pushService.ts:236:      return { error: null };
+services/pushService.ts:237:    } catch (err) {
+services/pushService.ts:238:      return { error: err as Error };
+services/pushService.ts:245:  async deactivateAllTokens(): Promise<{ error: Error | null }> {
+services/pushService.ts:246:    try {
+services/pushService.ts:249:        return { error: new Error('Not authenticated') };
+services/pushService.ts:252:      const { error } = await supabase
+services/pushService.ts:257:      if (error) {
+services/pushService.ts:258:        return { error };
+services/pushService.ts:261:      return { error: null };
+services/pushService.ts:262:    } catch (err) {
+services/pushService.ts:263:      return { error: err as Error };
+services/pushService.ts:270:  async getActiveTokens(): Promise<{ tokens: PushToken[]; error: Error | null }> {
+services/pushService.ts:271:    try {
+services/pushService.ts:274:        return { tokens: [], error: new Error('Not authenticated') };
+services/pushService.ts:277:      const { data, error } = await supabase
+services/pushService.ts:283:      if (error) {
+services/pushService.ts:284:        return { tokens: [], error };
+services/pushService.ts:287:      return { tokens: data || [], error: null };
+services/pushService.ts:288:    } catch (err) {
+services/pushService.ts:289:      return { tokens: [], error: err as Error };
+services/pushService.ts:296:  async getPreferences(): Promise<{ preferences: NotificationPreferences; error: Error | null }> {
+services/pushService.ts:297:    try {
+services/pushService.ts:300:        return { preferences: DEFAULT_PREFERENCES, error: new Error('Not authenticated') };
+services/pushService.ts:303:      const { data, error } = await supabase
+services/pushService.ts:309:      if (error) {
+services/pushService.ts:310:        return { preferences: DEFAULT_PREFERENCES, error };
+services/pushService.ts:320:        error: null,
+services/pushService.ts:322:    } catch (err) {
+services/pushService.ts:323:      return { preferences: DEFAULT_PREFERENCES, error: err as Error };
+services/pushService.ts:332:  ): Promise<{ error: Error | null }> {
+services/pushService.ts:333:    try {
+services/pushService.ts:336:        return { error: new Error('Not authenticated') };
+services/pushService.ts:348:      const { error } = await supabase
+services/pushService.ts:358:      if (error) {
+services/pushService.ts:359:        return { error };
+services/pushService.ts:362:      return { error: null };
+services/pushService.ts:363:    } catch (err) {
+services/pushService.ts:364:      return { error: err as Error };
+services/pushService.ts:393:  async requestPermission(): Promise<{ granted: boolean; error: Error | null }> {
+services/pushService.ts:394:    try {
+services/pushService.ts:397:          return { granted: false, error: new Error('Notifications not supported') };
+services/pushService.ts:401:        return { granted: permission === 'granted', error: null };
+services/pushService.ts:405:        return { granted: status === 'granted', error: null };
+services/pushService.ts:407:    } catch (err) {
+services/pushService.ts:408:      return { granted: false, error: err as Error };
+services/pushService.ts:415:  async checkPermission(): Promise<{ status: 'granted' | 'denied' | 'default'; error: Error | null }> {
+services/pushService.ts:416:    try {
+services/pushService.ts:419:          return { status: 'denied', error: new Error('Notifications not supported') };
+services/pushService.ts:421:        return { status: Notification.permission as 'granted' | 'denied' | 'default', error: null };
+services/pushService.ts:426:        return { status: mappedStatus, error: null };
+services/pushService.ts:428:    } catch (err) {
+services/pushService.ts:429:      return { status: 'default', error: err as Error };
+services/subscriptionService.ts:4:  const { data: authData, error: authError } = await supabase.auth.getUser();
+services/subscriptionService.ts:5:  if (authError) return { isPremium: false, error: authError };
+services/subscriptionService.ts:7:    return { isPremium: false, error: new Error('No authenticated user') };
+services/subscriptionService.ts:11:  const { data, error } = await supabase
+services/subscriptionService.ts:21:  if (error) return { isPremium: false, error };
+services/subscriptionService.ts:22:  return { isPremium: Boolean(data), error: null };
+services/accountService.ts:45:  async deleteAccount(): Promise<{ success: boolean; error: Error | null }> {
+services/accountService.ts:46:    try {
+services/accountService.ts:49:        return { success: false, error: new Error('Not authenticated') };
+services/accountService.ts:52:      const { error } = await supabase.functions.invoke('delete-account', {
+services/accountService.ts:56:      if (error) {
+services/accountService.ts:57:        return { success: false, error };
+services/accountService.ts:69:      return { success: true, error: null };
+services/accountService.ts:70:    } catch (err) {
+services/accountService.ts:71:      return { success: false, error: err as Error };
+services/accountService.ts:78:  async exportData(): Promise<{ data: ExportedData | null; error: Error | null }> {
+services/accountService.ts:79:    try {
+services/accountService.ts:82:        return { data: null, error: new Error('Not authenticated') };
+services/accountService.ts:119:          : Promise.resolve({ data: [], error: null }),
+services/accountService.ts:145:      return { data: exportedData, error: null };
+services/accountService.ts:146:    } catch (err) {
+services/accountService.ts:147:      return { data: null, error: err as Error };
+services/accountService.ts:154:  async downloadExportedData(): Promise<{ success: boolean; error: Error | null }> {
+services/accountService.ts:155:    try {
+services/accountService.ts:156:      const { data, error } = await this.exportData();
+services/accountService.ts:158:      if (error || !data) {
+services/accountService.ts:159:        return { success: false, error: error || new Error('No data to export') };
+services/accountService.ts:173:      return { success: true, error: null };
+services/accountService.ts:174:    } catch (err) {
+services/accountService.ts:175:      return { success: false, error: err as Error };
+services/accountService.ts:185:  ): Promise<{ success: boolean; error: Error | null }> {
+services/accountService.ts:186:    try {
+services/accountService.ts:189:        return { success: false, error: new Error('Not authenticated') };
+services/accountService.ts:194:      try {
+services/accountService.ts:202:      } catch {
+services/accountService.ts:206:      const { error } = await supabase.from('user_consents').upsert(
+services/accountService.ts:220:      if (error) {
+services/accountService.ts:221:        return { success: false, error };
+services/accountService.ts:224:      return { success: true, error: null };
+services/accountService.ts:225:    } catch (err) {
+services/accountService.ts:226:      return { success: false, error: err as Error };
+services/accountService.ts:233:  async getConsents(): Promise<{ consents: ConsentRecord[]; error: Error | null }> {
+services/accountService.ts:234:    try {
+services/accountService.ts:237:        return { consents: [], error: new Error('Not authenticated') };
+services/accountService.ts:240:      const { data, error } = await supabase
+services/accountService.ts:246:      if (error) {
+services/accountService.ts:247:        return { consents: [], error };
+services/accountService.ts:250:      return { consents: data || [], error: null };
+services/accountService.ts:251:    } catch (err) {
+services/accountService.ts:252:      return { consents: [], error: err as Error };
+services/accountService.ts:259:  async hasConsent(consentType: string, minVersion?: string): Promise<{ hasConsent: boolean; error: Error | null }> {
+services/accountService.ts:260:    try {
+services/accountService.ts:263:        return { hasConsent: false, error: new Error('Not authenticated') };
+services/accountService.ts:276:      const { data, error } = await query.limit(1);
+services/accountService.ts:278:      if (error) {
+services/accountService.ts:279:        return { hasConsent: false, error };
+services/accountService.ts:282:      return { hasConsent: (data?.length || 0) > 0, error: null };
+services/accountService.ts:283:    } catch (err) {
+services/accountService.ts:284:      return { hasConsent: false, error: err as Error };
+services/accountService.ts:291:  async deactivateAccount(): Promise<{ success: boolean; error: Error | null }> {
+services/accountService.ts:292:    try {
+services/accountService.ts:295:        return { success: false, error: new Error('Not authenticated') };
+services/accountService.ts:298:      const { error } = await supabase
+services/accountService.ts:303:      if (error) {
+services/accountService.ts:304:        return { success: false, error };
+services/accountService.ts:307:      return { success: true, error: null };
+services/accountService.ts:308:    } catch (err) {
+services/accountService.ts:309:      return { success: false, error: err as Error };
+services/accountService.ts:316:  async reactivateAccount(): Promise<{ success: boolean; error: Error | null }> {
+services/accountService.ts:317:    try {
+services/accountService.ts:320:        return { success: false, error: new Error('Not authenticated') };
+services/accountService.ts:323:      const { error } = await supabase
+services/accountService.ts:328:      if (error) {
+services/accountService.ts:329:        return { success: false, error };
+services/accountService.ts:332:      return { success: true, error: null };
+services/accountService.ts:333:    } catch (err) {
+services/accountService.ts:334:      return { success: false, error: err as Error };
+services/accountService.ts:342:    try {
+services/accountService.ts:350:    } catch {
+services/accountService.ts:362:    error: Error | null;
+services/accountService.ts:364:    try {
+services/accountService.ts:367:        return { isActive: false, isVerified: false, lastActive: null, error: new Error('Not authenticated') };
+services/accountService.ts:370:      const { data, error } = await supabase
+services/accountService.ts:376:      if (error) {
+services/accountService.ts:377:        return { isActive: false, isVerified: false, lastActive: null, error };
+services/accountService.ts:384:        error: null,
+services/accountService.ts:386:    } catch (err) {
+services/accountService.ts:387:      return { isActive: false, isVerified: false, lastActive: null, error: err as Error };
+services/chatService.ts:55:  async createConversation(otherUserId: string): Promise<{ conversationId: string | null; error: Error | null }> {
+services/chatService.ts:56:    try {
+services/chatService.ts:59:        return { conversationId: null, error: new Error('Not authenticated') };
+services/chatService.ts:62:      const { data, error } = await supabase.rpc('create_conversation', {
+services/chatService.ts:67:      if (error) {
+services/chatService.ts:68:        // Handle specific error messages
+services/chatService.ts:69:        if (error.message?.includes('not matched')) {
+services/chatService.ts:70:          return { conversationId: null, error: new Error('You must be matched to start a conversation') };
+services/chatService.ts:72:        return { conversationId: null, error };
+services/chatService.ts:75:      return { conversationId: data, error: null };
+services/chatService.ts:76:    } catch (err) {
+services/chatService.ts:77:      return { conversationId: null, error: err as Error };
+services/chatService.ts:84:  async findConversation(otherUserId: string): Promise<{ conversationId: string | null; error: Error | null }> {
+services/chatService.ts:85:    try {
+services/chatService.ts:88:        return { conversationId: null, error: new Error('Not authenticated') };
+services/chatService.ts:91:      const { data, error } = await supabase.rpc('find_conversation', {
+services/chatService.ts:96:      if (error) {
+services/chatService.ts:97:        return { conversationId: null, error };
+services/chatService.ts:100:      return { conversationId: data, error: null };
+services/chatService.ts:101:    } catch (err) {
+services/chatService.ts:102:      return { conversationId: null, error: err as Error };
+services/chatService.ts:109:  async sendMessage(params: SendMessageParams): Promise<{ message: Message | null; error: Error | null }> {
+services/chatService.ts:110:    try {
+services/chatService.ts:113:        return { message: null, error: new Error('Not authenticated') };
+services/chatService.ts:118:      const { data, error } = await supabase
+services/chatService.ts:130:      if (error) {
+services/chatService.ts:131:        return { message: null, error };
+services/chatService.ts:134:      return { message: data, error: null };
+services/chatService.ts:135:    } catch (err) {
+services/chatService.ts:136:      return { message: null, error: err as Error };
+services/chatService.ts:143:  async uploadChatMedia(conversationId: string, file: File | Blob): Promise<{ path: string | null; error: Error | null }> {
+services/chatService.ts:144:    try {
+services/chatService.ts:147:        return { path: null, error: new Error('Not authenticated') };
+services/chatService.ts:153:      const { error } = await supabase.storage
+services/chatService.ts:157:      if (error) {
+services/chatService.ts:158:        return { path: null, error };
+services/chatService.ts:161:      return { path, error: null };
+services/chatService.ts:162:    } catch (err) {
+services/chatService.ts:163:      return { path: null, error: err as Error };
+services/chatService.ts:170:  async uploadChatMediaFromUri(conversationId: string, uri: string): Promise<{ path: string | null; error: Error | null }> {
+services/chatService.ts:171:    try {
+services/chatService.ts:175:    } catch (err) {
+services/chatService.ts:176:      return { path: null, error: err as Error };
+services/chatService.ts:183:  async getChatMediaUrl(path: string): Promise<{ url: string | null; error: Error | null }> {
+services/chatService.ts:184:    try {
+services/chatService.ts:185:      const { data, error } = await supabase.storage
+services/chatService.ts:189:      if (error) {
+services/chatService.ts:190:        return { url: null, error };
+services/chatService.ts:193:      return { url: data.signedUrl, error: null };
+services/chatService.ts:194:    } catch (err) {
+services/chatService.ts:195:      return { url: null, error: err as Error };
+services/chatService.ts:205:  ): Promise<{ messages: Message[]; error: Error | null }> {
+services/chatService.ts:206:    try {
+services/chatService.ts:221:      const { data, error } = await query;
+services/chatService.ts:223:      if (error) {
+services/chatService.ts:224:        return { messages: [], error };
+services/chatService.ts:228:      return { messages: (data || []).reverse(), error: null };
+services/chatService.ts:229:    } catch (err) {
+services/chatService.ts:230:      return { messages: [], error: err as Error };
+services/chatService.ts:237:  async getConversations(): Promise<{ conversations: Conversation[]; error: Error | null }> {
+services/chatService.ts:238:    try {
+services/chatService.ts:241:        return { conversations: [], error: new Error('Not authenticated') };
+services/chatService.ts:244:      const { data, error } = await supabase
+services/chatService.ts:263:      if (error) {
+services/chatService.ts:264:        return { conversations: [], error };
+services/chatService.ts:271:      return { conversations, error: null };
+services/chatService.ts:272:    } catch (err) {
+services/chatService.ts:273:      return { conversations: [], error: err as Error };
+services/chatService.ts:280:  async getConversationPartner(conversationId: string): Promise<{ userId: string | null; error: Error | null }> {
+services/chatService.ts:281:    try {
+services/chatService.ts:284:        return { userId: null, error: new Error('Not authenticated') };
+services/chatService.ts:287:      const { data, error } = await supabase
+services/chatService.ts:294:      if (error) {
+services/chatService.ts:295:        return { userId: null, error };
+services/chatService.ts:298:      return { userId: data?.user_id, error: null };
+services/chatService.ts:299:    } catch (err) {
+services/chatService.ts:300:      return { userId: null, error: err as Error };
+services/chatService.ts:357:  async markAsRead(conversationId: string): Promise<{ error: Error | null }> {
+services/chatService.ts:358:    try {
+services/chatService.ts:361:        return { error: new Error('Not authenticated') };
+services/chatService.ts:364:      const { error } = await supabase
+services/chatService.ts:370:      if (error) {
+services/chatService.ts:371:        return { error };
+services/chatService.ts:374:      return { error: null };
+services/chatService.ts:375:    } catch (err) {
+services/chatService.ts:376:      return { error: err as Error };
+services/chatService.ts:383:  async setMuted(conversationId: string, muted: boolean): Promise<{ error: Error | null }> {
+services/chatService.ts:384:    try {
+services/chatService.ts:387:        return { error: new Error('Not authenticated') };
+services/chatService.ts:390:      const { error } = await supabase
+services/chatService.ts:396:      if (error) {
+services/chatService.ts:397:        return { error };
+services/chatService.ts:400:      return { error: null };
+services/chatService.ts:401:    } catch (err) {
+services/chatService.ts:402:      return { error: err as Error };
+services/chatService.ts:409:  async deleteConversation(conversationId: string): Promise<{ error: Error | null }> {
+services/chatService.ts:410:    try {
+services/chatService.ts:413:        return { error: new Error('Not authenticated') };
+services/chatService.ts:416:      const { error } = await supabase
+services/chatService.ts:422:      if (error) {
+services/chatService.ts:423:        return { error };
+services/chatService.ts:426:      return { error: null };
+services/chatService.ts:427:    } catch (err) {
+services/chatService.ts:428:      return { error: err as Error };
+services/chatService.ts:442:  async getUnreadCount(conversationId: string): Promise<{ count: number; error: Error | null }> {
+services/chatService.ts:443:    try {
+services/chatService.ts:446:        return { count: 0, error: new Error('Not authenticated') };
+services/chatService.ts:450:      const { data: participant, error: participantError } = await supabase
+services/chatService.ts:458:        return { count: 0, error: participantError };
+services/chatService.ts:473:      const { count, error } = await query;
+services/chatService.ts:475:      if (error) {
+services/chatService.ts:476:        return { count: 0, error };
+services/chatService.ts:479:      return { count: count || 0, error: null };
+services/chatService.ts:480:    } catch (err) {
+services/chatService.ts:481:      return { count: 0, error: err as Error };
+services/verificationService.ts:49:): Promise<{ domain: VerifiedDomainRow | null; error: Error | null }> => {
+services/verificationService.ts:51:  if (!domain) return { domain: null, error: new Error('Invalid email') };
+services/verificationService.ts:54:  const { data, error } = await supabase
+services/verificationService.ts:59:  if (error) return { domain: null, error: error as unknown as Error };
+services/verificationService.ts:62:  if (matches.length === 0) return { domain: null, error: null };
+services/verificationService.ts:69:  return { domain: best || null, error: null };
+services/verificationService.ts:86:  const { data: authData, error: authError } = await supabase.auth.getUser();
+services/verificationService.ts:88:    return { data: null, error: new Error('No authenticated user') };
+services/verificationService.ts:103:  const { data: authData, error: authError } = await supabase.auth.getUser();
+services/verificationService.ts:105:    return { data: null, error: new Error('No authenticated user') };
+services/verificationService.ts:125:): Promise<{ documentPath: string | null; error: Error | null }> => {
+services/verificationService.ts:126:  const { data: authData, error: authError } = await supabase.auth.getUser();
+services/verificationService.ts:128:    return { documentPath: null, error: new Error('No authenticated user') };
+services/verificationService.ts:132:    return { documentPath: null, error: new Error('Unsupported document format') };
+services/verificationService.ts:135:    return { documentPath: null, error: new Error('Document is larger than 10 MB') };
+services/verificationService.ts:141:  const { error } = await supabase.storage
+services/verificationService.ts:145:  if (error) {
+services/verificationService.ts:146:    return { documentPath: null, error: error as unknown as Error };
+services/verificationService.ts:149:  return { documentPath: path, error: null };
+services/verificationService.ts:158:  const { data: authData, error: authError } = await supabase.auth.getUser();
+services/verificationService.ts:160:    return { data: null, error: new Error('No authenticated user') };
+1.2M	dist

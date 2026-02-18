@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vitalis Privacy Policy</title>
+    <!-- AUDIT-FIX: PR-003 — Comprehensive GDPR/KVKK compliant privacy policy -->
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 760px; margin: 0 auto; padding: 24px; line-height: 1.7; color: #0f172a; }
+      h1, h2, h3 { color: #0b1220; }
+      h2 { margin-top: 2em; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5em; }
+      h3 { margin-top: 1.5em; }
+      .muted { color: #475569; }
+      a { color: #b45309; }
+      table { width: 100%; border-collapse: collapse; margin: 1em 0; }
+      th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; }
+      th { background: #f8fafc; }
+      ul { padding-left: 1.5em; }
+      li { margin: 0.5em 0; }
+      .highlight { background: #fef3c7; padding: 1em; border-radius: 8px; margin: 1em 0; }
+    </style>
+  </head>
+  <body>
+    <h1>Privacy Policy</h1>
+    <p class="muted">Last updated: February 15, 2026 | Version 2.0</p>
+
+    <p>Vitalis ("we", "us", "our") operates the Vitalis Medical Dating application. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our service.</p>
+
+    <h2>1. Data Controller</h2>
+    <p><strong>Vitalis Technologies Ltd.</strong><br>
+    Email: <a href="mailto:privacy@vitalis.app">privacy@vitalis.app</a><br>
+    Data Protection Officer: <a href="mailto:dpo@vitalis.app">dpo@vitalis.app</a></p>
+
+    <h2>2. Data We Collect</h2>
+
+    <h3>2.1 Information You Provide</h3>
+    <table>
+      <tr>
+        <th>Category</th>
+        <th>Examples</th>
+        <th>Purpose</th>
+        <th>Retention</th>
+      </tr>
+      <tr>
+        <td>Identity Data</td>
+        <td>Name, age, gender, photos</td>
+        <td>Profile creation, matching</td>
+        <td>While account is active; deleted upon account deletion</td>
+      </tr>
+      <tr>
+        <td>Contact Data</td>
+        <td>Email, phone number</td>
+        <td>Account access, notifications</td>
+        <td>While account is active; deleted upon account deletion</td>
+      </tr>
+      <tr>
+        <td>Professional Data</td>
+        <td>Medical role, specialty, institution</td>
+        <td>Verification, matching</td>
+        <td>While account is active; deleted upon account deletion</td>
+      </tr>
+      <tr>
+        <td>Verification Documents</td>
+        <td>Medical license, hospital ID</td>
+        <td>Identity verification</td>
+        <td>While account is active; deleted upon account deletion</td>
+      </tr>
+      <tr>
+        <td>Location Data</td>
+        <td>City, approximate coordinates</td>
+        <td>Nearby matching, distance calculation</td>
+        <td>While account is active; deleted upon account deletion</td>
+      </tr>
+      <tr>
+        <td>Communication Data</td>
+        <td>Messages, chat history</td>
+        <td>Messaging feature, safety review</td>
+        <td>While account is active; anonymized upon account deletion</td>
+      </tr>
+      <tr>
+        <td>Transaction Data</td>
+        <td>Subscription status, payment method type</td>
+        <td>Premium features</td>
+        <td>7 years (legal requirement)</td>
+      </tr>
+    </table>
+
+    <h3>2.2 Automatically Collected Data</h3>
+    <ul>
+      <li><strong>Device Information:</strong> Device type, operating system, app version</li>
+      <li><strong>Usage Data:</strong> Features used, interaction patterns (with consent)</li>
+      <li><strong>Log Data:</strong> IP addresses (anonymized after 7 days), timestamps, error logs</li>
+    </ul>
+
+    <h2>3. How We Use Your Data</h2>
+    <table>
+      <tr>
+        <th>Purpose</th>
+        <th>Legal Basis (GDPR)</th>
+      </tr>
+      <tr>
+        <td>Provide matchmaking and messaging services</td>
+        <td>Contract performance</td>
+      </tr>
+      <tr>
+        <td>Verify medical professional status</td>
+        <td>Contract performance, Legitimate interest</td>
+      </tr>
+      <tr>
+        <td>Process payments for premium subscriptions</td>
+        <td>Contract performance</td>
+      </tr>
+      <tr>
+        <td>Prevent fraud, abuse, and safety violations</td>
+        <td>Legitimate interest, Legal obligation</td>
+      </tr>
+      <tr>
+        <td>Improve service quality and fix bugs</td>
+        <td>Legitimate interest</td>
+      </tr>
+      <tr>
+        <td>Send service-related notifications</td>
+        <td>Contract performance</td>
+      </tr>
+      <tr>
+        <td>Analyze usage patterns (with consent)</td>
+        <td>Consent</td>
+      </tr>
+    </table>
+
+    <h2>4. Third-Party Data Sharing</h2>
+    <div class="highlight">
+      <strong>Important:</strong> We share data with third parties only as necessary to provide our services. We do not sell your personal data.
+    </div>
+
+    <table>
+      <tr>
+        <th>Recipient</th>
+        <th>Data Shared</th>
+        <th>Purpose</th>
+        <th>Location</th>
+      </tr>
+      <tr>
+        <td>Stripe, Inc.</td>
+        <td>Email, payment method type, subscription ID</td>
+        <td>Payment processing</td>
+        <td>USA (Standard Contractual Clauses)</td>
+      </tr>
+      <tr>
+        <td>Supabase (Database)</td>
+        <td>All profile and messaging data</td>
+        <td>Data storage and authentication</td>
+        <td>EU/USA (Standard Contractual Clauses)</td>
+      </tr>
+      <tr>
+        <td>Google Gemini AI</td>
+        <td>Anonymized professional data only (specialty, role, interests)</td>
+        <td>AI-powered icebreaker suggestions</td>
+        <td>USA (Standard Contractual Clauses)</td>
+      </tr>
+      <tr>
+        <td>Mixpanel / PostHog (Analytics)</td>
+        <td>Pseudonymized user ID, usage events (with consent)</td>
+        <td>Service improvement analytics</td>
+        <td>USA (Standard Contractual Clauses)</td>
+      </tr>
+      <tr>
+        <td>Sentry (Error Monitoring)</td>
+        <td>Anonymized error logs, device info</td>
+        <td>Bug detection and fixing</td>
+        <td>USA (Standard Contractual Clauses)</td>
+      </tr>
+    </table>
+
+    <h3>4.1 AI Data Processing Disclosure</h3>
+    <p>When you use the icebreaker suggestion feature, we send <strong>anonymized professional information only</strong> (medical role, specialty, and up to 3 interests) to Google Gemini AI. We do not send your name, age, photos, location, hospital name, or any other personally identifiable information to AI services.</p>
+
+    <h2>5. Data Retention</h2>
+    <ul>
+      <li><strong>Active Accounts:</strong> Data retained while your account is active</li>
+      <li><strong>Deleted Accounts:</strong> Personal data anonymized or deleted within 30 days of account deletion request</li>
+      <li><strong>Messages:</strong> Retained while your account is active. Upon account deletion, your messages are anonymized</li>
+      <li><strong>Verification Documents:</strong> Retained while your account is active for re-verification purposes. Deleted upon account deletion</li>
+      <li><strong>Payment Records:</strong> Retained for the minimum period required by applicable tax and financial laws</li>
+      <li><strong>Safety Reports:</strong> Retained as required by applicable law for user safety and legal compliance purposes</li>
+    </ul>
+
+    <h2>6. Your Rights</h2>
+    <p>Under GDPR, KVKK, and applicable data protection laws, you have the right to:</p>
+    <ul>
+      <li><strong>Access:</strong> Request a copy of your personal data</li>
+      <li><strong>Rectification:</strong> Correct inaccurate personal data</li>
+      <li><strong>Erasure:</strong> Request deletion of your personal data ("right to be forgotten")</li>
+      <li><strong>Data Portability:</strong> Receive your data in a machine-readable format</li>
+      <li><strong>Restriction:</strong> Request restriction of processing</li>
+      <li><strong>Objection:</strong> Object to processing based on legitimate interests</li>
+      <li><strong>Withdraw Consent:</strong> Withdraw consent for analytics at any time</li>
+    </ul>
+
+    <h3>6.1 How to Exercise Your Rights</h3>
+    <ul>
+      <li><strong>In-App:</strong> Go to Profile > Account & Data for export/deletion requests</li>
+      <li><strong>Email:</strong> Contact <a href="mailto:privacy@vitalis.app">privacy@vitalis.app</a></li>
+      <li><strong>Response Time:</strong> We respond within 30 days of receiving your request</li>
+    </ul>
+
+    <h2>7. Security</h2>
+    <ul>
+      <li>All data transmitted over HTTPS/TLS encryption</li>
+      <li>Database encryption at rest</li>
+      <li>Row-level security for data isolation</li>
+      <li>Regular security audits and penetration testing</li>
+      <li>Two-factor authentication available</li>
+    </ul>
+
+    <h2>8. Cookies and Tracking</h2>
+    <p>We use essential cookies for authentication and session management. Analytics cookies are only enabled with your explicit consent.</p>
+    <ul>
+      <li><strong>Essential Cookies:</strong> Required for app functionality (no consent needed)</li>
+      <li><strong>Analytics Cookies:</strong> Mixpanel, PostHog tracking (requires consent)</li>
+    </ul>
+    <p>You can manage your cookie preferences in the app settings or withdraw consent at any time.</p>
+
+    <h2>9. International Transfers</h2>
+    <p>Your data may be transferred to and processed in the United States. We ensure appropriate safeguards through:</p>
+    <ul>
+      <li>Standard Contractual Clauses (SCCs) approved by the European Commission</li>
+      <li>Data processing agreements with all third-party providers</li>
+    </ul>
+
+    <h2>10. Children's Privacy</h2>
+    <p>Vitalis is intended for users aged 18 and older. We do not knowingly collect data from anyone under 18. If you believe a minor has provided us with personal data, please contact us immediately.</p>
+
+    <h2>11. Changes to This Policy</h2>
+    <p>We may update this Privacy Policy periodically. We will notify you of material changes via email or in-app notification. Continued use of the service after changes constitutes acceptance of the updated policy.</p>
+
+    <h2>12. Contact Us</h2>
+    <p>For privacy-related questions or requests:</p>
+    <ul>
+      <li><strong>Email:</strong> <a href="mailto:privacy@vitalis.app">privacy@vitalis.app</a></li>
+      <li><strong>Data Protection Officer:</strong> <a href="mailto:dpo@vitalis.app">dpo@vitalis.app</a></li>
+    </ul>
+
+    <h2>13. Supervisory Authority</h2>
+    <p>If you are in the EU/EEA and believe we have not adequately addressed your concerns, you have the right to lodge a complaint with your local data protection authority.</p>
+
+    <hr style="margin-top: 3em;">
+    <p class="muted" style="font-size: 0.9em;">
+      Version History: v1.0 (Feb 11, 2026) - Initial policy | v2.0 (Feb 15, 2026) - Comprehensive update including AI disclosure, third-party details, retention periods, and GDPR/KVKK compliance.
+    </p>
+  </body>
+</html>

@@ -1,0 +1,32 @@
+
+> vitalis---medical-dating@0.0.0 build
+> vite build
+
+vite v6.4.1 building for production...
+transforming...
+✓ 2584 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                  2.32 kB │ gzip:   0.97 kB
+dist/assets/index-fZaE53AK.css                 101.24 kB │ gzip:  14.49 kB
+dist/assets/vendor-zustand-CfQ6NqLL.js           0.66 kB │ gzip:   0.41 kB
+dist/assets/LikesYouView-DGgrlQTb.js             3.56 kB │ gzip:   1.66 kB
+dist/assets/OnboardingView-DQwIjZp7.js           3.56 kB │ gzip:   1.56 kB
+dist/assets/vendor-react-D3-O0tgT.js             3.90 kB │ gzip:   1.52 kB
+dist/assets/NotificationsView-DEGpdt-w.js        4.77 kB │ gzip:   1.94 kB
+dist/assets/ProfileCompletionView-DRvafOIN.js    4.93 kB │ gzip:   1.73 kB
+dist/assets/FilterView-DauAmT0n.js               5.45 kB │ gzip:   1.70 kB
+dist/assets/SwipeHistoryView-Bx_BEV3Q.js         6.67 kB │ gzip:   2.09 kB
+dist/assets/NearbyView-BlKTR9je.js               6.73 kB │ gzip:   2.25 kB
+dist/assets/CommunityGuidelines-l6tyokmB.js      7.89 kB │ gzip:   2.25 kB
+dist/assets/MatchesView-DWTBYLHq.js              7.90 kB │ gzip:   2.59 kB
+dist/assets/PremiumView-CIYTnepD.js              7.92 kB │ gzip:   2.67 kB
+dist/assets/ProfileDetailView-DOyy6MAi.js       18.01 kB │ gzip:   4.40 kB
+dist/assets/vendor-icons-Q64y1exe.js            51.81 kB │ gzip:  12.26 kB
+dist/assets/ChatView-BMI8lKhj.js                52.01 kB │ gzip:  13.43 kB
+dist/assets/vendor-forms-BCEyLo4Y.js            82.50 kB │ gzip:  24.79 kB
+dist/assets/MyProfileView-CWGMeJ_n.js          127.26 kB │ gzip:  26.78 kB
+dist/assets/RegistrationFlow-BRdsdBBB.js       158.86 kB │ gzip:  48.87 kB
+dist/assets/vendor-supabase-CDGuCRB-.js        173.02 kB │ gzip:  45.62 kB
+dist/assets/index-BePkqkCr.js                  375.32 kB │ gzip: 117.24 kB
+✓ built in 2.12s

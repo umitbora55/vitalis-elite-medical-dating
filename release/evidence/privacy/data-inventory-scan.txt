@@ -1,0 +1,289 @@
+public/privacy.html:7:    <!-- AUDIT-FIX: PR-003 — Comprehensive GDPR/KVKK compliant privacy policy -->
+public/privacy.html:31:    Email: <a href="mailto:privacy@vitalis.app">privacy@vitalis.app</a><br>
+public/privacy.html:48:        <td>While account is active; deleted upon account deletion</td>
+public/privacy.html:54:        <td>While account is active; deleted upon account deletion</td>
+public/privacy.html:60:        <td>While account is active; deleted upon account deletion</td>
+public/privacy.html:66:        <td>While account is active; deleted upon account deletion</td>
+public/privacy.html:70:        <td>City, approximate coordinates</td>
+public/privacy.html:72:        <td>While account is active; deleted upon account deletion</td>
+public/privacy.html:91:      <li><strong>Usage Data:</strong> Features used, interaction patterns (with consent)</li>
+public/privacy.html:126:        <td>Analyze usage patterns (with consent)</td>
+public/privacy.html:163:        <td>Pseudonymized user ID, usage events (with consent)</td>
+public/privacy.html:176:    <p>When you use the icebreaker suggestion feature, we send <strong>anonymized professional information only</strong> (medical role, specialty, and up to 3 interests) to Google Gemini AI. We do not send your name, age, photos, location, hospital name, or any other personally identifiable information to AI services.</p>
+public/privacy.html:181:      <li><strong>Deleted Accounts:</strong> Personal data anonymized or deleted within 30 days of account deletion request</li>
+public/privacy.html:197:      <li><strong>Withdraw Consent:</strong> Withdraw consent for analytics at any time</li>
+public/privacy.html:202:      <li><strong>In-App:</strong> Go to Profile > Account & Data for export/deletion requests</li>
+public/privacy.html:203:      <li><strong>Email:</strong> Contact <a href="mailto:privacy@vitalis.app">privacy@vitalis.app</a></li>
+public/privacy.html:217:    <p>We use essential cookies for authentication and session management. Analytics cookies are only enabled with your explicit consent.</p>
+public/privacy.html:219:      <li><strong>Essential Cookies:</strong> Required for app functionality (no consent needed)</li>
+public/privacy.html:220:      <li><strong>Analytics Cookies:</strong> Mixpanel, PostHog tracking (requires consent)</li>
+public/privacy.html:222:    <p>You can manage your cookie preferences in the app settings or withdraw consent at any time.</p>
+public/privacy.html:238:    <p>For privacy-related questions or requests:</p>
+public/privacy.html:240:      <li><strong>Email:</strong> <a href="mailto:privacy@vitalis.app">privacy@vitalis.app</a></li>
+supabase/functions/moderate-image/index.ts:243:      const { error: queueError } = await supabase.from('moderation_queue').insert({
+public/firebase-messaging-sw.js:7:    const url = new URL(self.location.href);
+supabase/functions/delete-account/index.ts:7: * Deploy: supabase functions deploy delete-account
+supabase/functions/delete-account/index.ts:137:      .select('conversation_id')
+supabase/functions/delete-account/index.ts:180:    const { error: dataError } = await supabaseAdmin.rpc('delete_user_data', {
+supabase/functions/delete-account/index.ts:192:    const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+supabase/functions/delete-account/index.ts:201:    console.log(`Account deleted successfully: ${user.id}`);
+supabase/functions/delete-account/index.ts:207:        message: 'Account deleted successfully',
+supabase/functions/generate-icebreaker/index.ts:124:    // Stripped: name, age, hospital, bio, photos, location, phone, email, id
+supabase/functions/push-worker/index.ts:110:      .from('push_tokens')
+supabase/functions/push-worker/index.ts:111:      .select('user_id, token')
+mobile/src/services/profileService.ts:9:export interface Profile {
+mobile/src/services/profileService.ts:29:export const profileService = {
+mobile/src/services/profileService.ts:36:        .from('profiles')
+mobile/src/services/profileService.ts:37:        .select('*')
+mobile/src/services/profileService.ts:70:        .from('profiles')
+mobile/src/services/profileService.ts:71:        .update(updates)
+mobile/src/services/profileService.ts:90:        .select('target_user_id')
+mobile/src/services/profileService.ts:98:        .from('profiles')
+mobile/src/services/profileService.ts:99:        .select('*')
+mobile/src/services/profileService.ts:133:        .insert({
+mobile/src/services/profileService.ts:145:          .select('action')
+mobile/src/services/profileService.ts:157:          await supabase.from('matches').insert({
+mobile/src/services/profileService.ts:180:        .from('matches')
+mobile/src/services/profileService.ts:181:        .select('user_id_2')
+mobile/src/services/profileService.ts:185:        .from('matches')
+mobile/src/services/profileService.ts:186:        .select('user_id_1')
+mobile/src/services/profileService.ts:197:        .from('profiles')
+mobile/src/services/profileService.ts:198:        .select('*')
+mobile/src/services/profileService.ts:239:export default profileService;
+mobile/app/modal.tsx:7:export default function ModalScreen() {
+mobile/src/services/supabase.ts:24:      return localStorage.getItem(key);
+mobile/src/services/supabase.ts:30:      localStorage.setItem(key, value);
+mobile/src/services/supabase.ts:37:      localStorage.removeItem(key);
+mobile/src/services/supabase.ts:40:    await SecureStore.deleteItemAsync(key);
+mobile/src/services/supabase.ts:44:export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+mobile/src/services/supabase.ts:53:export default supabase;
+services/photoService.ts:25:export const photoService = {
+services/photoService.ts:197:  async deletePath(path: string): Promise<{ error: Error | null }> {
+services/photoService.ts:206:        return { error: new Error('Cannot delete photos you do not own') };
+services/photoService.ts:242:        .from('profiles')
+services/photoService.ts:243:        .update({ photo_paths: paths })
+services/photoService.ts:274:        .from('profiles')
+services/photoService.ts:275:        .select('photo_paths')
+services/photoService.ts:343:export default photoService;
+supabase/functions/webhooks-stripe/index.ts:24:  const { error } = await supabase.from('stripe_webhook_events').insert({
+supabase/functions/webhooks-stripe/index.ts:138:      case 'customer.subscription.deleted':
+supabase/functions/webhooks-stripe/index.ts:143:          .update({
+src/lib/supabase.ts:22:export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+mobile/app/(tabs)/chat.tsx:48:export default function ChatScreen() {
+mobile/app/(tabs)/chat.tsx:70:        .select(`
+mobile/app/(tabs)/chat.tsx:100:        .from('messages')
+mobile/app/(tabs)/chat.tsx:101:        .select('*')
+mobile/app/(tabs)/chat.tsx:132:      const { error } = await supabase.from('messages').insert({
+services/profileService.ts:14:    location_city: profile.location || null,
+services/profileService.ts:15:    is_location_hidden: profile.isLocationHidden,
+services/profileService.ts:23:    freeze_reason: profile.freezeReason || null,
+services/profileService.ts:26:    last_active_at: new Date(profile.lastActive).toISOString(),
+services/profileService.ts:47:export const upsertProfile = async (profile: Profile) => {
+services/profileService.ts:55:    .from('profiles')
+services/profileService.ts:57:    .select()
+services/profileService.ts:61:export const getMyProfile = async () => {
+services/profileService.ts:68:  return supabase.from('profiles').select('*').eq('id', authData.user.id).single();
+mobile/src/services/authService.ts:10:export interface AuthResult {
+mobile/src/services/authService.ts:16:export const authService = {
+mobile/src/services/authService.ts:91:export default authService;
+src/lib/pushNotifications.ts:35:export const requestPushPermission = async () => {
+src/lib/pushNotifications.ts:61:export const listenForMessages = (handler: (payload: unknown) => void) => {
+services/checkoutService.ts:4:export const createCheckoutSession = async (plan: 'DOSE' | 'FORTE' | 'ULTRA') => {
+mobile/app/(auth)/_layout.tsx:9:export default function AuthLayout() {
+mobile/app/(tabs)/matches.tsx:38:export default function MatchesScreen() {
+mobile/app/(tabs)/matches.tsx:50:        .from('matches')
+mobile/app/(tabs)/matches.tsx:51:        .select(`
+services/geminiService.ts:6:export const generateMedicalIcebreaker = async (
+src/lib/firebase.ts:3:export const firebaseMessagingConfig: FirebaseOptions = {
+src/lib/firebase.ts:19:export const hasFirebaseMessagingConfig = hasRequiredMessagingConfig;
+src/lib/firebase.ts:21:export const firebaseApp = hasRequiredMessagingConfig
+mobile/src/hooks/useAuth.ts:18:export function useAuth() {
+mobile/src/hooks/useAuth.ts:97:export default useAuth;
+mobile/app/(auth)/register.tsx:25:export default function RegisterScreen() {
+mobile/app/(tabs)/_layout.tsx:28:export default function TabLayout() {
+services/pushService.ts:14:export interface PushToken {
+services/pushService.ts:24:export interface NotificationPreferences {
+services/pushService.ts:46:export const pushService = {
+services/pushService.ts:187:        .from('push_tokens')
+services/pushService.ts:222:        .from('push_tokens')
+services/pushService.ts:223:        .delete()
+services/pushService.ts:253:        .from('push_tokens')
+services/pushService.ts:254:        .update({ is_active: false, updated_at: new Date().toISOString() })
+services/pushService.ts:278:        .from('push_tokens')
+services/pushService.ts:279:        .select('*')
+services/pushService.ts:304:        .from('profiles')
+services/pushService.ts:305:        .select('notification_settings')
+services/pushService.ts:341:        .from('profiles')
+services/pushService.ts:342:        .select('notification_settings')
+services/pushService.ts:349:        .from('profiles')
+services/pushService.ts:350:        .update({
+services/pushService.ts:434:export default pushService;
+src/lib/analytics.ts:4:export type AnalyticsConsent = 'granted' | 'denied';
+src/lib/analytics.ts:9:const CONSENT_STORAGE_KEY = 'vitalis_analytics_consent';
+src/lib/analytics.ts:23:export const getAnalyticsConsent = (): AnalyticsConsent | null => {
+src/lib/analytics.ts:25:  const value = window.localStorage.getItem(CONSENT_STORAGE_KEY);
+src/lib/analytics.ts:30:export const setAnalyticsConsent = (consent: AnalyticsConsent): void => {
+src/lib/analytics.ts:32:  window.localStorage.setItem(CONSENT_STORAGE_KEY, consent);
+src/lib/analytics.ts:37:export const initAnalytics = (profile?: Profile) => {
+src/lib/analytics.ts:90:export const trackEvent = (name: string, props?: Record<string, unknown>) => {
+mobile/src/components/SwipeCard.tsx:391:export const SwipeCard = memo(SwipeCardComponent);
+mobile/src/components/SwipeCard.tsx:392:export default SwipeCard;
+services/discoveryService.ts:15:  location_city: string | null;
+services/discoveryService.ts:16:  is_location_hidden: boolean;
+services/discoveryService.ts:67:  distance: 0, // Distance calculation is server-side via PostGIS when location enabled
+services/discoveryService.ts:68:  location: row.location_city || '',
+services/discoveryService.ts:69:  isLocationHidden: row.is_location_hidden,
+services/discoveryService.ts:70:  lastActive: row.last_active_at ? new Date(row.last_active_at).getTime() : 0,
+services/discoveryService.ts:91: * Uses the discover_profiles RPC which handles swiped/blocked exclusion server-side.
+services/discoveryService.ts:93:export const fetchDiscoveryProfiles = async (
+services/discoveryService.ts:124:        .select('profile_id, url, order_index')
+services/discoveryService.ts:129:        .select('profile_id, interest_id, interests(name)')
+services/discoveryService.ts:133:        .select('profile_id, tag_id')
+services/discoveryService.ts:137:        .select('id, profile_id, question, answer')
+services/discoveryService.ts:142:        .select('swiper_id')
+services/discoveryService.ts:194:        .select('swiper_id')
+services/discoveryService.ts:226:export const recordSwipe = async (
+services/discoveryService.ts:246:export const fetchLikesYou = async (
+services/discoveryService.ts:283:    location: '',
+services/discoveryService.ts:285:    lastActive: 0,
+mobile/app/(tabs)/profile.tsx:26:export default function ProfileScreen() {
+mobile/app/(auth)/login.tsx:25:export default function LoginScreen() {
+services/verificationService.ts:47:export const getVerifiedDomain = async (
+services/verificationService.ts:56:    .select('domain,institution_name,tier')
+services/verificationService.ts:72:export const sendVerificationOtp = async (email: string) => {
+services/verificationService.ts:76:export const verifyOtp = async (email: string, token: string) => {
+services/verificationService.ts:81:export const saveVerifiedEmail = async (
+services/verificationService.ts:90:  return supabase.from('verified_work_emails').insert({
+services/verificationService.ts:99:export const createVerificationRequest = async (
+services/verificationService.ts:107:  return supabase.from('verification_requests').insert({
+services/verificationService.ts:123:export const uploadVerificationDocument = async (
+services/verificationService.ts:155:export const updateProfileVerificationStatus = async (
+services/verificationService.ts:162:  return supabase.from('profiles').update({ verification_status: status }).eq('id', authData.user.id);
+src/lib/sentry.ts:3:export const initSentry = () => {
+src/lib/sentry.ts:14:        delete event.request.headers.authorization;
+src/lib/sentry.ts:15:        delete event.request.headers.Authorization;
+services/safetyService.ts:11:export const blockProfile = async (blockedId: string, reason?: string) => {
+services/safetyService.ts:20:        blocked_id: blockedId,
+services/safetyService.ts:23:      { onConflict: 'blocker_id,blocked_id' },
+services/safetyService.ts:29:export const reportProfile = async (reportedId: string, reason: ReportReason, details?: string) => {
+services/safetyService.ts:33:  const { error } = await supabase.from('reports').insert({
+services/safetyService.ts:34:    reporter_id: userId,
+services/safetyService.ts:35:    reported_id: reportedId,
+mobile/app/(tabs)/index.tsx:25:export default function DiscoveryScreen() {
+services/accountService.ts:4: * Handles account deletion, data export, and user consent management.
+services/accountService.ts:10:export interface ConsentRecord {
+services/accountService.ts:13:  consent_type: string;
+services/accountService.ts:20:export interface ExportedData {
+services/accountService.ts:21:  exportDate: string;
+services/accountService.ts:33:  consents: ConsentRecord[];
+services/accountService.ts:37:export const accountService = {
+services/accountService.ts:45:  async deleteAccount(): Promise<{ success: boolean; error: Error | null }> {
+services/accountService.ts:52:      const { error } = await supabase.functions.invoke('delete-account', {
+services/accountService.ts:62:        localStorage.clear();
+services/accountService.ts:63:        sessionStorage.clear();
+services/accountService.ts:76:   * Request data export (GDPR Article 20 - Right to Data Portability)
+services/accountService.ts:78:  async exportData(): Promise<{ data: ExportedData | null; error: Error | null }> {
+services/accountService.ts:85:      // AUDIT-FIX: PRV-005 — Complete GDPR Article 20 data export
+services/accountService.ts:90:        .from('matches')
+services/accountService.ts:91:        .select('id')
+services/accountService.ts:107:        consentsResult,
+services/accountService.ts:110:        supabase.from('profiles').select('*').eq('id', user.id).single(),
+services/accountService.ts:111:        supabase.from('profile_photos').select('*').eq('profile_id', user.id),
+services/accountService.ts:112:        supabase.from('profile_interests').select('*, interests(name)').eq('profile_id', user.id),
+services/accountService.ts:113:        supabase.from('profile_personality_tags').select('*').eq('profile_id', user.id),
+services/accountService.ts:114:        supabase.from('profile_questions').select('*').eq('profile_id', user.id),
+services/accountService.ts:115:        supabase.from('messages').select('*').eq('sender_id', user.id),
+services/accountService.ts:118:          ? supabase.from('messages').select('*').in('match_id', matchIds).neq('sender_id', user.id)
+services/accountService.ts:120:        supabase.from('matches').select('*').or(`profile_1_id.eq.${user.id},profile_2_id.eq.${user.id}`),
+services/accountService.ts:121:        supabase.from('swipes').select('*').eq('swiper_id', user.id),
+services/accountService.ts:122:        supabase.from('blocks').select('*').eq('blocker_id', user.id),
+services/accountService.ts:123:        supabase.from('verifications').select('*').eq('profile_id', user.id),
+services/accountService.ts:124:        supabase.from('user_consents').select('*').eq('user_id', user.id),
+services/accountService.ts:125:        supabase.from('notifications').select('*').eq('recipient_id', user.id),
+services/accountService.ts:128:      const exportedData: ExportedData = {
+services/accountService.ts:129:        exportDate: new Date().toISOString(),
+services/accountService.ts:141:        consents: consentsResult.data || [],
+services/accountService.ts:145:      return { data: exportedData, error: null };
+services/accountService.ts:152:   * Download exported data as JSON file
+services/accountService.ts:156:      const { data, error } = await this.exportData();
+services/accountService.ts:159:        return { success: false, error: error || new Error('No data to export') };
+services/accountService.ts:167:      link.download = `vitalis-data-export-${new Date().toISOString().split('T')[0]}.json`;
+services/accountService.ts:180:   * Record user consent
+services/accountService.ts:183:    consentType: string,
+services/accountService.ts:203:        // IP hash not critical for consent record, continue without
+services/accountService.ts:206:      const { error } = await supabase.from('user_consents').upsert(
+services/accountService.ts:209:          consent_type: consentType,
+services/accountService.ts:216:          onConflict: 'user_id,consent_type,version',
+services/accountService.ts:231:   * Get user's consent records
+services/accountService.ts:233:  async getConsents(): Promise<{ consents: ConsentRecord[]; error: Error | null }> {
+services/accountService.ts:237:        return { consents: [], error: new Error('Not authenticated') };
+services/accountService.ts:241:        .from('user_consents')
+services/accountService.ts:242:        .select('*')
+services/accountService.ts:247:        return { consents: [], error };
+services/accountService.ts:250:      return { consents: data || [], error: null };
+services/accountService.ts:252:      return { consents: [], error: err as Error };
+services/accountService.ts:257:   * Check if user has accepted a specific consent
+services/accountService.ts:259:  async hasConsent(consentType: string, minVersion?: string): Promise<{ hasConsent: boolean; error: Error | null }> {
+services/accountService.ts:267:        .from('user_consents')
+services/accountService.ts:268:        .select('version')
+services/accountService.ts:270:        .eq('consent_type', consentType);
+services/accountService.ts:289:   * Deactivate account (soft delete - hide profile)
+services/accountService.ts:299:        .from('profiles')
+services/accountService.ts:300:        .update({ is_active: false })
+services/accountService.ts:324:        .from('profiles')
+services/accountService.ts:325:        .update({ is_active: true, last_active_at: new Date().toISOString() })
+services/accountService.ts:347:        .from('profiles')
+services/accountService.ts:348:        .update({ last_active_at: new Date().toISOString() })
+services/accountService.ts:361:    lastActive: string | null;
+services/accountService.ts:367:        return { isActive: false, isVerified: false, lastActive: null, error: new Error('Not authenticated') };
+services/accountService.ts:371:        .from('profiles')
+services/accountService.ts:372:        .select('is_active, verification_status, last_active_at')
+services/accountService.ts:377:        return { isActive: false, isVerified: false, lastActive: null, error };
+services/accountService.ts:383:        lastActive: data?.last_active_at ?? null,
+services/accountService.ts:387:      return { isActive: false, isVerified: false, lastActive: null, error: err as Error };
+services/accountService.ts:392:export default accountService;
+services/accountService.ts:394:// Alias exports for backward compatibility
+services/accountService.ts:395:export const requestAccountDeletion = accountService.deleteAccount.bind(accountService);
+services/accountService.ts:396:export const requestDataExport = accountService.exportData.bind(accountService);
+mobile/app/_layout.tsx:16:export const unstable_settings = {
+mobile/app/_layout.tsx:77:export default function RootLayout() {
+services/chatService.ts:12:export interface Message {
+services/chatService.ts:21:  is_deleted: boolean;
+services/chatService.ts:24:export interface Conversation {
+services/chatService.ts:34:export interface ConversationWithParticipant extends Conversation {
+services/chatService.ts:41:export interface SendMessageParams {
+services/chatService.ts:50:export const chatService = {
+services/chatService.ts:119:        .from('messages')
+services/chatService.ts:120:        .insert({
+services/chatService.ts:127:        .select('*')
+services/chatService.ts:210:        .from('messages')
+services/chatService.ts:211:        .select('*')
+services/chatService.ts:213:        .eq('is_deleted', false)
+services/chatService.ts:246:        .select(`
+services/chatService.ts:260:        .eq('is_deleted', false)
+services/chatService.ts:289:        .select('user_id')
+services/chatService.ts:366:        .update({ last_read_at: new Date().toISOString() })
+services/chatService.ts:392:        .update({ is_muted: muted })
+services/chatService.ts:409:  async deleteConversation(conversationId: string): Promise<{ error: Error | null }> {
+services/chatService.ts:418:        .update({ is_deleted: true })
+services/chatService.ts:452:        .select('last_read_at')
+services/chatService.ts:463:        .from('messages')
+services/chatService.ts:464:        .select('id', { count: 'exact', head: true })
+services/chatService.ts:466:        .eq('is_deleted', false)
+services/chatService.ts:486:export default chatService;
+src/lib/stripe.ts:5:export const getStripe = () => {
+services/authService.ts:6:  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+services/authService.ts:10:export const signInWithOAuth = async (provider: Provider) => {
+services/authService.ts:19:export const signInWithMagicLink = async (email: string) => {
+services/authService.ts:28:export const signUpWithEmail = async (email: string, password: string, metadata?: Record<string, unknown>) => {
+services/authService.ts:36:export const signInWithEmail = async (email: string, password: string) => {
+services/authService.ts:40:export const signOut = async () => {
+services/authService.ts:43:    localStorage.clear();
+services/authService.ts:44:    sessionStorage.clear();
+services/authService.ts:49:export const getSession = async () => {
+services/authService.ts:53:export const onAuthStateChange = (
+services/authService.ts:60:export const resetPassword = async (email: string) => {
+services/authService.ts:66:export const updatePassword = async (newPassword: string) => {
+services/authService.ts:71:export const getCurrentUser = async () => {
+services/subscriptionService.ts:3:export const getActiveSubscription = async () => {
+services/subscriptionService.ts:13:    .select('id, expires_at, is_active')

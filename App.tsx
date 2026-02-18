@@ -1,17 +1,16 @@
 import React, { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
-import { MOCK_PROFILES, MOCK_LIKES_YOU_PROFILES, DAILY_SWIPE_LIMIT, DEFAULT_MESSAGE_TEMPLATES } from './constants';
+import { DAILY_SWIPE_LIMIT, DEFAULT_MESSAGE_TEMPLATES, MOCK_PROFILES, USER_PROFILE } from './constants';
+import { recordSwipe } from './services/discoveryService';
 import { SwipeDirection, Match, Profile, FilterPreferences, Specialty, MedicalRole, Notification, NotificationType, ReportReason, SwipeHistoryItem, MessageTemplate, ChatTheme } from './types';
 import type { ProfileCompletionData } from './components/ProfileCompletionView';
 import { AppHeader } from './components/AppHeader';
 import { ProfileCard } from './components/ProfileCard';
 import { ControlPanel } from './components/ControlPanel';
 import { MatchOverlay } from './components/MatchOverlay';
-import { FilterView } from './components/FilterView';
 import { LandingView } from './components/LandingView';
 
 import { StoryRail } from './components/StoryRail';
 import { StoryViewer } from './components/StoryViewer';
-import { NearbyView } from './components/NearbyView';
 import { LoginView } from './components/LoginView';
 import { ShieldCheck, FilterX, Star, Zap, Crown, Heart, CheckCircle2, Lock, Hourglass, Ghost, Snowflake, Play } from 'lucide-react';
 import { useAuthStore } from './stores/authStore';
@@ -23,7 +22,7 @@ import { useNotificationStore } from './stores/notificationStore';
 import { useTheme } from './hooks/useTheme';
 import { useBoost } from './hooks/useBoost';
 import { useSwipeLimit } from './hooks/useSwipeLimit';
-import { signUpWithEmail, signOut } from './services/authService';
+import { signUpWithEmail, signOut, onAuthStateChange, getCurrentUser } from './services/authService';
 import { blockProfile as persistBlockProfile, reportProfile as persistReportProfile } from './services/safetyService';
 import { upsertProfile } from './services/profileService';
 import { getActiveSubscription } from './services/subscriptionService';
@@ -41,7 +40,9 @@ import {
     updateProfileVerificationStatus,
     uploadVerificationDocument,
 } from './services/verificationService';
-// AUDIT-FIX: BE-002/BE-008 — Removed direct supabase import; auth now handled internally by verification functions
+import { supabase } from './src/lib/supabase';
+import { accountService } from './services/accountService';
+// AUDIT-FIX: SEC-004 — Verification status now set via server-side RPC (complete_email_verification)
 
 const MatchesView = lazy(() => import('./components/MatchesView').then((m) => ({ default: m.MatchesView })));
 const ChatView = lazy(() => import('./components/ChatView').then((m) => ({ default: m.ChatView })));
@@ -54,6 +55,8 @@ const OnboardingView = lazy(() => import('./components/OnboardingView').then((m)
 const RegistrationFlow = lazy(() => import('./components/RegistrationFlow').then((m) => ({ default: m.RegistrationFlow })));
 const SwipeHistoryView = lazy(() => import('./components/SwipeHistoryView').then((m) => ({ default: m.SwipeHistoryView })));
 const ProfileCompletionView = lazy(() => import('./components/ProfileCompletionView').then((m) => ({ default: m.ProfileCompletionView })));
+const FilterView = lazy(() => import('./components/FilterView').then((m) => ({ default: m.FilterView })));
+const NearbyView = lazy(() => import('./components/NearbyView').then((m) => ({ default: m.NearbyView })));
 
 type VerificationPayload = {
     method: 'EMAIL' | 'DOCUMENT';
@@ -83,12 +86,12 @@ type RegistrationData = {
     drinking?: string;
 };
 
-const INITIAL_NOW_MS = Date.now();
+// P0 Fix: Import ErrorBoundary and LoadingSpinner
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { LoadingSpinner } from './components/LoadingSpinner';
 
 const LoadingScreen: React.FC = () => (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-300 text-sm">
-        Loading...
-    </div>
+    <LoadingSpinner fullScreen message="Loading Vitalis..." />
 );
 
 const App: React.FC = () => {
@@ -108,6 +111,11 @@ const App: React.FC = () => {
     const setViewingProfile = useUiStore((state) => state.setViewingProfile);
     const viewingStoryProfile = useUiStore((state) => state.viewingStoryProfile);
     const setViewingStoryProfile = useUiStore((state) => state.setViewingStoryProfile);
+    const discoveryProfiles = useDiscoveryStore((state) => state.profiles);
+    const discoveryLoading = useDiscoveryStore((state) => state.isLoading);
+    const discoveryError = useDiscoveryStore((state) => state.fetchError);
+    const fetchProfiles = useDiscoveryStore((state) => state.fetchProfiles);
+    const removeDiscoveryProfile = useDiscoveryStore((state) => state.removeProfile);
     const swipedProfileIds = useDiscoveryStore((state) => state.swipedProfileIds);
     const blockedProfileIds = useDiscoveryStore((state) => state.blockedProfileIds);
     const dailySwipesRemaining = useDiscoveryStore((state) => state.dailySwipesRemaining);
@@ -128,6 +136,7 @@ const App: React.FC = () => {
     const matches = useMatchStore((state) => state.matches);
     const setMatches = useMatchStore((state) => state.setMatches);
     const addMatch = useMatchStore((state) => state.addMatch);
+    const addMessage = useMatchStore((state) => state.addMessage);
     const removeMatch = useMatchStore((state) => state.removeMatch);
     const updateMatch = useMatchStore((state) => state.updateMatch);
     const expireMatches = useMatchStore((state) => state.expireMatches);
@@ -145,18 +154,29 @@ const App: React.FC = () => {
 
     const { syncProfileTheme } = useTheme(userProfile.themePreference || 'SYSTEM');
 
-    const [nowMs, setNowMs] = useState(INITIAL_NOW_MS);
+    // nowMs polling removed: server-side discovery handles time-based filtering
 
+    // AUDIT-FIX: SEC-005/BE-008 — Use getUser() (server-validated) instead of getSession() (local JWT)
     useEffect(() => {
-        // Avoid calling Date.now() during render (React purity lint rule).
-        const intervalId = window.setInterval(() => setNowMs(Date.now()), 60_000);
-        const immediateId = window.setTimeout(() => setNowMs(Date.now()), 0);
+        // Initial user check on mount (server-validated, not local JWT)
+        getCurrentUser().then(({ data }) => {
+            if (data.user) {
+                // The PendingVerificationView guard at line ~1174 handles unverified users
+                setAuthStep('APP');
+            }
+        });
 
-        return (): void => {
-            window.clearInterval(intervalId);
-            window.clearTimeout(immediateId);
-        };
-    }, []);
+        // Listen for auth state changes (sign in, sign out, token refresh)
+        const { data: { subscription } } = onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                setAuthStep('APP');
+            } else if (event === 'SIGNED_OUT') {
+                setAuthStep('LANDING');
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, [setAuthStep]);
 
     const handleUpdateProfile = useCallback((updatedProfile: Profile) => {
         setUserProfile(updatedProfile);
@@ -182,34 +202,11 @@ const App: React.FC = () => {
         setMessageTemplates(prev => prev.filter(t => t.id !== id));
     }, []);
 
-    // Initialize Matches with some mock data that contains stories for demonstration
+    // AUDIT-FIX: FE-001 — Fetch real discovery profiles from Supabase when authenticated
     useEffect(() => {
-        // Adding some mock matches initially so stories can be seen
-        const initialMatches: Match[] = [
-            {
-                profile: MOCK_PROFILES[0], // Dr. Sarah
-                timestamp: Date.now() - 10000000,
-                isFirstMessagePending: false
-            },
-            {
-                profile: MOCK_PROFILES[1], // James
-                timestamp: Date.now() - 500000,
-                // DEMO: Simulate "I need to write first" logic
-                isFirstMessagePending: true,
-                allowedSenderId: 'me',
-                expiresAt: Date.now() + 2 * 60 * 60 * 1000 // 2 hours left
-            },
-            {
-                profile: MOCK_PROFILES[2], // Elena
-                timestamp: Date.now() - 200000,
-                // DEMO: Simulate "They need to write first" logic
-                isFirstMessagePending: true,
-                allowedSenderId: 'them',
-                expiresAt: Date.now() + 18 * 60 * 60 * 1000 // 18 hours left
-            }
-        ];
-        setMatches(initialMatches);
-    }, []);
+        if (authStep !== 'APP') return;
+        void fetchProfiles();
+    }, [authStep, fetchProfiles]);
 
     // Swipe Limit State
     const { timeToReset } = useSwipeLimit({
@@ -231,6 +228,53 @@ const App: React.FC = () => {
         setToastMessage(msg);
         setTimeout(() => setToastMessage(null), 2500);
     }, []);
+
+    const isNearbySmokeMode = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('e2eNearby') === '1'
+            && ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+        : false;
+
+    useEffect(() => {
+        if (!isNearbySmokeMode) return;
+
+        const applySmokeSeed = () => {
+            const now = Date.now();
+            const seededProfiles = MOCK_PROFILES.slice(0, 2).map((profile, index) => ({
+                ...profile,
+                id: `smoke-nearby-${index + 1}`,
+                name: index === 0 ? 'Smoke Nearby Alpha' : 'Smoke Nearby Beta',
+                distance: 1 + index * 0.5,
+                lastActive: now,
+                isAvailable: index === 0,
+                availabilityExpiresAt: now + 2 * 60 * 60 * 1000,
+            }));
+
+            setAuthStep('APP');
+            setCurrentView('nearby');
+            setUserProfile({
+                ...USER_PROFILE,
+                id: 'smoke-user',
+                name: 'Smoke Doctor',
+                privacySettings: {
+                    ghostMode: false,
+                    hideSameInstitution: false,
+                    hiddenProfileIds: [],
+                    showInNearby: true,
+                    recordProfileVisits: true,
+                },
+            });
+            useDiscoveryStore.setState({
+                profiles: seededProfiles,
+                isLoading: false,
+                fetchError: null,
+                hasMore: true,
+            });
+        };
+
+        applySmokeSeed();
+        const smokeInterval = window.setInterval(applySmokeSeed, 150);
+        return () => window.clearInterval(smokeInterval);
+    }, [isNearbySmokeMode, setAuthStep, setCurrentView, setUserProfile]);
 
     const refreshSubscriptionStatus = useCallback(async () => {
         const { isPremium: hasPremium } = await getActiveSubscription();
@@ -302,9 +346,15 @@ const App: React.FC = () => {
         setAuthStep('LOGIN');
     };
 
-    const handleConsentChoice = useCallback((consent: AnalyticsConsent) => {
+    const handleConsentChoice = useCallback(async (consent: AnalyticsConsent) => {
         setAnalyticsConsent(consent);
         setAnalyticsConsentState(consent);
+        // AUDIT-FIX: PRV-017 — Record analytics consent server-side for GDPR Article 7(1) compliance
+        if (consent === 'granted') {
+            await accountService.recordConsent('analytics_tracking', 'v1.0');
+        } else {
+            await accountService.recordConsent('analytics_tracking_denied', 'v1.0');
+        }
     }, []);
 
     const handleRegistrationComplete = useCallback(async (data: RegistrationData, verification: VerificationPayload) => {
@@ -322,6 +372,14 @@ const App: React.FC = () => {
                 showToast(error.message);
                 return;
             }
+
+            // AUDIT-FIX: PRV-001 — Record KVKK/GDPR consent at registration
+            await Promise.all([
+                accountService.recordConsent('terms_of_service', 'v1.0'),
+                accountService.recordConsent('privacy_policy', 'v2.0'),
+                accountService.recordConsent('community_guidelines', 'v1.0'),
+                accountService.recordConsent('medical_data_processing', 'v1.0'),
+            ]);
         }
 
         const parsedAge = typeof data.age === 'string' ? parseInt(data.age, 10) : data.age;
@@ -368,8 +426,9 @@ const App: React.FC = () => {
                 return;
             }
 
-            const updateStatusResult = await updateProfileVerificationStatus('VERIFIED');
-            if (updateStatusResult.error) {
+            // AUDIT-FIX: SEC-004 — Use server-side RPC instead of client-side status update
+            const { error: verifyError } = await supabase.rpc('complete_email_verification');
+            if (verifyError) {
                 showToast('Verification status update failed.');
                 return;
             }
@@ -498,67 +557,31 @@ const App: React.FC = () => {
         return `${m}:${s < 10 ? '0' : ''}${s}`;
     };
 
-    // Filter profiles based on preferences AND exclude already swiped OR blocked ones
+    // AUDIT-FIX: FE-001 — Use real profiles from Supabase discovery store
+    // Server already handles: swiped/blocked exclusion, age/distance/specialty/availability filtering, sorting
+    // Client applies only privacy-layer filters that depend on local userProfile state
     const visibleProfiles = useMemo(() => {
         if (authStep !== 'APP' || currentView !== 'home') return [];
 
-        let filtered = MOCK_PROFILES.filter(profile => {
-            // 0. Exclude blocked
-            if (blockedProfileIds.has(profile.id)) return false;
-
-            // 1. Exclude swiped
-            if (swipedProfileIds.has(profile.id)) return false;
-
-            // --- PRIVACY FILTERS (NEW) ---
-
-            // Filter out users from the same institution if setting is enabled
+        return discoveryProfiles.filter(profile => {
+            // Client-side privacy filters only (server handled the rest)
             if (userProfile.privacySettings?.hideSameInstitution && profile.hospital === userProfile.hospital) {
                 return false;
             }
-
-            // Filter out specifically hidden users
             if (userProfile.privacySettings?.hiddenProfileIds.includes(profile.id)) {
                 return false;
             }
-
-            // --- END PRIVACY FILTERS ---
-
-            // 2. Filter by Age
-            if (profile.age < filters.ageRange[0] || profile.age > filters.ageRange[1]) return false;
-
-            // 3. Filter by Distance
-            if (profile.distance > filters.maxDistance) return false;
-
-            // 4. Filter by Specialty
-            if (!filters.specialties.includes(profile.specialty)) return false;
-
-            // 5. Filter by Availability
-            if (filters.showAvailableOnly) {
-                if (!profile.isAvailable) return false;
-                // Check if expired
-                if (profile.availabilityExpiresAt && profile.availabilityExpiresAt < nowMs) return false;
-            }
-
+            // Also exclude locally swiped (optimistic, before server sync)
+            if (swipedProfileIds.has(profile.id)) return false;
+            if (blockedProfileIds.has(profile.id)) return false;
             return true;
         });
+    }, [authStep, blockedProfileIds, currentView, discoveryProfiles, swipedProfileIds, userProfile.hospital, userProfile.privacySettings]);
 
-        // Sort: Available users first
-        filtered = filtered.sort((a, b) => {
-            const aIsAvailable = a.isAvailable && (!a.availabilityExpiresAt || a.availabilityExpiresAt > nowMs);
-            const bIsAvailable = b.isAvailable && (!b.availabilityExpiresAt || b.availabilityExpiresAt > nowMs);
-
-            if (aIsAvailable === bIsAvailable) return 0;
-            return aIsAvailable ? -1 : 1;
-        });
-
-        return filtered;
-    }, [authStep, blockedProfileIds, currentView, filters, nowMs, swipedProfileIds, userProfile.hospital, userProfile.privacySettings]);
-
-    // Determine if there are profiles left that are just hidden by filters
+    // Determine if there are profiles left that might appear after filter change
     const hasHiddenProfiles = useMemo(() => {
-        const unswipedCount = MOCK_PROFILES.filter(p => !swipedProfileIds.has(p.id) && !blockedProfileIds.has(p.id)).length;
-        return unswipedCount > 0 && visibleProfiles.length === 0;
-    }, [swipedProfileIds, visibleProfiles, blockedProfileIds]);
+        return discoveryProfiles.length > 0 && visibleProfiles.length === 0;
+    }, [discoveryProfiles, visibleProfiles]);
 
     // Always show the first profile in the filtered list
     const currentProfile = visibleProfiles[0] || null;
@@ -673,64 +696,65 @@ const App: React.FC = () => {
         setSwipeDirection(direction);
 
         // Wait for animation to finish before updating logic
-        setTimeout(() => {
+        setTimeout(async () => {
             // Save ID for Rewind Feature
             setLastSwipedId(currentProfile.id);
 
             // Mark as swiped
             addSwipedProfile(currentProfile.id);
 
-            // --- NEW: Add to History ---
+            // Add to local history
+            const swipeAction = direction === SwipeDirection.LEFT ? 'PASS' as const : (direction === SwipeDirection.SUPER ? 'SUPER_LIKE' as const : 'LIKE' as const);
             const historyItem: SwipeHistoryItem = {
                 id: Date.now().toString(),
                 profile: currentProfile,
-                action: direction === SwipeDirection.LEFT ? 'PASS' : (direction === SwipeDirection.SUPER ? 'SUPER_LIKE' : 'LIKE'),
+                action: swipeAction,
                 timestamp: Date.now()
             };
             addSwipeHistory(historyItem);
 
-            // Logic for Likes
-            if (direction === SwipeDirection.RIGHT || direction === SwipeDirection.SUPER) {
-                // Check for MUTUAL match logic
-                if (currentProfile.hasLikedUser) {
-                    // --- FIRST MESSAGE PREFERENCE LOGIC ---
-                    let isFirstMessagePending = false;
-                    let allowedSenderId = null;
+            // Remove from local discovery stack (optimistic)
+            removeDiscoveryProfile(currentProfile.id);
 
-                    if (userProfile.firstMessagePreference === 'ME_FIRST') {
-                        isFirstMessagePending = true;
-                        allowedSenderId = 'me';
-                    } else if (userProfile.firstMessagePreference === 'THEM_FIRST') {
-                        isFirstMessagePending = true;
-                        allowedSenderId = 'them';
-                    }
+            // AUDIT-FIX: FE-001 — Record swipe server-side and check for match via RPC
+            const swipeResult = await recordSwipe(currentProfile.id, swipeAction);
 
-                    // expiresAt: ANYONE→48h, ME_FIRST/THEM_FIRST→24h
-                    const baseHours = userProfile.firstMessagePreference === 'ANYONE' ? 48 : 24;
-                    let expiresAt = Date.now() + baseHours * 60 * 60 * 1000;
-                    // Nöbetteyse +24h
-                    if (currentProfile.isOnCall || userProfile.isOnCall) {
-                        expiresAt += 24 * 60 * 60 * 1000;
-                    }
+            if (swipeResult.isMatch) {
+                // Server confirmed a match — build the match object
+                let isFirstMessagePending = false;
+                let allowedSenderId = null;
 
-                    const newMatch: Match = {
-                        profile: currentProfile,
-                        timestamp: Date.now(),
-                        isFirstMessagePending,
-                        allowedSenderId,
-                        expiresAt,
-                        extended: false,
-                        isActive: true,
-                    };
-                    addMatch(newMatch);
-                    setCurrentMatch(newMatch); // Triggers the overlay
-                    trackEvent('match', { profileId: currentProfile.id });
+                if (userProfile.firstMessagePreference === 'ME_FIRST') {
+                    isFirstMessagePending = true;
+                    allowedSenderId = 'me';
+                } else if (userProfile.firstMessagePreference === 'THEM_FIRST') {
+                    isFirstMessagePending = true;
+                    allowedSenderId = 'them';
                 }
+
+                const baseHours = userProfile.firstMessagePreference === 'ANYONE' ? 48 : 24;
+                let expiresAt = Date.now() + baseHours * 60 * 60 * 1000;
+                if (currentProfile.isOnCall || userProfile.isOnCall) {
+                    expiresAt += 24 * 60 * 60 * 1000;
+                }
+
+                const newMatch: Match = {
+                    profile: currentProfile,
+                    timestamp: Date.now(),
+                    isFirstMessagePending,
+                    allowedSenderId,
+                    expiresAt,
+                    extended: false,
+                    isActive: true,
+                };
+                addMatch(newMatch);
+                setCurrentMatch(newMatch);
+                trackEvent('match', { profileId: currentProfile.id });
             }
 
             setSwipeDirection(null);
         }, 400); // Matches transition duration
-    }, [addMatch, addSwipeHistory, addSwipedProfile, dailySwipesRemaining, decrementSuperLike, decrementSwipe, isPremium, superLikesCount, swipeDirection, currentProfile, setCurrentMatch, setLastSwipedId, setShowPremiumAlert, setSwipeDirection, trackEvent, userProfile.firstMessagePreference, userProfile.isOnCall]);
+    }, [addMatch, addSwipeHistory, addSwipedProfile, dailySwipesRemaining, decrementSuperLike, decrementSwipe, isPremium, removeDiscoveryProfile, superLikesCount, swipeDirection, currentProfile, setCurrentMatch, setLastSwipedId, setShowPremiumAlert, setSwipeDirection, trackEvent, userProfile.firstMessagePreference, userProfile.isOnCall]);
 
     const handleRewind = useCallback(() => {
         if (!lastSwipedId) return;
@@ -888,7 +912,7 @@ const App: React.FC = () => {
                                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-gold-500"></span>
                             </span>
                         </div>
-                        <span className="text-xs font-bold">{MOCK_LIKES_YOU_PROFILES.length} Likes</span>
+                        <span className="text-xs font-bold">Likes</span>
                     </button>
 
                     {/* Free Swipes Counter (Center - If not Premium) */}
@@ -919,7 +943,7 @@ const App: React.FC = () => {
 
                 {/* Boost Active Badge Positioned below button */}
                 {boostEndTime && (
-                    <div className="absolute top-[10.5rem] right-4 z-10 bg-purple-500 text-white text-[10px] px-2 py-0.5 rounded-full animate-bounce shadow-lg">
+                    <div className="absolute top-[10.5rem] right-4 z-10 bg-purple-500 text-white text-xs px-2 py-0.5 rounded-full animate-bounce shadow-lg">
                         Active 🚀
                     </div>
                 )}
@@ -959,6 +983,30 @@ const App: React.FC = () => {
                                 Wait until tomorrow
                             </button>
                         </div>
+                    </div>
+                ) : discoveryLoading && discoveryProfiles.length === 0 ? (
+                    /* LOADING STATE — first fetch in progress */
+                    <div className="relative w-full aspect-[3/4] max-h-[60vh] bg-slate-900 rounded-3xl border border-slate-800 flex flex-col items-center justify-center p-8 shadow-2xl mx-4 animate-pulse" role="status" aria-label="Loading profiles">
+                        <div className="w-16 h-16 rounded-full bg-slate-800 mx-auto flex items-center justify-center mb-4 border border-slate-700">
+                            <div className="w-8 h-8 border-2 border-gold-500 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                        <h2 className="text-xl font-serif text-white mb-2">Finding profiles...</h2>
+                        <p className="text-slate-400 text-sm">Discovering verified medical professionals near you.</p>
+                    </div>
+                ) : discoveryError && discoveryProfiles.length === 0 ? (
+                    /* ERROR STATE — fetch failed, no profiles to show */
+                    <div className="text-center p-8 bg-slate-900 rounded-3xl border border-red-900/50 shadow-2xl animate-fade-in max-w-sm mx-4">
+                        <div className="w-16 h-16 rounded-full bg-red-950/50 mx-auto flex items-center justify-center mb-4 border border-red-800/50">
+                            <ShieldCheck className="text-red-400" size={32} />
+                        </div>
+                        <h2 className="text-xl font-serif text-white mb-2">Connection issue</h2>
+                        <p className="text-slate-400 mb-6 text-sm">We couldn&apos;t load profiles right now. Please check your connection and try again.</p>
+                        <button
+                            onClick={() => void fetchProfiles()}
+                            className="w-full px-6 py-3 rounded-full bg-gold-500 text-white hover:bg-gold-600 transition-all text-sm font-bold uppercase tracking-wider shadow-lg"
+                        >
+                            Retry
+                        </button>
                     </div>
                 ) : currentProfile ? (
                     <div className="relative w-full aspect-[3/4] max-h-[60vh] px-4">
@@ -1046,22 +1094,12 @@ const App: React.FC = () => {
     };
 
     // --- RENDER LANDING PAGE ---
-    // AUDIT-FIX: FE-001 — Removed dev bypass code entirely for security hardening.
-    // Dev/test accounts should use proper test credentials, not UI bypasses.
     if (authStep === 'LANDING') {
         return (
-            <div className="relative">
-                <LandingView
-                    onEnter={handleStartApplication}
-                    onLogin={handleStartLogin}
-                />
-                <button
-                    onClick={() => setAuthStep('APP')}
-                    className="fixed bottom-4 right-4 z-[9999] bg-red-600/80 hover:bg-red-500 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg backdrop-blur-sm transition-all"
-                >
-                    🛠 Dev Bypass
-                </button>
-            </div>
+            <LandingView
+                onEnter={handleStartApplication}
+                onLogin={handleStartLogin}
+            />
         );
     }
 
@@ -1166,11 +1204,11 @@ const App: React.FC = () => {
 
     // --- MAIN APP ---
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 font-sans selection:bg-gold-500/30 transition-colors duration-300">
+        <div className="h-[100dvh] w-full overflow-hidden flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 font-sans selection:bg-gold-500/30 transition-colors duration-300">
 
             {/* Ghost Mode Banner */}
             {userProfile.privacySettings?.ghostMode && (
-                <div className="w-full bg-purple-900/40 border-b border-purple-500/30 text-purple-200 text-[10px] font-bold uppercase tracking-widest py-1 text-center animate-fade-in flex items-center justify-center gap-2 backdrop-blur-sm fixed top-16 z-layer-banner">
+                <div className="w-full bg-purple-900/40 border-b border-purple-500/30 text-purple-200 text-xs font-bold uppercase tracking-widest py-1 text-center animate-fade-in flex items-center justify-center gap-2 backdrop-blur-sm fixed top-16 z-layer-banner">
                     <Ghost size={12} />
                     Ghost Mode Active
                 </div>
@@ -1223,7 +1261,12 @@ const App: React.FC = () => {
                 </div>
             )}
 
-            <main className={`min-h-screen w-full relative ${userProfile.privacySettings?.ghostMode ? 'pt-6' : ''}`}>
+            {/* Skip to main content link for keyboard/screen-reader users */}
+            <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:bg-gold-500 focus:text-slate-950 focus:px-4 focus:py-2 focus:rounded-lg focus:font-bold focus:text-sm">
+                Skip to main content
+            </a>
+
+            <main id="main-content" className={`flex-1 relative w-full overflow-hidden ${userProfile.privacySettings?.ghostMode ? 'pt-6' : ''}`}>
                 {/* STORY VIEWER OVERLAY */}
                 {viewingStoryProfile && (
                     <StoryViewer
@@ -1246,6 +1289,7 @@ const App: React.FC = () => {
                             }}
                             onUnmatch={handleUnmatch}
                             onUpdateMatch={(matchId, updates) => updateMatch(matchId, updates)}
+                            onSendMessage={addMessage}
                             userProfile={userProfile}
                             templates={messageTemplates}
                             onAddTemplate={handleAddTemplate}
@@ -1288,7 +1332,7 @@ const App: React.FC = () => {
                             )}
                             {currentView === 'likesYou' && (
                                 <LikesYouView
-                                    profiles={MOCK_LIKES_YOU_PROFILES}
+                                    profiles={[]}
                                     onUpgradeClick={() => setCurrentView('premium')}
                                     premiumTier={premiumTier}
                                 />
@@ -1313,12 +1357,12 @@ const App: React.FC = () => {
                             {currentView === 'nearby' && (
                                 <NearbyView
                                     currentUser={userProfile}
-                                    profiles={MOCK_PROFILES}
+                                    profiles={discoveryProfiles}
                                     onSayHi={handleSayHiToNearby}
                                     onUpdatePrivacy={handleUpdatePrivacy}
                                     onViewProfile={setViewingProfile}
                                     onBrowseProfiles={() => setCurrentView('home')}
-                                    onRetryScan={() => showToast('Nearby scan refreshed.')}
+                                    onRetryScan={() => { showToast('Nearby scan refreshed.'); void fetchProfiles(); }}
                                 />
                             )}
                         </>
@@ -1376,7 +1420,7 @@ const App: React.FC = () => {
                             </button>
                         </div>
 
-                        <p className="text-center text-[10px] text-slate-500 mt-4 uppercase tracking-wider">
+                        <p className="text-center text-xs text-slate-500 mt-4 uppercase tracking-wider">
                             {boostCount} Free Boosts Remaining
                         </p>
                     </div>
@@ -1422,4 +1466,11 @@ const App: React.FC = () => {
     );
 };
 
-export default App;
+// P0 Fix: Wrap App with ErrorBoundary
+const AppWithErrorBoundary: React.FC = () => (
+    <ErrorBoundary>
+        <App />
+    </ErrorBoundary>
+);
+
+export default AppWithErrorBoundary;
