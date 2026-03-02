@@ -1,23 +1,156 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-	    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' blob: data: https://*.supabase.co https://*.supabase.in https://images.unsplash.com; connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://generativelanguage.googleapis.com https://api.stripe.com https://api.ipify.org ws://localhost:* wss://localhost:*; frame-src https://checkout.stripe.com; object-src 'none'; base-uri 'self';" />
-	    <meta name="referrer" content="strict-origin-when-cross-origin" />
-	    <meta name="description" content="Vitalis connects verified medical professionals for meaningful relationships. Exclusive dating for doctors, surgeons, and healthcare leaders." />
-	    <meta name="theme-color" content="#020617" />
-	    <meta name="apple-mobile-web-app-capable" content="yes" />
-	    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-	    <meta property="og:title" content="Vitalis | Exclusive Medical Dating" />
-	    <meta property="og:description" content="Where verified medical professionals find meaningful connections." />
-	    <meta property="og:type" content="website" />
-	    <title>Vitalis | Exclusive Medical Dating</title>
-	    <link rel="stylesheet" href="/index.css" />
-	    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-	</head>
-	  <body>
-	    <div id="root"></div>
-	  <script type="module" src="/index.tsx"></script>
-	</body>
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<!-- Phase 1 CSP: unsafe-inline retained for Stripe + legacy compatibility -->
+	<!-- Phase 2 (roadmap Q2): migrate to nonce-based CSP to remove unsafe-inline -->
+	<meta http-equiv="Content-Security-Policy" content="
+	      default-src 'self';
+	      script-src 'self' 'unsafe-inline' https://js.stripe.com;
+	      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+	      img-src 'self' data: blob: https: ;
+	      connect-src 'self'
+	        https://*.supabase.co https://*.supabase.in
+	        wss://*.supabase.co
+	        https://api.stripe.com
+	        https://generativelanguage.googleapis.com
+	        https://vision.googleapis.com
+	        https://api.ipify.org
+	        ws://localhost:* wss://localhost:*;
+	      frame-src https://js.stripe.com https://checkout.stripe.com;
+	      font-src 'self' data: https://fonts.gstatic.com;
+	      media-src 'self' blob:;
+	      object-src 'none';
+	      base-uri 'self';
+	      form-action 'self';
+	    " />
+	<meta name="referrer" content="strict-origin-when-cross-origin" />
+	<meta name="description"
+		content="Vitalis connects verified medical professionals for meaningful relationships. Exclusive dating for doctors, surgeons, and healthcare leaders." />
+	<meta name="theme-color" content="#020617" />
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+	<meta property="og:title" content="Vitalis | Exclusive Medical Dating" />
+	<meta property="og:description" content="Where verified medical professionals find meaningful connections." />
+	<meta property="og:type" content="website" />
+	<title>Vitalis | Exclusive Medical Dating</title>
+	<link rel="stylesheet" href="/index.css" />
+	<link
+		href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap"
+		rel="stylesheet">
+
+	<!-- ── Vitalis splash screen styles ──────────────────────────────────── -->
+	<style>
+		html,
+		body {
+			background: #020617;
+			margin: 0;
+			padding: 0;
+		}
+
+		#vitalis-splash {
+			position: fixed;
+			inset: 0;
+			z-index: 9999;
+			background: #020617;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			transition: opacity 0.6s ease, visibility 0.6s ease;
+		}
+
+		#vitalis-splash.hidden {
+			opacity: 0;
+			visibility: hidden;
+			pointer-events: none;
+		}
+
+		/* Gold background badge based on reference image */
+		.vs-badge {
+			position: relative;
+			width: 140px;
+			height: 140px;
+			border-radius: 20px;
+			background: radial-gradient(circle at 30% 30%, #ffc640 0%, #e59c1c 60%, #bc760e 100%);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			box-shadow:
+				0 0 0 1px rgba(255, 200, 50, 0.15),
+				0 24px 60px -12px rgba(200, 130, 20, 0.5),
+				0 4px 12px rgba(0, 0, 0, 0.5);
+			animation: vs-appear 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+			overflow: hidden;
+		}
+
+		/* Very subtle shimmer */
+		.vs-badge::after {
+			content: '';
+			position: absolute;
+			inset: 0;
+			background: linear-gradient(120deg,
+					transparent 20%,
+					rgba(255, 255, 255, 0.15) 50%,
+					transparent 80%);
+			animation: vs-shimmer 3s ease-in-out infinite;
+		}
+
+		@keyframes vs-shimmer {
+			0% {
+				transform: translateX(-150%);
+			}
+
+			50% {
+				transform: translateX(150%);
+			}
+
+			100% {
+				transform: translateX(150%);
+			}
+		}
+
+		/* V letter: Deep navy/almost black, serif, exact feel as reference */
+		.vs-v {
+			position: relative;
+			z-index: 2;
+			font-family: 'Playfair Display', Georgia, serif;
+			font-size: 104px;
+			font-weight: 700;
+			color: #0b1120;
+			line-height: 1;
+			margin-top: -6px;
+			/* optical centering for serif v */
+			letter-spacing: -0.04em;
+			text-shadow: 0 1px 0 rgba(255, 220, 120, 0.3);
+			user-select: none;
+		}
+
+		@keyframes vs-appear {
+			from {
+				opacity: 0;
+				transform: scale(0.9) translateY(4px);
+			}
+
+			to {
+				opacity: 1;
+				transform: scale(1) translateY(0);
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<!-- ── Vitalis splash: premium gold badge ────────────────────── -->
+	<div id="vitalis-splash">
+		<div class="vs-badge">
+			<span class="vs-v">V</span>
+		</div>
+	</div>
+
+	<div id="root"></div>
+	<script type="module" src="/index.tsx"></script>
+</body>
+
 </html>

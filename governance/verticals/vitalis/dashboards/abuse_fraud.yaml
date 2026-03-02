@@ -1,0 +1,483 @@
+apiVersion: vitalis/dashboard/v1
+kind: AbuseFraudDashboard
+
+metadata:
+  name: vitalis-abuse-fraud
+  description: >
+    Abuse and fraud detection dashboard for Vitalis Elite Medical Dating.
+    Monitors fraud signal patterns, account takeover attempts, coordinated
+    brigading, visibility throttle effectiveness, and chargeback anomalies.
+    All critical alerts carry an auto_action that is executed without human
+    approval in order to minimize harm window.
+  owner: trust-team
+  refresh_seconds: 60
+  retention_days: 90
+
+# ─── Panels ───────────────────────────────────────────────────────────────────
+panels:
+
+  # ── 1. Fraud Signal Summary ───────────────────────────────────────────────────
+  - id: fraud_signal_summary
+    display_name: Fraud Signal Summary (last 24 hours)
+    description: >
+      Count of each fraud signal type observed in the last 24 hours.
+      8 canonical signals are tracked; anomalous spikes in any single signal
+      trigger the fraud_signal_anomaly alert.
+    type: stat_grid
+    refresh_seconds: 60
+    signals:
+      - signal_type: fake_profile_submitted
+        label: Fake Profile Submitted
+        query: |
+          SELECT COUNT(*) AS value
+          FROM fraud_signals
+          WHERE signal_type = 'fake_profile_submitted'
+            AND created_at >= NOW() - INTERVAL '24 hours';
+
+      - signal_type: confirmed_fake
+        label: Confirmed Fake (actioned)
+        query: |
+          SELECT COUNT(*) AS value
+          FROM fraud_signals
+          WHERE signal_type = 'confirmed_fake'
+            AND created_at >= NOW() - INTERVAL '24 hours';
+
+      - signal_type: ato_blocked
+        label: ATO Blocked
+        query: |
+          SELECT COUNT(*) AS value
+          FROM fraud_signals
+          WHERE signal_type = 'ato_blocked'
+            AND created_at >= NOW() - INTERVAL '24 hours';
+
+      - signal_type: ato_suspected
+        label: ATO Suspected (under review)
+        query: |
+          SELECT COUNT(*) AS value
+          FROM fraud_signals
+          WHERE signal_type = 'ato_suspected'
+            AND created_at >= NOW() - INTERVAL '24 hours';
+
+      - signal_type: brigading_participant
+        label: Brigading Participant
+        query: |
+          SELECT COUNT(*) AS value
+          FROM fraud_signals
+          WHERE signal_type = 'brigading_participant'
+            AND created_at >= NOW() - INTERVAL '24 hours';
+
+      - signal_type: credential_stuffing
+        label: Credential Stuffing Attempt
+        query: |
+          SELECT COUNT(*) AS value
+          FROM fraud_signals
+          WHERE signal_type = 'credential_stuffing'
+            AND created_at >= NOW() - INTERVAL '24 hours';
+
+      - signal_type: payment_fraud
+        label: Payment Fraud Signal
+        query: |
+          SELECT COUNT(*) AS value
+          FROM fraud_signals
+          WHERE signal_type = 'payment_fraud'
+            AND created_at >= NOW() - INTERVAL '24 hours';
+
+      - signal_type: document_forgery
+        label: Document Forgery Detected
+        query: |
+          SELECT COUNT(*) AS value
+          FROM fraud_signals
+          WHERE signal_type = 'document_forgery'
+            AND created_at >= NOW() - INTERVAL '24 hours';
+
+  # ── 2. Risk Score Distribution ────────────────────────────────────────────────
+  - id: risk_score_distribution
+    display_name: Profile Risk Score Distribution (active users)
+    description: >
+      Distribution of current risk_score values across all profiles with
+      last_active_at in the last 30 days. Profiles with risk_score >= 0.80 are
+      candidates for visibility throttling or manual review.
+    type: histogram
+    refresh_seconds: 300
+    buckets:
+      - label: "Low Risk (0.00 – 0.29)"
+        query: |
+          SELECT COUNT(*) AS value
+          FROM profiles
+          WHERE risk_score >= 0.00
+            AND risk_score < 0.30
+            AND last_active_at >= NOW() - INTERVAL '30 days';
+
+      - label: "Medium Risk (0.30 – 0.59)"
+        query: |
+          SELECT COUNT(*) AS value
+          FROM profiles
+          WHERE risk_score >= 0.30
+            AND risk_score < 0.60
+            AND last_active_at >= NOW() - INTERVAL '30 days';
+
+      - label: "Elevated Risk (0.60 – 0.79)"
+        query: |
+          SELECT COUNT(*) AS value
+          FROM profiles
+          WHERE risk_score >= 0.60
+            AND risk_score < 0.80
+            AND last_active_at >= NOW() - INTERVAL '30 days';
+
+      - label: "High Risk (0.80 – 0.94)"
+        query: |
+          SELECT COUNT(*) AS value
+          FROM profiles
+          WHERE risk_score >= 0.80
+            AND risk_score < 0.95
+            AND last_active_at >= NOW() - INTERVAL '30 days';
+
+      - label: "Critical Risk (0.95 – 1.00)"
+        query: |
+          SELECT COUNT(*) AS value
+          FROM profiles
+          WHERE risk_score >= 0.95
+            AND last_active_at >= NOW() - INTERVAL '30 days';
+
+    supplementary_queries:
+      - id: mean_risk_score
+        label: Mean Risk Score (active users)
+        query: |
+          SELECT ROUND(AVG(risk_score)::NUMERIC, 4) AS value
+          FROM profiles
+          WHERE last_active_at >= NOW() - INTERVAL '30 days';
+
+      - id: p95_risk_score
+        label: P95 Risk Score (active users)
+        query: |
+          SELECT ROUND(
+            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY risk_score)::NUMERIC,
+            4
+          ) AS value
+          FROM profiles
+          WHERE last_active_at >= NOW() - INTERVAL '30 days';
+
+  # ── 3. Brigading Detection ────────────────────────────────────────────────────
+  - id: brigading_detection
+    display_name: Coordinated Brigading Detection (last 24 hours)
+    description: >
+      Identifies clusters of profiles that have reported the same target user
+      within a short window, which is a pattern consistent with coordinated
+      harassment campaigns. Clusters with >= 5 reporters in 1 hour are flagged.
+    type: table
+    refresh_seconds: 60
+    query: |
+      SELECT
+        reported_id                                            AS target_profile_id,
+        p.display_name                                         AS target_display_name,
+        COUNT(DISTINCT reporter_id)                            AS reporter_count,
+        MIN(r.created_at)                                      AS first_report_at,
+        MAX(r.created_at)                                      AS last_report_at,
+        EXTRACT(
+          EPOCH FROM (MAX(r.created_at) - MIN(r.created_at))
+        ) / 60                                                 AS window_minutes,
+        ARRAY_AGG(DISTINCT r.reason ORDER BY r.reason)        AS reason_codes
+      FROM reports r
+      JOIN profiles p ON p.id = r.reported_id
+      WHERE r.created_at >= NOW() - INTERVAL '24 hours'
+      GROUP BY r.reported_id, p.display_name
+      HAVING COUNT(DISTINCT reporter_id) >= 5
+         AND EXTRACT(
+           EPOCH FROM (MAX(r.created_at) - MIN(r.created_at))
+         ) <= 3600
+      ORDER BY reporter_count DESC;
+
+  # ── 4. ATO Attempts ───────────────────────────────────────────────────────────
+  - id: ato_attempts
+    display_name: Account Takeover Attempts (last 7 days)
+    description: >
+      Time-series of ATO signals (suspected and blocked) over the last 7 days.
+      Tracks both raw attempt counts and the automated block rate.
+    type: timeseries
+    refresh_seconds: 60
+    queries:
+      - id: ato_attempts_daily
+        label: ATO Attempts per Day
+        query: |
+          SELECT
+            DATE_TRUNC('day', created_at) AS day,
+            COUNT(*) FILTER (WHERE signal_type = 'ato_suspected') AS suspected,
+            COUNT(*) FILTER (WHERE signal_type = 'ato_blocked')   AS blocked
+          FROM fraud_signals
+          WHERE signal_type IN ('ato_suspected', 'ato_blocked')
+            AND created_at >= NOW() - INTERVAL '7 days'
+          GROUP BY DATE_TRUNC('day', created_at)
+          ORDER BY day;
+
+      - id: ato_block_rate
+        label: Automated Block Rate (%)
+        query: |
+          SELECT
+            ROUND(
+              100.0 * COUNT(*) FILTER (WHERE signal_type = 'ato_blocked')
+                / NULLIF(
+                  COUNT(*) FILTER (WHERE signal_type IN ('ato_suspected', 'ato_blocked')),
+                  0
+                ),
+              1
+            ) AS value
+          FROM fraud_signals
+          WHERE signal_type IN ('ato_suspected', 'ato_blocked')
+            AND created_at >= NOW() - INTERVAL '7 days';
+
+      - id: ato_top_targets
+        label: Top 10 Most-Targeted Accounts (last 7 days)
+        query: |
+          SELECT
+            fs.profile_id,
+            p.display_name,
+            COUNT(*) AS attempt_count
+          FROM fraud_signals fs
+          JOIN profiles p ON p.id = fs.profile_id
+          WHERE fs.signal_type IN ('ato_suspected', 'ato_blocked')
+            AND fs.created_at >= NOW() - INTERVAL '7 days'
+          GROUP BY fs.profile_id, p.display_name
+          ORDER BY attempt_count DESC
+          LIMIT 10;
+
+  # ── 5. Visibility Throttled Profiles ─────────────────────────────────────────
+  - id: visibility_throttled
+    display_name: Visibility Throttle Effectiveness
+    description: >
+      Counts profiles currently under visibility throttle (risk_score >= 0.80
+      or manual flag) and tracks whether throttled profiles generate fewer
+      complaints than the general population, validating the control.
+    type: stat_grid
+    refresh_seconds: 120
+    queries:
+      - id: throttled_count
+        label: Profiles Currently Throttled
+        query: |
+          SELECT COUNT(*) AS value
+          FROM profiles
+          WHERE visibility_throttled = true;
+
+      - id: throttled_complaint_rate
+        label: Complaint Rate — Throttled Profiles (%)
+        query: |
+          SELECT
+            ROUND(
+              100.0 * COUNT(DISTINCT r.reporter_id)
+                / NULLIF(
+                  (SELECT COUNT(*) FROM profiles WHERE visibility_throttled = true),
+                  0
+                ),
+              2
+            ) AS value
+          FROM reports r
+          JOIN profiles p ON p.id = r.reported_id
+          WHERE p.visibility_throttled = true
+            AND r.created_at >= NOW() - INTERVAL '30 days';
+
+      - id: unthrottled_complaint_rate
+        label: Complaint Rate — General Population (%)
+        query: |
+          SELECT
+            ROUND(
+              100.0 * COUNT(DISTINCT r.reporter_id)
+                / NULLIF(
+                  (SELECT COUNT(*) FROM profiles WHERE visibility_throttled = false),
+                  0
+                ),
+              2
+            ) AS value
+          FROM reports r
+          JOIN profiles p ON p.id = r.reported_id
+          WHERE p.visibility_throttled = false
+            AND r.created_at >= NOW() - INTERVAL '30 days';
+
+  # ── 6. Chargeback Patterns ────────────────────────────────────────────────────
+  - id: chargeback_patterns
+    display_name: Chargeback Patterns (last 90 days)
+    description: >
+      Analysis of subscription chargebacks grouped by reason code and
+      subscription plan tier. Informs both product and finance risk decisions.
+    type: table
+    refresh_seconds: 600
+    queries:
+      - id: chargeback_by_reason
+        label: Chargebacks by Reason Code
+        query: |
+          SELECT
+            chargeback_reason_code                AS reason_code,
+            COUNT(*)                              AS chargeback_count,
+            ROUND(SUM(amount_usd)::NUMERIC, 2)   AS total_amount_usd,
+            ROUND(AVG(amount_usd)::NUMERIC, 2)   AS avg_amount_usd
+          FROM subscription_transactions
+          WHERE status = 'chargeback'
+            AND created_at >= NOW() - INTERVAL '90 days'
+          GROUP BY chargeback_reason_code
+          ORDER BY chargeback_count DESC;
+
+      - id: chargeback_by_plan
+        label: Chargebacks by Subscription Plan
+        query: |
+          SELECT
+            plan_id,
+            COUNT(*)                              AS chargeback_count,
+            ROUND(SUM(amount_usd)::NUMERIC, 2)   AS total_amount_usd,
+            ROUND(
+              100.0 * COUNT(*)
+                / NULLIF(
+                  (SELECT COUNT(*) FROM subscription_transactions WHERE plan_id = st.plan_id),
+                  0
+                ),
+              2
+            )                                     AS plan_chargeback_rate_pct
+          FROM subscription_transactions st
+          WHERE status = 'chargeback'
+            AND created_at >= NOW() - INTERVAL '90 days'
+          GROUP BY plan_id
+          ORDER BY chargeback_count DESC;
+
+      - id: chargeback_fraud_overlap
+        label: Chargebacks with Fraud Signal Overlap
+        query: |
+          SELECT COUNT(DISTINCT st.id) AS value
+          FROM subscription_transactions st
+          JOIN fraud_signals fs ON fs.profile_id = st.profile_id
+          WHERE st.status = 'chargeback'
+            AND fs.signal_type IN ('payment_fraud', 'ato_blocked', 'confirmed_fake')
+            AND st.created_at >= NOW() - INTERVAL '90 days';
+
+# ─── Alerts ───────────────────────────────────────────────────────────────────
+alerts:
+
+  - id: brigading_alert
+    display_name: Coordinated Brigading Detected
+    severity: critical
+    description: >
+      Fires when 5 or more distinct reporters target the same profile within a
+      1-hour window. Auto-throttles the target profile's visibility immediately
+      to stop escalating harm while human review is queued.
+    auto_action:
+      type: visibility_throttle
+      target: reported_profile
+      reason: brigading_auto_throttle
+      duration_hours: 24
+      notify_subject: false
+      create_moderation_case: true
+      case_priority: P0
+    channels:
+      - "#trust-alerts"
+      - "#eng-oncall"
+    condition:
+      query: |
+        SELECT reported_id, COUNT(DISTINCT reporter_id) AS reporter_count
+        FROM reports
+        WHERE created_at >= NOW() - INTERVAL '1 hour'
+        GROUP BY reported_id
+        HAVING COUNT(DISTINCT reporter_id) >= 5;
+      threshold: 0
+      comparator: "rows_exist"
+    repeat_interval_minutes: 15
+
+  - id: ato_spike_alert
+    display_name: ATO Spike — Account Takeover Surge
+    severity: critical
+    description: >
+      Fires when ATO-blocked signals exceed 150 events in any rolling 1-hour
+      window. This volume is consistent with an active credential-stuffing
+      campaign and requires immediate security incident response.
+    auto_action:
+      type: none
+      note: >
+        No automated account action — human security incident response required.
+        Rate-limiting at edge is handled by Supabase; this alert gates on bulk
+        blocked signals as a second-layer indicator.
+    channels:
+      - "#trust-alerts"
+      - "#eng-oncall"
+      - "#security-incident"
+    condition:
+      query: |
+        SELECT COUNT(*) AS value
+        FROM fraud_signals
+        WHERE signal_type = 'ato_blocked'
+          AND created_at >= NOW() - INTERVAL '1 hour';
+      threshold: 150
+      comparator: ">"
+    repeat_interval_minutes: 10
+
+  - id: high_risk_surge
+    display_name: High-Risk Profile Surge
+    severity: warning
+    description: >
+      Fires when the number of profiles with risk_score >= 0.80 increases by
+      more than 20% in a single day compared to the previous 7-day daily
+      average. May indicate a coordinated signup campaign.
+    auto_action:
+      type: none
+    channels:
+      - "#trust-alerts"
+    condition:
+      query: |
+        WITH today AS (
+          SELECT COUNT(*) AS cnt
+          FROM profiles
+          WHERE risk_score >= 0.80
+            AND created_at >= CURRENT_DATE
+        ),
+        baseline AS (
+          SELECT ROUND(COUNT(*)::NUMERIC / 7, 1) AS daily_avg
+          FROM profiles
+          WHERE risk_score >= 0.80
+            AND created_at >= NOW() - INTERVAL '8 days'
+            AND created_at < CURRENT_DATE
+        )
+        SELECT
+          today.cnt,
+          baseline.daily_avg,
+          CASE
+            WHEN baseline.daily_avg > 0
+            THEN ROUND(100.0 * (today.cnt - baseline.daily_avg) / baseline.daily_avg, 1)
+            ELSE 100.0
+          END AS pct_increase
+        FROM today, baseline;
+      threshold: 20.0
+      comparator: "pct_increase >"
+    repeat_interval_minutes: 60
+
+  - id: fraud_signal_anomaly
+    display_name: Fraud Signal Volume Anomaly
+    severity: warning
+    description: >
+      Fires when any single fraud signal type exceeds 3x its rolling 7-day
+      daily average within a 1-hour window. Used to catch novel attack vectors
+      before they match known critical thresholds.
+    auto_action:
+      type: none
+    channels:
+      - "#trust-alerts"
+    condition:
+      query: |
+        WITH hourly AS (
+          SELECT signal_type, COUNT(*) AS hourly_count
+          FROM fraud_signals
+          WHERE created_at >= NOW() - INTERVAL '1 hour'
+          GROUP BY signal_type
+        ),
+        baseline AS (
+          SELECT signal_type, ROUND(COUNT(*)::NUMERIC / (7 * 24), 2) AS hourly_avg
+          FROM fraud_signals
+          WHERE created_at >= NOW() - INTERVAL '7 days'
+            AND created_at < NOW() - INTERVAL '1 hour'
+          GROUP BY signal_type
+        )
+        SELECT
+          h.signal_type,
+          h.hourly_count,
+          b.hourly_avg,
+          ROUND(h.hourly_count::NUMERIC / NULLIF(b.hourly_avg, 0), 2) AS ratio
+        FROM hourly h
+        JOIN baseline b ON b.signal_type = h.signal_type
+        WHERE b.hourly_avg > 0
+          AND h.hourly_count > b.hourly_avg * 3;
+      threshold: 0
+      comparator: "rows_exist"
+    repeat_interval_minutes: 30

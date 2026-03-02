@@ -106,16 +106,16 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                 >
                   <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
                     {msg.senderId === 'me' ? (
-                      <div className="text-[10px] font-bold text-white">ME</div>
+                      <div className="text-xs font-bold text-white">ME</div>
                     ) : (
-                      <img src={matchImageUrl} className="w-full h-full rounded-full object-cover" />
+                      <img src={matchImageUrl} alt="Match" className="w-full h-full rounded-full object-cover" loading="lazy" />
                     )}
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-slate-200 line-clamp-1">
                       {msg.text || (msg.imageUrl ? '[Photo]' : msg.audioUrl ? '[Voice Message]' : '[Media]')}
                     </p>
-                    <p className="text-[10px] text-slate-500">
+                    <p className="text-xs text-slate-500">
                       {new Date(msg.timestamp).toLocaleDateString()}
                     </p>
                   </div>

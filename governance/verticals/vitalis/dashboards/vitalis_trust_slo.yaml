@@ -1,0 +1,258 @@
+apiVersion: vitalis/dashboard/v1
+kind: TrustSLO
+
+metadata:
+  name: vitalis-trust-slo
+  description: >
+    Service Level Objective dashboard for Vitalis Elite Medical Dating trust &
+    safety signals. Drives automated rollout gates: if any rollout_gate SLO
+    reaches CRITICAL status, the listed feature flags are disabled automatically.
+  owner: trust-team
+  updated_at: "2026-02-28T00:00:00Z"
+  retention_days: 90
+
+# ─── Rollout Gate Configuration ───────────────────────────────────────────────
+# If ANY SLO with rollout_gate: true reaches the CRITICAL threshold,
+# the flags below are auto-disabled via the feature-flag service.
+rollout_pause_condition:
+  trigger: ANY_ROLLOUT_GATE_CRITICAL
+  action: disable_feature_flags
+  flags:
+    - ff_institution_auto_verify
+    - ff_license_upload_flow
+    - ff_professional_claims
+  notify:
+    channels:
+      - "#trust-alerts"
+      - "#eng-oncall"
+    severity: P0
+
+# ─── SLOs ─────────────────────────────────────────────────────────────────────
+slos:
+
+  # ── 1. Verification funnel completion rate ──────────────────────────────────
+  - id: verification_funnel
+    display_name: Verification Funnel Completion Rate
+    description: >
+      Percentage of users who start a professional verification request and
+      reach a terminal state (approved or rejected) within 7 days. Measures
+      overall funnel health.
+    unit: percent
+    direction: higher_is_better
+    rollout_gate: true
+    thresholds:
+      target: 70.0
+      warning: 65.0
+      critical: 55.0
+    window:
+      type: rolling
+      days: 7
+    query: |
+      SELECT
+        ROUND(
+          100.0 * COUNT(*) FILTER (
+            WHERE status IN ('approved', 'rejected')
+              AND updated_at >= created_at + INTERVAL '7 days'
+          ) / NULLIF(COUNT(*), 0),
+          2
+        ) AS value
+      FROM verification_requests
+      WHERE created_at >= NOW() - INTERVAL '7 days';
+
+  # ── 2. License review SLA P95 ───────────────────────────────────────────────
+  - id: license_review_sla_p95
+    display_name: License Review SLA (P95 latency, hours)
+    description: >
+      95th-percentile time from verification request submission to first
+      moderator action. Target is under 24 hours; breaching this means most
+      users wait more than a day for a response.
+    unit: hours
+    direction: lower_is_better
+    rollout_gate: true
+    thresholds:
+      target: 24.0
+      warning: 36.0
+      critical: 72.0
+    window:
+      type: rolling
+      days: 30
+    query: |
+      SELECT
+        ROUND(
+          PERCENTILE_CONT(0.95) WITHIN GROUP (
+            ORDER BY EXTRACT(EPOCH FROM (first_action_at - created_at)) / 3600
+          )::NUMERIC,
+          2
+        ) AS value
+      FROM (
+        SELECT
+          vr.created_at,
+          MIN(aal.created_at) AS first_action_at
+        FROM verification_requests vr
+        JOIN admin_audit_logs aal
+          ON aal.target_id = vr.id
+         AND aal.action IN ('verification_approved', 'verification_rejected', 'verification_deferred')
+        WHERE vr.created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY vr.id, vr.created_at
+      ) sub;
+
+  # ── 3. Report-to-action time P95 ────────────────────────────────────────────
+  - id: report_to_action_time_p95
+    display_name: Report-to-Action Time (P95 latency, hours)
+    description: >
+      95th-percentile time between a user submitting a safety/abuse report and
+      a moderator taking the first logged action. Target is under 48 hours.
+    unit: hours
+    direction: lower_is_better
+    rollout_gate: false
+    thresholds:
+      target: 48.0
+      warning: 72.0
+      critical: 120.0
+    window:
+      type: rolling
+      days: 30
+    query: |
+      SELECT
+        ROUND(
+          PERCENTILE_CONT(0.95) WITHIN GROUP (
+            ORDER BY EXTRACT(EPOCH FROM (first_action_at - r.created_at)) / 3600
+          )::NUMERIC,
+          2
+        ) AS value
+      FROM reports r
+      JOIN admin_audit_logs aal
+        ON aal.target_id = r.id
+       AND aal.action LIKE 'report_%'
+      WHERE r.created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY ()
+      HAVING COUNT(*) > 0;
+
+  # ── 4. Chargeback rate ───────────────────────────────────────────────────────
+  - id: chargeback_rate
+    display_name: Chargeback Rate (% of transactions)
+    description: >
+      Percentage of subscription transactions that result in a chargeback within
+      60 days. Values above 0.5% trigger payment processor risk review and may
+      cause subscription processing suspension.
+    unit: percent
+    direction: lower_is_better
+    rollout_gate: false
+    thresholds:
+      target: 0.5
+      warning: 0.8
+      critical: 1.0
+    window:
+      type: rolling
+      days: 60
+    query: |
+      SELECT
+        ROUND(
+          100.0 * COUNT(*) FILTER (WHERE status = 'chargeback')
+            / NULLIF(COUNT(*) FILTER (WHERE status IN ('completed', 'chargeback')), 0),
+          3
+        ) AS value
+      FROM subscription_transactions
+      WHERE created_at >= NOW() - INTERVAL '60 days';
+
+  # ── 5. User complaint rate ───────────────────────────────────────────────────
+  - id: complaint_rate
+    display_name: User Complaint Rate (% of active users)
+    description: >
+      Percentage of monthly active users who submit at least one abuse/safety
+      report. Sustained values above 2% indicate a systemic content quality or
+      matching problem.
+    unit: percent
+    direction: lower_is_better
+    rollout_gate: false
+    thresholds:
+      target: 2.0
+      warning: 3.0
+      critical: 5.0
+    window:
+      type: rolling
+      days: 30
+    query: |
+      SELECT
+        ROUND(
+          100.0 * COUNT(DISTINCT r.reporter_id)
+            / NULLIF(
+              (
+                SELECT COUNT(DISTINCT id)
+                FROM profiles
+                WHERE last_active_at >= NOW() - INTERVAL '30 days'
+              ),
+              0
+            ),
+          3
+        ) AS value
+      FROM reports r
+      WHERE r.created_at >= NOW() - INTERVAL '30 days';
+
+  # ── 6. ATO (Account Takeover) blocks per day ─────────────────────────────────
+  - id: ato_blocks_per_day
+    display_name: ATO Blocks per Day (7-day rolling average)
+    description: >
+      Rolling 7-day daily average of account-takeover attempts that were blocked
+      by automated risk scoring. A spike above 50/day warrants immediate security
+      review; a spike above 150/day is a critical incident.
+    unit: count_per_day
+    direction: informational
+    rollout_gate: false
+    thresholds:
+      target: 20.0
+      warning: 50.0
+      critical: 150.0
+    window:
+      type: rolling
+      days: 7
+    query: |
+      SELECT
+        ROUND(
+          COUNT(*)::NUMERIC / 7,
+          1
+        ) AS value
+      FROM fraud_signals
+      WHERE signal_type = 'ato_blocked'
+        AND created_at >= NOW() - INTERVAL '7 days';
+
+  # ── 7. Fake profile detection rate ───────────────────────────────────────────
+  - id: fake_profile_detection_rate
+    display_name: Fake Profile Detection Rate (% caught before match)
+    description: >
+      Percentage of confirmed fake/impersonator profiles that were detected and
+      actioned before they made a mutual match. Measures the effectiveness of
+      proactive fraud detection versus reactive user reporting.
+    unit: percent
+    direction: higher_is_better
+    rollout_gate: true
+    thresholds:
+      target: 80.0
+      warning: 70.0
+      critical: 55.0
+    window:
+      type: rolling
+      days: 30
+    query: |
+      SELECT
+        ROUND(
+          100.0 * COUNT(*) FILTER (
+            WHERE detected_before_match = true
+          ) / NULLIF(COUNT(*), 0),
+          2
+        ) AS value
+      FROM (
+        SELECT
+          p.id,
+          EXISTS (
+            SELECT 1
+            FROM matches m
+            WHERE (m.profile_1_id = p.id OR m.profile_2_id = p.id)
+              AND m.created_at < fs.actioned_at
+          ) = false AS detected_before_match,
+          fs.actioned_at
+        FROM profiles p
+        JOIN fraud_signals fs ON fs.profile_id = p.id
+        WHERE fs.signal_type = 'confirmed_fake'
+          AND fs.created_at >= NOW() - INTERVAL '30 days'
+      ) sub;

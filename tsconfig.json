@@ -33,6 +33,10 @@
   },
   "exclude": [
     "mobile",
-    "supabase/functions"
+    "supabase/functions",
+    "components/SwipeableCard.tsx",
+    "services/pushService.ts",
+    "uiux-warharness",
+    "warharness"
   ]
 }

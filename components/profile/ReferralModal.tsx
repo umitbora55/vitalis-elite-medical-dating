@@ -47,7 +47,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({
                 style={{ width: `${Math.min(100, (profile.referralData.invitedCount / 3) * 100)}%` }}
               ></div>
             </div>
-            <p className="text-[10px] text-slate-500 mt-2 text-center">
+            <p className="text-xs text-slate-500 mt-2 text-center">
               Invite 3 healthcare professionals to unlock 1 Month of Vitalis Premium!
             </p>
           </div>
@@ -65,7 +65,7 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({
                 <Copy size={16} />
               </button>
             </div>
-            <p className="text-[10px] text-slate-500 leading-tight">
+            <p className="text-xs text-slate-500 leading-tight">
               Share this code with verified healthcare workers only.
             </p>
           </div>
@@ -90,19 +90,19 @@ export const ReferralModal: React.FC<ReferralModalProps> = ({
               <div className="text-lg font-bold text-white">
                 {profile.referralData.invitedCount}
               </div>
-              <div className="text-[9px] text-slate-500 uppercase">Invited</div>
+              <div className="text-xs text-slate-500 uppercase">Invited</div>
             </div>
             <div className="text-center border-l border-slate-800">
               <div className="text-lg font-bold text-green-400">
                 {profile.referralData.joinedCount}
               </div>
-              <div className="text-[9px] text-slate-500 uppercase">Joined</div>
+              <div className="text-xs text-slate-500 uppercase">Joined</div>
             </div>
             <div className="text-center border-l border-slate-800">
               <div className="text-lg font-bold text-gold-500">
                 {profile.referralData.totalRewardsEarned}d
               </div>
-              <div className="text-[9px] text-slate-500 uppercase">Earned</div>
+              <div className="text-xs text-slate-500 uppercase">Earned</div>
             </div>
           </div>
         </div>

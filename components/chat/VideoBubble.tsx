@@ -24,7 +24,7 @@ export const VideoBubble: React.FC<VideoBubbleProps> = ({
           <Play size={24} fill="white" className="text-white ml-1" />
         </div>
       </div>
-      <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] text-white font-mono font-bold">
+      <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/60 rounded text-xs text-white font-mono font-bold">
         {msg.duration}
       </div>
     </div>

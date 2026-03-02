@@ -1,5 +1,6 @@
 import React from 'react';
-import { Activity, User, MessageCircle, Bell, Clock, MapPin, Heart } from 'lucide-react';
+import { Bell, User, CalendarDays, Users2, MapPin, Clock, Heart, MessageCircle } from 'lucide-react';
+import { BrandLogo } from './BrandLogo';
 import { ViewType } from '../stores/uiStore';
 
 interface AppHeaderProps {
@@ -13,11 +14,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ currentView, setView, unre
   const navButtonClass = (view: ViewType | ViewType[]) => {
     const views = Array.isArray(view) ? view : [view];
     const isActive = views.includes(currentView);
-    return `btn-icon transition-all duration-200 ${
-      isActive
-        ? 'text-gold-500 bg-gold-500/10 dark:bg-gold-500/15'
-        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-    }`;
+    return `btn-icon transition-all duration-200 ${isActive
+      ? 'text-gold-500 bg-gold-500/10 dark:bg-gold-500/15'
+      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+      }`;
   };
 
   return (
@@ -33,13 +33,29 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ currentView, setView, unre
         onClick={() => setView('home')}
         className="flex items-center absolute left-1/2 transform -translate-x-1/2 group"
       >
-        <div className="bg-gradient-to-br from-gold-500 via-gold-400 to-amber-500 p-2 rounded-xl shadow-glow-gold transition-all duration-300 group-hover:shadow-glow-gold-lg group-active:scale-95">
-          <Activity size={22} className="text-white" strokeWidth={2.5} />
-        </div>
+        <BrandLogo size={42} className="transform transition-transform group-hover:scale-110 group-active:scale-95" />
       </button>
 
       {/* Right Action Group - Agent 4: Better spacing & touch targets */}
       <div className="flex items-center gap-1">
+
+        {/* Events Button */}
+        <button
+          onClick={() => setView('events')}
+          aria-label="Open events"
+          className={navButtonClass('events')}
+        >
+          <CalendarDays size={22} strokeWidth={2} />
+        </button>
+
+        {/* Clubs Button */}
+        <button
+          onClick={() => setView('clubs')}
+          aria-label="Open clubs"
+          className={navButtonClass('clubs')}
+        >
+          <Users2 size={22} strokeWidth={2} />
+        </button>
 
         {/* Nearby Button */}
         <button
@@ -76,7 +92,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ currentView, setView, unre
         >
           <Bell size={22} strokeWidth={2} />
           {unreadNotificationsCount > 0 && (
-            <div className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center px-1 border-2 border-white dark:border-slate-950 shadow-sm">
+            <div className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full text-xs font-bold text-white flex items-center justify-center px-1 border-2 border-white dark:border-slate-950 shadow-sm">
               {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
             </div>
           )}
@@ -90,6 +106,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ currentView, setView, unre
         >
           <MessageCircle size={22} strokeWidth={2} />
         </button>
+
 
         {/* Profile */}
         <button

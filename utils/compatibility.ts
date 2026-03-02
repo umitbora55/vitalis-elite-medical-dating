@@ -20,14 +20,14 @@ export const calculateCompatibility = (me: Profile | undefined, other: Profile):
   if (sharedInterests.length > 0) {
       const interestScore = Math.min(20, sharedInterests.length * 7); // ~3 interests to max out
       rawScore += interestScore;
-      reasons.push(`${sharedInterests.length} Shared Interests`);
+      reasons.push(`${sharedInterests.length} ortak ilgi alanı`);
   }
 
   // 2. Age Gap (+15%)
   const ageDiff = Math.abs(me.age - other.age);
   if (ageDiff <= 3) {
       rawScore += 15;
-      reasons.push("Similar Age Range");
+      // Note: we intentionally omit age from reasons to avoid "creepy" exact-age disclosure
   } else if (ageDiff <= 7) {
       rawScore += 10;
   } else if (ageDiff <= 12) {
@@ -37,28 +37,31 @@ export const calculateCompatibility = (me: Profile | undefined, other: Profile):
   // 3. Medical Role (+10%)
   if (me.role === other.role) {
       rawScore += 10;
-      reasons.push(`Both are ${me.role}s`);
+      reasons.push(`İkiniz de ${me.role}`);
+  } else {
+      // Both in healthcare is still a plus
+      rawScore += 5;
   }
 
   // 4. Distance (+15%)
   if (!other.isLocationHidden && other.distance < 10) {
       rawScore += 15;
-      reasons.push("Very Close Location");
+      reasons.push('Çok yakın konum');
   } else if (other.distance < 30) {
       rawScore += 10;
+      reasons.push('Yakın konum');
   } else if (other.distance < 80) {
       rawScore += 5;
   }
 
-  // 5. Activity/Shift Overlap (Simulation) (+10%)
-  // Assumption: If last active times are somewhat close or both available
+  // 5. Activity/Shift Overlap (+10%)
   const timeDiff = Math.abs(me.lastActive - other.lastActive);
   if (me.isAvailable && other.isAvailable) {
       rawScore += 10;
-      reasons.push("Both Available Now");
-  } else if (timeDiff < 60 * 60 * 1000 * 4) { // Active within 4 hours of each other
+      reasons.push('İkiniz de şu an müsait');
+  } else if (timeDiff < 60 * 60 * 1000 * 4) {
       rawScore += 5;
-      reasons.push("Similar Shift Patterns");
+      reasons.push('Benzer çalışma düzeni');
   }
 
   // 6. Profile Completeness (+10%)
@@ -66,12 +69,21 @@ export const calculateCompatibility = (me: Profile | undefined, other: Profile):
       rawScore += 10;
   }
 
-  // 7. AI Prediction (Random deterministic factor based on ID) (+20%)
-  // This simulates complex AI matching that finds "hidden" connections
-  const idHash = (other.id.charCodeAt(0) + (me.id.charCodeAt(0) || 0)) % 20;
-  rawScore += idHash; 
-  if (idHash > 15) {
-      reasons.push("High AI Compatibility");
+  // 7. Dating Intention Match (+10%)
+  if (me.lookingFor && other.lookingFor && me.lookingFor === other.lookingFor) {
+      rawScore += 10;
+      reasons.push('Aynı ilişki amacı');
+  }
+
+  // 8. Lifestyle Match (+10%)
+  if (me.smoking && other.smoking && me.smoking === other.smoking) {
+      rawScore += 5;
+  }
+  if (me.drinking && other.drinking && me.drinking === other.drinking) {
+      rawScore += 5;
+      if (me.smoking && me.smoking === other.smoking) {
+          reasons.push('Yaşam tarzı uyumlu');
+      }
   }
 
   // Cap at 99, Min 40 (for UX reasons, nobody likes seeing 12% match)

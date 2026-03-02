@@ -137,6 +137,10 @@ export const sendVerificationOtp = async (email: string) => supabase.auth.signIn
 
 export const verifyOtp = async (email: string, token: string) => supabase.auth.verifyOtp({ email, token, type: 'email' });
 
+export const sendPhoneOtp = async (phone: string) => supabase.auth.signInWithOtp({ phone });
+
+export const verifyPhoneOtp = async (phone: string, token: string) => supabase.auth.verifyOtp({ phone, token, type: 'sms' });
+
 export const saveVerifiedEmail = async (email: string, domain: string, tier: number) => {
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData.user) {
@@ -274,6 +278,8 @@ export const updateProfileVerificationStatus = async (
 
   return supabase.from('profiles').update({
     verification_status: status,
+    ...(status === 'PENDING' ? { user_status: 'pending_verification' } : {}),
+    ...(status === 'AUTO_VERIFIED' ? { user_status: 'profile_incomplete' } : {}),
     ...(method !== undefined ? { verification_method: method } : {}),
   }).eq('id', authData.user.id);
 };

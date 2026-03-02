@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShieldCheck, Clock, Mail, LogOut, AlertTriangle, FileText, RefreshCw, Upload } from 'lucide-react';
 import { VerificationStatus } from '../types';
+import { BrandLogo } from './BrandLogo';
 
 interface PendingVerificationViewProps {
   status: VerificationStatus;
@@ -12,9 +13,9 @@ interface PendingVerificationViewProps {
 export const PendingVerificationView: React.FC<PendingVerificationViewProps> = ({ status, rejectionReason, onLogout, onRetryVerification }) => {
   const renderPending = () => (
     <>
-      <div className="w-20 h-20 rounded-full bg-gold-500/10 border-2 border-gold-500/30 flex items-center justify-center mx-auto mb-6 relative">
-        <ShieldCheck size={32} className="text-gold-400" />
-        <div className="absolute inset-0 border-t-2 border-gold-500 rounded-full animate-spin" />
+      <div className="w-24 h-24 flex items-center justify-center mx-auto mb-6 relative">
+        <BrandLogo size={80} className="relative z-10" />
+        <div className="absolute inset-0 border-t-2 border-gold-500 rounded-[30%] animate-spin" />
       </div>
 
       <h2 className="text-2xl font-serif text-white mb-3">Doğrulama Bekleniyor</h2>

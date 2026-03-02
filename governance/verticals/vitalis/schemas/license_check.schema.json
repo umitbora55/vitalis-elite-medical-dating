@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vitalis.health/schemas/license_check",
+  "title": "LicenseCheck",
+  "description": "Result of a single moderator document review step within a verification request",
+  "type": "object",
+  "required": [
+    "evidence_type",
+    "document_class",
+    "document_quality_score",
+    "reviewer_decision"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this check record"
+    },
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "FK to verification_requests.id that this check belongs to"
+    },
+    "evidence_type": {
+      "type": "string",
+      "enum": ["document_upload", "registry_lookup", "manual_review"],
+      "description": "How the evidence was obtained"
+    },
+    "document_class": {
+      "type": "string",
+      "enum": ["diploma", "license", "chamber", "employment_doc"],
+      "description": "The class of document reviewed"
+    },
+    "document_quality_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "OCR/image quality score (0 = unreadable, 1 = perfect). Must be >= 0.7 to proceed."
+    },
+    "reviewer_decision": {
+      "type": "string",
+      "enum": ["approve", "reject", "need_more_info"],
+      "description": "Moderator's decision after reviewing the document"
+    },
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "unreadable",
+        "expired",
+        "suspected_fake",
+        "name_mismatch",
+        "wrong_doc_type",
+        "not_active",
+        "other"
+      ],
+      "description": "Required when reviewer_decision is 'reject' or 'need_more_info'. Must not be present for 'approve'."
+    },
+    "expiration_date": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "Document expiry date (ISO-8601 date, not datetime). Null for non-expiring document classes."
+    },
+    "reviewer_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "FK to profiles.id of the moderator who performed this review"
+    },
+    "reviewed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the review was completed"
+    }
+  },
+  "if": {
+    "properties": {
+      "reviewer_decision": {
+        "enum": ["reject", "need_more_info"]
+      }
+    },
+    "required": ["reviewer_decision"]
+  },
+  "then": {
+    "required": ["reason_code"],
+    "description": "reason_code is mandatory when the decision is reject or need_more_info"
+  },
+  "additionalProperties": false
+}

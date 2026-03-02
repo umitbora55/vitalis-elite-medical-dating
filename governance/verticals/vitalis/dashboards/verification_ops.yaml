@@ -1,0 +1,303 @@
+apiVersion: vitalis/dashboard/v1
+kind: VerificationOpsDashboard
+
+metadata:
+  name: vitalis-verification-ops
+  description: >
+    Real-time operational dashboard for the Vitalis professional verification
+    queue. Used by the trust operations team to monitor queue depth, moderator
+    throughput, automation rates, and document quality.
+  owner: trust-team
+  refresh_seconds: 30
+  retention_days: 90
+
+# ─── Panels ───────────────────────────────────────────────────────────────────
+panels:
+
+  # ── 1. Queue Summary ─────────────────────────────────────────────────────────
+  - id: queue_summary
+    display_name: Queue Summary
+    description: >
+      Live snapshot of all verification requests by status. Includes SLA breach
+      count (items past their 24-hour first-action deadline).
+    type: stat_grid
+    refresh_seconds: 30
+    queries:
+      - id: total_pending
+        label: Total Pending
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests
+          WHERE status = 'pending';
+
+      - id: pending_within_sla
+        label: Pending — Within SLA
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests
+          WHERE status = 'pending'
+            AND created_at >= NOW() - INTERVAL '24 hours';
+
+      - id: pending_sla_breached
+        label: Pending — SLA Breached
+        alert_level: critical
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests
+          WHERE status = 'pending'
+            AND created_at < NOW() - INTERVAL '24 hours';
+
+      - id: in_review
+        label: In Review
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests
+          WHERE status = 'in_review';
+
+      - id: approved_today
+        label: Approved Today
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests
+          WHERE status = 'approved'
+            AND updated_at >= CURRENT_DATE;
+
+      - id: rejected_today
+        label: Rejected Today
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests
+          WHERE status = 'rejected'
+            AND updated_at >= CURRENT_DATE;
+
+  # ── 2. Verification Funnel (5-step) ─────────────────────────────────────────
+  - id: verification_funnel
+    display_name: Verification Funnel (last 30 days)
+    description: >
+      Step-by-step conversion funnel for professional verification.
+      Step 1 = request submitted; Step 5 = final terminal decision.
+    type: funnel
+    refresh_seconds: 300
+    steps:
+      - step: 1
+        label: Request Submitted
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests
+          WHERE created_at >= NOW() - INTERVAL '30 days';
+
+      - step: 2
+        label: Document Uploaded
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests
+          WHERE document_url IS NOT NULL
+            AND created_at >= NOW() - INTERVAL '30 days';
+
+      - step: 3
+        label: Document Quality Passed (>= 0.70)
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests vr
+          JOIN verification_document_checks vdc ON vdc.request_id = vr.id
+          WHERE vdc.document_quality_score >= 0.70
+            AND vr.created_at >= NOW() - INTERVAL '30 days';
+
+      - step: 4
+        label: Assigned to Moderator
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests
+          WHERE status = 'in_review'
+             OR status IN ('approved', 'rejected')
+            AND created_at >= NOW() - INTERVAL '30 days';
+
+      - step: 5
+        label: Terminal Decision (Approved or Rejected)
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests
+          WHERE status IN ('approved', 'rejected')
+            AND created_at >= NOW() - INTERVAL '30 days';
+
+  # ── 3. Moderator Throughput ───────────────────────────────────────────────────
+  - id: moderator_throughput
+    display_name: Moderator Throughput (last 7 days)
+    description: >
+      Decisions per moderator per day, averaged over the last 7 days. Used to
+      identify staffing gaps and to set realistic queue clearance ETAs.
+    type: table
+    refresh_seconds: 300
+    query: |
+      SELECT
+        aal.actor_id                                           AS moderator_id,
+        p.display_name                                         AS moderator_name,
+        COUNT(*)                                               AS total_decisions,
+        ROUND(COUNT(*)::NUMERIC / 7, 1)                       AS decisions_per_day,
+        COUNT(*) FILTER (WHERE aal.action = 'verification_approved') AS approved_count,
+        COUNT(*) FILTER (WHERE aal.action = 'verification_rejected') AS rejected_count,
+        ROUND(
+          100.0 * COUNT(*) FILTER (WHERE aal.action = 'verification_approved')
+            / NULLIF(COUNT(*), 0),
+          1
+        )                                                      AS approval_rate_pct
+      FROM admin_audit_logs aal
+      JOIN profiles p ON p.id = aal.actor_id
+      WHERE aal.action IN ('verification_approved', 'verification_rejected', 'verification_deferred')
+        AND aal.created_at >= NOW() - INTERVAL '7 days'
+      GROUP BY aal.actor_id, p.display_name
+      ORDER BY total_decisions DESC;
+
+  # ── 4. Auto-Verify Rate ───────────────────────────────────────────────────────
+  - id: auto_verify_rate
+    display_name: Auto-Verification Rate (last 30 days)
+    description: >
+      Percentage of approvals issued automatically (document quality >= 0.85 AND
+      registry lookup = match) versus those requiring human review. High
+      auto-verify rates reduce moderator load; a sudden drop may signal a
+      registry connectivity issue.
+    type: gauge
+    thresholds:
+      good: 40.0
+      warning: 20.0
+      critical: 5.0
+    refresh_seconds: 300
+    queries:
+      - id: auto_verify_rate_pct
+        label: Auto-Verified (%)
+        query: |
+          SELECT
+            ROUND(
+              100.0 * COUNT(*) FILTER (WHERE auto_verified = true)
+                / NULLIF(COUNT(*) FILTER (WHERE status = 'approved'), 0),
+              1
+            ) AS value
+          FROM verification_requests
+          WHERE status = 'approved'
+            AND created_at >= NOW() - INTERVAL '30 days';
+
+      - id: registry_lookup_success_rate
+        label: Registry Lookup Success Rate (%)
+        query: |
+          SELECT
+            ROUND(
+              100.0 * COUNT(*) FILTER (WHERE registry_lookup_status = 'match')
+                / NULLIF(COUNT(*) FILTER (
+                  WHERE registry_lookup_status IN ('match', 'no_match', 'manual_required')
+                ), 0),
+              1
+            ) AS value
+          FROM verification_requests
+          WHERE created_at >= NOW() - INTERVAL '30 days'
+            AND registry_lookup_status IS NOT NULL;
+
+  # ── 5. Document Quality Distribution ─────────────────────────────────────────
+  - id: document_quality
+    display_name: Document Quality Distribution (last 30 days)
+    description: >
+      Distribution of ML document quality scores across all submitted
+      verification documents. Low scores (<0.50) indicate photos taken in poor
+      light or documents that are heavily degraded.
+    type: histogram
+    refresh_seconds: 600
+    buckets:
+      - label: "Poor (0.00 – 0.49)"
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests
+          WHERE document_quality_score >= 0.00
+            AND document_quality_score < 0.50
+            AND created_at >= NOW() - INTERVAL '30 days';
+
+      - label: "Marginal (0.50 – 0.69)"
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests
+          WHERE document_quality_score >= 0.50
+            AND document_quality_score < 0.70
+            AND created_at >= NOW() - INTERVAL '30 days';
+
+      - label: "Acceptable (0.70 – 0.84)"
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests
+          WHERE document_quality_score >= 0.70
+            AND document_quality_score < 0.85
+            AND created_at >= NOW() - INTERVAL '30 days';
+
+      - label: "Auto-Approve Quality (0.85 – 1.00)"
+        query: |
+          SELECT COUNT(*) AS value
+          FROM verification_requests
+          WHERE document_quality_score >= 0.85
+            AND created_at >= NOW() - INTERVAL '30 days';
+
+# ─── Alerts ───────────────────────────────────────────────────────────────────
+alerts:
+
+  - id: queue_sla_breach_alert
+    display_name: Queue SLA Breach Alert
+    description: >
+      Fires when more than 10 verification requests have been in PENDING status
+      for over 24 hours without any moderator action. Indicates queue overflow
+      or staffing gap.
+    severity: critical
+    channels:
+      - "#trust-alerts"
+      - "#eng-oncall"
+    condition:
+      query: |
+        SELECT COUNT(*) AS breach_count
+        FROM verification_requests
+        WHERE status = 'pending'
+          AND created_at < NOW() - INTERVAL '24 hours';
+      threshold: 10
+      comparator: ">"
+    repeat_interval_minutes: 30
+
+  - id: queue_empty_alert
+    display_name: Queue Unexpectedly Empty
+    description: >
+      Fires when the total pending verification queue drops to 0 during normal
+      business hours (09:00–21:00 UTC+3). This is anomalous and may indicate
+      a webhook or ingestion pipeline failure rather than genuine queue clearance.
+    severity: warning
+    channels:
+      - "#trust-alerts"
+    condition:
+      query: |
+        SELECT COUNT(*) AS pending_count
+        FROM verification_requests
+        WHERE status = 'pending';
+      threshold: 0
+      comparator: "="
+      time_restriction:
+        timezone: "Europe/Istanbul"
+        hours_start: 9
+        hours_end: 21
+    repeat_interval_minutes: 120
+
+  - id: low_quality_docs_alert
+    display_name: High Rate of Low-Quality Document Submissions
+    description: >
+      Fires when more than 30% of verification documents submitted in the last
+      hour have a quality score below 0.50. May indicate a client-side camera/
+      upload bug affecting document capture.
+    severity: warning
+    channels:
+      - "#trust-alerts"
+      - "#mobile-eng"
+    condition:
+      query: |
+        SELECT
+          ROUND(
+            100.0 * COUNT(*) FILTER (WHERE document_quality_score < 0.50)
+              / NULLIF(COUNT(*), 0),
+            1
+          ) AS low_quality_pct
+        FROM verification_requests
+        WHERE created_at >= NOW() - INTERVAL '1 hour'
+          AND document_quality_score IS NOT NULL;
+      threshold: 30.0
+      comparator: ">"
+    repeat_interval_minutes: 60

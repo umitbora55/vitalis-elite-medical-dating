@@ -15,22 +15,53 @@ const responseHeaders = {
 // AUDIT-FIX: BE-013 — Valid plan values to prevent invalid subscription creation
 const VALID_PLANS = new Set(['DOSE', 'FORTE', 'ULTRA', 'GOLD', 'PLATINUM']);
 
-const isDuplicateEventError = (error: unknown): boolean => {
-  const code = (error as { code?: string } | null)?.code;
-  return code === '23505';
+// AUDIT-FIX IDEMPOTENCY: Atomic RPC replaces raw INSERT idempotency.
+// Uses process_webhook_atomic() → ON CONFLICT DO NOTHING (race-safe).
+// 4-status model: processing | processed | failed_retryable | failed_fatal
+// Retry schedule: 1m → 5m → 15m → fatal (see 20260323_idempotency_processed_events.sql)
+
+const TIMESTAMP_TOLERANCE_SECONDS = 300; // 5 dakika — Stripe default
+
+const isTimestampFresh = (event: Stripe.Event): boolean => {
+  const eventAge = Math.floor(Date.now() / 1000) - event.created;
+  return eventAge <= TIMESTAMP_TOLERANCE_SECONDS;
 };
 
-const persistEventIdempotencyKey = async (supabase: ReturnType<typeof createClient>, event: Stripe.Event) => {
-  const { error } = await supabase.from('stripe_webhook_events').insert({
-    event_id: event.id,
-    event_type: event.type,
-    payload: event,
+const claimEvent = async (
+  supabase: ReturnType<typeof createClient>,
+  event: Stripe.Event
+): Promise<{ is_new: boolean; status: string } | null> => {
+  const { data, error } = await supabase.rpc('process_webhook_atomic', {
+    p_provider:    'stripe',
+    p_event_id:    event.id,
+    p_event_type:  event.type,
   });
+  if (error) return null;
+  return data as { is_new: boolean; status: string };
+};
 
-  if (!error) return { duplicate: false, error: null };
-  if (isDuplicateEventError(error)) return { duplicate: true, error: null };
+const completeEvent = async (
+  supabase: ReturnType<typeof createClient>,
+  eventId: string
+): Promise<void> => {
+  await supabase.rpc('complete_processed_event', {
+    p_provider: 'stripe',
+    p_event_id: eventId,
+  });
+};
 
-  return { duplicate: false, error };
+const failEvent = async (
+  supabase: ReturnType<typeof createClient>,
+  eventId: string,
+  errorMsg: string,
+  fatal = false
+): Promise<void> => {
+  await supabase.rpc('fail_processed_event', {
+    p_provider:   'stripe',
+    p_event_id:   eventId,
+    p_error_msg:  errorMsg,
+    p_fatal:      fatal,
+  });
 };
 
 serve(async (req) => {
@@ -67,17 +98,28 @@ serve(async (req) => {
     });
   }
 
-  const { duplicate, error: idempotencyError } = await persistEventIdempotencyKey(supabase, event);
+  // AUDIT-FIX IDEMPOTENCY: Timestamp tolerance check (5 dakika)
+  // Eski event'ler replay saldırılarını önlemek için reddedilir.
+  if (!isTimestampFresh(event)) {
+    return new Response(JSON.stringify({ error: 'Event timestamp too old (>5 min)' }), {
+      status: 400,
+      headers: responseHeaders,
+    });
+  }
 
-  if (idempotencyError) {
-    return new Response(JSON.stringify({ error: 'Failed to persist event idempotency key' }), {
+  // AUDIT-FIX IDEMPOTENCY: Atomic claim via process_webhook_atomic RPC
+  const claim = await claimEvent(supabase, event);
+
+  if (!claim) {
+    return new Response(JSON.stringify({ error: 'Failed to claim event idempotency slot' }), {
       status: 500,
       headers: responseHeaders,
     });
   }
 
-  if (duplicate) {
-    return new Response(JSON.stringify({ received: true, duplicate: true }), {
+  // Already processed or being processed by another worker — safe no-op
+  if (!claim.is_new) {
+    return new Response(JSON.stringify({ received: true, duplicate: true, status: claim.status }), {
       headers: responseHeaders,
     });
   }
@@ -159,10 +201,21 @@ serve(async (req) => {
         break;
     }
 
+    // Mark event as successfully processed
+    await completeEvent(supabase, event.id);
+
     return new Response(JSON.stringify({ received: true }), {
       headers: responseHeaders,
     });
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+
+    // Classify error: transient vs fatal
+    // fatal = validation/business logic errors (retry won't help)
+    // retryable = DB/network errors
+    const isFatal = errMsg.includes('Invalid') || errMsg.includes('Missing');
+    await failEvent(supabase, event.id, errMsg, isFatal);
+
     return new Response(JSON.stringify({ error: 'Webhook handler failed' }), {
       status: 500,
       headers: responseHeaders,

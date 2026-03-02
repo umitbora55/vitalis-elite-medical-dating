@@ -1,0 +1,25 @@
+{
+  "name": "@vitalis/uiux-warharness",
+  "version": "6.4.0",
+  "description": "Vitalis UI/UX WAR Harness — Forensic-Grade Evidence System FINAL v6.4",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build":     "tsc --project tsconfig.json",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "run:suite": "node dist/cli/run.js",
+    "verify":    "node dist/cli/verify.js",
+    "anchor":    "node dist/cli/anchor.js",
+    "baseline":  "node dist/cli/baseline.js",
+    "trust":     "node dist/cli/trust.js",
+    "vectors":   "node dist/cli/vectors.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "@types/node": "^20.14.0"
+  }
+}

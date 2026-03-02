@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Mail, Lock, ChevronLeft, Loader2 } from 'lucide-react';
+import { Mail, Lock, ChevronLeft, Loader2, Eye, EyeOff, Clock, CheckCircle2, Circle, Crown, ShieldCheck, ArrowRight } from 'lucide-react';
 import { signInWithEmail, signInWithOAuth } from '../services/authService';
+import { getMyProfile } from '../services/profileService';
 
 interface LoginViewProps {
   onBack: () => void;
@@ -29,6 +30,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onSuccess }) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Pending verification state
+  const [showPendingOverlay, setShowPendingOverlay] = useState(false);
 
   const handleSubmit = async () => {
     setErrorMessage(null);
@@ -39,6 +44,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onSuccess }) => {
     if (error) {
       setErrorMessage(normalizeLoginError(error.message));
       return;
+    }
+
+    // After successful auth, check if user is pending verification
+    const profileResult = await getMyProfile();
+    if (profileResult.data) {
+      const userStatus = (profileResult.data as Record<string, unknown>).user_status as string | undefined;
+      if (userStatus === 'pending_verification') {
+        // Show premium overlay, then route after a moment
+        setShowPendingOverlay(true);
+        return;
+      }
     }
 
     onSuccess();
@@ -62,6 +78,101 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onSuccess }) => {
 
   const hasError = Boolean(errorMessage);
 
+  // ── Premium Pending Verification Overlay ──────────────────────────────────
+  if (showPendingOverlay) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+        {/* Background ambience */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-gold-500/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 max-w-sm w-full animate-fade-in">
+          {/* Animated Shield Icon */}
+          <div className="text-center mb-8">
+            <div className="w-24 h-24 rounded-full bg-amber-900/20 border-2 border-amber-500/30 flex items-center justify-center mx-auto mb-6 shadow-[0_0_40px_rgba(245,158,11,0.15)]">
+              <ShieldCheck size={44} className="text-amber-400 animate-pulse" />
+            </div>
+
+            <h1 className="text-3xl font-serif font-bold text-white mb-3 tracking-tight">
+              Hesabınız İnceleniyor
+            </h1>
+            <p className="text-slate-400 text-sm leading-relaxed max-w-xs mx-auto">
+              Başvurunuz ekibimiz tarafından değerlendiriliyor. Bu süreç genellikle <span className="text-amber-400 font-semibold">24 saat</span> içinde tamamlanır.
+            </p>
+          </div>
+
+          {/* Premium Card */}
+          <div className="bg-slate-900/80 border border-slate-800/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl">
+            {/* Progress Steps */}
+            <div className="space-y-3 mb-6">
+              {[
+                { label: 'Kayıt tamamlandı', done: true },
+                { label: 'Belgeler yüklendi', done: true },
+                { label: 'Admin onayı bekleniyor', done: false, active: true },
+                { label: 'Hesap aktifleştirme', done: false },
+              ].map((step, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  {step.done ? (
+                    <CheckCircle2 size={20} className="text-emerald-400 flex-shrink-0" />
+                  ) : step.active ? (
+                    <div className="w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/60 flex items-center justify-center flex-shrink-0">
+                      <Clock size={12} className="text-amber-400" />
+                    </div>
+                  ) : (
+                    <Circle size={20} className="text-slate-700 flex-shrink-0" />
+                  )}
+                  <span className={`text-sm ${step.done
+                      ? 'text-slate-300'
+                      : step.active
+                        ? 'text-amber-400 font-medium'
+                        : 'text-slate-600'
+                    }`}>
+                    {step.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Info Box */}
+            <div className="bg-slate-800/50 rounded-xl p-3.5 mb-5 border border-slate-700/50">
+              <div className="flex items-start gap-3">
+                <Mail size={16} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  Onaylandığınızda kayıtlı e-posta adresinize ve push bildirimi ile bilgilendirileceksiniz.
+                </p>
+              </div>
+            </div>
+
+            {/* Premium Upsell */}
+            <div className="border-t border-slate-800 pt-5 text-center">
+              <p className="text-slate-500 text-xs mb-3.5">
+                Premium üyeler öncelikli incelenir
+              </p>
+              <button
+                onClick={onSuccess}
+                className="inline-flex items-center gap-2.5 px-5 py-3 rounded-xl bg-gradient-to-r from-gold-600 to-gold-400 text-slate-950 font-bold text-sm tracking-wide shadow-lg hover:brightness-110 hover:shadow-[0_0_20px_rgba(234,179,8,0.3)] transition-all active:scale-95"
+              >
+                <Crown size={16} fill="currentColor" />
+                Premium'a Geç
+              </button>
+            </div>
+
+            {/* Continue anyway link */}
+            <button
+              onClick={onSuccess}
+              className="w-full mt-5 flex items-center justify-center gap-2 text-slate-500 text-xs hover:text-slate-300 transition-colors group"
+            >
+              Devam Et
+              <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Normal Login View ─────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center p-6">
       {/* Background accent */}
@@ -69,7 +180,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onSuccess }) => {
 
       <div className="w-full max-w-md relative z-10">
         {/* Back button */}
-        <button onClick={onBack} className="btn-ghost mb-8 -ml-2 text-slate-400 hover:text-white">
+        <button
+          onClick={onBack}
+          aria-label="Go back to landing page"
+          className="btn-ghost mb-8 -ml-2 text-slate-400 hover:text-white min-h-[44px] min-w-[44px] flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-gold-500 rounded-lg"
+        >
           <ChevronLeft size={20} strokeWidth={2} /> Back
         </button>
 
@@ -88,12 +203,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onSuccess }) => {
               <input
                 id="login-email"
                 type="email"
+                inputMode="email"
                 placeholder="jane@hospital.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 aria-invalid={hasError}
                 aria-describedby={hasError ? 'login-error' : undefined}
                 className="input-premium pl-12"
+                autoComplete="email"
               />
             </div>
           </div>
@@ -104,14 +221,23 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onSuccess }) => {
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
               <input
                 id="login-password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 aria-invalid={hasError}
                 aria-describedby={hasError ? 'login-error' : undefined}
-                className="input-premium pl-12"
+                className="input-premium pl-12 pr-12"
+                autoComplete="current-password"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-gold-500 rounded-lg"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
           </div>
 
@@ -137,7 +263,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onSuccess }) => {
         {/* ── Social Auth Divider ── */}
         <div className="flex items-center gap-4 py-5">
           <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent"></div>
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">or continue with</span>
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">or continue with</span>
           <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent"></div>
         </div>
 

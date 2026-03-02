@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, Search, Phone, Video, MoreVertical, Palette, MessageSquare, PhoneIncoming, Trash2, UserMinus } from 'lucide-react';
+import { ChevronLeft, Search, Phone, Video, MoreVertical, Palette, MessageSquare, PhoneIncoming, Trash2, UserMinus, ShieldOff } from 'lucide-react';
 import { ChatTheme, Match } from '../../types';
 
 interface ChatHeaderProps {
@@ -17,6 +17,8 @@ interface ChatHeaderProps {
   onSimulateIncomingCall: () => void;
   onDeleteConversation: () => void;
   onUnmatch: () => void;
+  /** Opens QuickBlockReportModal for this match */
+  onBlockReport?: () => void;
   formatMatchTime: (timestamp: number) => string;
 }
 
@@ -35,6 +37,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onSimulateIncomingCall,
   onDeleteConversation,
   onUnmatch,
+  onBlockReport,
   formatMatchTime,
 }) => {
   return (
@@ -43,15 +46,16 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         }`}
     >
       <div className="flex items-center gap-3">
+        {/* Touch Target Fix: 44px minimum for mobile accessibility */}
         <button
           onClick={onBack}
           aria-label="Go back to matches"
-          className={`p-1 -ml-2 transition-colors rounded-full ${currentTheme.isDark
+          className={`w-11 h-11 -ml-2 flex items-center justify-center transition-colors rounded-full active:scale-95 ${currentTheme.isDark
             ? 'text-slate-400 hover:text-white hover:bg-slate-800'
             : 'text-slate-600 hover:text-black hover:bg-slate-100'
             }`}
         >
-          <ChevronLeft size={28} />
+          <ChevronLeft size={24} />
         </button>
 
         <div className="relative">
@@ -78,12 +82,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           >
             {match.profile.name}
           </h3>
+          {/* Typography Fix: 12px minimum text size */}
           <div className="flex items-center gap-1.5">
-            <p className="text-[10px] text-gold-500 font-bold uppercase tracking-wider">
+            <p className="text-xs text-gold-500 font-bold uppercase tracking-wider">
               {match.profile.specialty}
             </p>
-            <span className="text-[8px] text-slate-500">•</span>
-            <p className="text-[10px] text-slate-500 font-medium whitespace-nowrap">
+            <span className="text-xs text-slate-500">•</span>
+            <p className="text-xs text-slate-500 font-medium whitespace-nowrap">
               Matched {formatMatchTime(match.timestamp)}
             </p>
           </div>
@@ -94,10 +99,11 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         className={`flex items-center gap-4 ${currentTheme.isDark ? 'text-slate-400' : 'text-slate-600'
           }`}
       >
+        {/* Touch Target Fix: All action buttons 44px minimum */}
         <button
           onClick={onToggleSearch}
           aria-label="Search in conversation"
-          className={`hover:text-gold-400 transition-colors p-2 rounded-full ${isSearchOpen ? 'text-gold-500 bg-slate-800' : ''
+          className={`w-11 h-11 flex items-center justify-center hover:text-gold-400 transition-colors rounded-full active:scale-95 ${isSearchOpen ? 'text-gold-500 bg-slate-800' : ''
             } ${currentTheme.isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'}`}
         >
           <Search size={20} />
@@ -106,7 +112,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         <button
           onClick={() => onStartCall('VOICE')}
           aria-label="Start voice call"
-          className={`hover:text-gold-400 transition-colors p-2 rounded-full ${currentTheme.isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
+          className={`w-11 h-11 flex items-center justify-center hover:text-gold-400 transition-colors rounded-full active:scale-95 ${currentTheme.isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
             }`}
         >
           <Phone size={20} />
@@ -114,14 +120,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         <button
           onClick={() => onStartCall('VIDEO')}
           aria-label="Start video call"
-          className={`hover:text-gold-400 transition-colors p-2 rounded-full ${currentTheme.isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
+          className={`w-11 h-11 flex items-center justify-center hover:text-gold-400 transition-colors rounded-full active:scale-95 ${currentTheme.isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
             }`}
         >
           <Video size={20} />
         </button>
 
         <div className="relative">
-          <button onClick={onToggleMenu} aria-label="Open chat actions" className="hover:text-gold-400 transition-colors p-2 rounded-full hover:bg-slate-800/50">
+          <button onClick={onToggleMenu} aria-label="Open chat actions" className="w-11 h-11 flex items-center justify-center hover:text-gold-400 transition-colors rounded-full hover:bg-slate-800/50 active:scale-95">
             <MoreVertical size={20} />
           </button>
           {isMenuOpen && (
@@ -160,6 +166,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 <span className="text-sm font-medium text-slate-300">Delete Conversation</span>
               </button>
               <div className="h-px bg-slate-800"></div>
+              {onBlockReport && (
+                <button
+                  onClick={onBlockReport}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-slate-800 transition-colors"
+                >
+                  <ShieldOff size={16} className="text-orange-400" />
+                  <span className="text-sm font-medium text-orange-400">Engelle / Raporla</span>
+                </button>
+              )}
               <button
                 onClick={onUnmatch}
                 className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-slate-800 transition-colors"

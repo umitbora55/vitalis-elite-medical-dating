@@ -109,8 +109,10 @@ serve(async (req) => {
 
   try {
     const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
-    const priceGold = Deno.env.get('STRIPE_PRICE_GOLD');
-    const pricePlatinum = Deno.env.get('STRIPE_PRICE_PLATINUM');
+    // AUDIT-FIX: FE-003/BE-021 — Support all 3 premium tiers with distinct Stripe prices
+    const priceDose = Deno.env.get('STRIPE_PRICE_DOSE') || Deno.env.get('STRIPE_PRICE_GOLD');
+    const priceForte = Deno.env.get('STRIPE_PRICE_FORTE') || Deno.env.get('STRIPE_PRICE_PLATINUM');
+    const priceUltra = Deno.env.get('STRIPE_PRICE_ULTRA') || Deno.env.get('STRIPE_PRICE_PLATINUM');
 
     if (!stripeSecret) {
       return new Response(JSON.stringify({ error: 'Missing STRIPE_SECRET_KEY' }), {
@@ -129,14 +131,23 @@ serve(async (req) => {
 
     const body = await req.json();
     const plan = body?.plan;
-    if (plan !== 'GOLD' && plan !== 'PLATINUM') {
+    const VALID_PLANS = new Set(['DOSE', 'FORTE', 'ULTRA', 'GOLD', 'PLATINUM']);
+    if (!plan || !VALID_PLANS.has(plan)) {
       return new Response(JSON.stringify({ error: 'Invalid plan' }), {
         status: 400,
         headers: { ...corsHeaders, ...jsonHeaders },
       });
     }
 
-    const priceId = plan === 'PLATINUM' ? pricePlatinum : priceGold;
+    // Map plan names to Stripe price IDs
+    const priceMap: Record<string, string | undefined> = {
+      DOSE: priceDose,
+      GOLD: priceDose,           // Legacy alias
+      FORTE: priceForte,
+      PLATINUM: priceForte,      // Legacy alias
+      ULTRA: priceUltra,
+    };
+    const priceId = priceMap[plan];
     if (!priceId) {
       return new Response(JSON.stringify({ error: 'Missing price id' }), {
         status: 500,

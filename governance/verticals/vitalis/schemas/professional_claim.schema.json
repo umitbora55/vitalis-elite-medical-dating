@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vitalis.health/schemas/professional_claim",
+  "title": "ProfessionalClaim",
+  "description": "Healthcare professional identity claim submitted by a Vitalis user",
+  "type": "object",
+  "required": ["profession_type", "claim_evidence_type", "claim_status"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier (UUID v4) for this claim record"
+    },
+    "profile_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "FK to profiles.id — the user submitting the claim"
+    },
+    "profession_type": {
+      "type": "string",
+      "enum": [
+        "doktor",
+        "dis_hekimi",
+        "eczaci",
+        "hemsire",
+        "paramedik",
+        "psikolog",
+        "fizyoterapist",
+        "diyetisyen",
+        "veteriner",
+        "ebze",
+        "diger"
+      ],
+      "description": "Declared healthcare profession type (Turkish canonical values)"
+    },
+    "specialization": {
+      "type": "string",
+      "maxLength": 120,
+      "description": "Optional sub-specialty or area of focus"
+    },
+    "institution_name": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Name of the employing hospital, clinic, or university"
+    },
+    "city": {
+      "type": "string",
+      "maxLength": 80,
+      "description": "City where the user primarily practices"
+    },
+    "claim_evidence_type": {
+      "type": "string",
+      "enum": ["domain", "id_doc", "diploma", "registry"],
+      "description": "Type of evidence used to substantiate the claim"
+    },
+    "claim_status": {
+      "type": "string",
+      "enum": ["pending", "verified", "rejected", "expired"],
+      "description": "Lifecycle status of the claim"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the claim was submitted"
+    },
+    "verified_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the claim was approved; null if not yet approved"
+    },
+    "expires_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the claim expires (license/chamber only); null for non-expiring docs"
+    }
+  },
+  "additionalProperties": false
+}

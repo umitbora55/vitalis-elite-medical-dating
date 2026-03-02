@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { DAILY_SWIPE_LIMIT } from '../constants';
-import { FilterPreferences, Specialty, SwipeDirection } from '../types';
+import { FilterPreferences, Profile, Specialty, SwipeDirection } from '../types';
+import { fetchDiscoveryProfiles } from '../services/discoveryService';
 
 const defaultFilters: FilterPreferences = {
   ageRange: [24, 55],
@@ -10,6 +11,12 @@ const defaultFilters: FilterPreferences = {
 };
 
 interface DiscoveryState {
+  // Real profiles fetched from Supabase
+  profiles: Profile[];
+  isLoading: boolean;
+  fetchError: string | null;
+  hasMore: boolean;
+
   swipedProfileIds: Set<string>;
   blockedProfileIds: Set<string>;
   dailySwipesRemaining: number;
@@ -17,6 +24,11 @@ interface DiscoveryState {
   swipeDirection: SwipeDirection | null;
   lastSwipedId: string | null;
   filters: FilterPreferences;
+
+  // Actions
+  fetchProfiles: () => Promise<void>;
+  loadMoreProfiles: () => Promise<void>;
+  removeProfile: (profileId: string) => void;
   setFilters: (filters: FilterPreferences) => void;
   setDailySwipesRemaining: (count: number) => void;
   setSwipedProfileIds: (ids: Set<string>) => void;
@@ -31,7 +43,14 @@ interface DiscoveryState {
   resetSwipes: () => void;
 }
 
-export const useDiscoveryStore = create<DiscoveryState>((set) => ({
+const PAGE_SIZE = 20;
+
+export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
+  profiles: [],
+  isLoading: false,
+  fetchError: null,
+  hasMore: true,
+
   swipedProfileIds: new Set(),
   blockedProfileIds: new Set(),
   dailySwipesRemaining: DAILY_SWIPE_LIMIT,
@@ -39,7 +58,45 @@ export const useDiscoveryStore = create<DiscoveryState>((set) => ({
   swipeDirection: null,
   lastSwipedId: null,
   filters: defaultFilters,
-  setFilters: (filters) => set({ filters }),
+
+  fetchProfiles: async () => {
+    const { filters, isLoading } = get();
+    if (isLoading) return;
+
+    set({ isLoading: true, fetchError: null });
+    const { profiles, error } = await fetchDiscoveryProfiles(filters, PAGE_SIZE, 0);
+    set({
+      profiles,
+      isLoading: false,
+      fetchError: error?.message || null,
+      hasMore: profiles.length >= PAGE_SIZE,
+    });
+  },
+
+  loadMoreProfiles: async () => {
+    const { filters, profiles, isLoading, hasMore } = get();
+    if (isLoading || !hasMore) return;
+
+    set({ isLoading: true });
+    const { profiles: more, error } = await fetchDiscoveryProfiles(filters, PAGE_SIZE, profiles.length);
+    set((state) => ({
+      profiles: [...state.profiles, ...more],
+      isLoading: false,
+      fetchError: error?.message || null,
+      hasMore: more.length >= PAGE_SIZE,
+    }));
+  },
+
+  removeProfile: (profileId) =>
+    set((state) => ({
+      profiles: state.profiles.filter((p) => p.id !== profileId),
+    })),
+
+  setFilters: (filters) => {
+    set({ filters });
+    // Re-fetch when filters change
+    get().fetchProfiles();
+  },
   setDailySwipesRemaining: (dailySwipesRemaining) => set({ dailySwipesRemaining }),
   setSwipedProfileIds: (swipedProfileIds) => set({ swipedProfileIds }),
   setSwipeDirection: (swipeDirection) => set({ swipeDirection }),

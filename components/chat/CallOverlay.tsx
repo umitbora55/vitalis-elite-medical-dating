@@ -133,14 +133,14 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
               className="p-5 rounded-full bg-red-600 text-white shadow-xl hover:bg-red-700 transform hover:scale-105 transition-all flex flex-col items-center gap-1"
             >
               <PhoneOff size={32} />
-              <span className="text-[10px] uppercase font-bold">Decline</span>
+              <span className="text-xs uppercase font-bold">Decline</span>
             </button>
             <button
               onClick={onAcceptCall}
               className="p-5 rounded-full bg-green-500 text-white shadow-xl hover:bg-green-600 transform hover:scale-105 transition-all flex flex-col items-center gap-1 animate-bounce"
             >
               <Phone size={32} fill="currentColor" />
-              <span className="text-[10px] uppercase font-bold">Accept</span>
+              <span className="text-xs uppercase font-bold">Accept</span>
             </button>
           </>
         ) : (

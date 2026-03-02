@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import { DAILY_SWIPE_LIMIT, DEFAULT_MESSAGE_TEMPLATES, MOCK_PROFILES, USER_PROFILE } from './constants';
-import { SwipeDirection, Match, Profile, FilterPreferences, Specialty, MedicalRole, Notification, NotificationType, ReportReason, SwipeHistoryItem, MessageTemplate, ChatTheme } from './types';
+import { DEMO_PROFILES } from './constants/demoScenarios';
+import { SwipeDirection, Match, Profile, FilterPreferences, Specialty, MedicalRole, Notification, NotificationType, ReportReason, SwipeHistoryItem, MessageTemplate, ChatTheme, VerificationMethod, UserStatus } from './types';
 import type { ProfileCompletionData } from './components/ProfileCompletionView';
 import { AppHeader } from './components/AppHeader';
-import { ProfileCard } from './components/ProfileCard';
+import { AnimatedSwipeCard } from './components/AnimatedSwipeCard';
 import { ControlPanel } from './components/ControlPanel';
 import { MatchOverlay } from './components/MatchOverlay';
 import { LandingView } from './components/LandingView';
@@ -11,7 +12,7 @@ import { LandingView } from './components/LandingView';
 import { StoryRail } from './components/StoryRail';
 import { StoryViewer } from './components/StoryViewer';
 import { LoginView } from './components/LoginView';
-import { ShieldCheck, FilterX, Star, Zap, Crown, Heart, CheckCircle2, Lock, Hourglass, Ghost, Snowflake, Play } from 'lucide-react';
+import { ShieldCheck, FilterX, Zap, Crown, CheckCircle2, Lock, Hourglass, Ghost, Snowflake, Play, Heart } from 'lucide-react';
 import { useAuthStore } from './stores/authStore';
 import { useUserStore } from './stores/userStore';
 import { useUiStore } from './stores/uiStore';
@@ -33,6 +34,11 @@ import {
     trackEvent,
 } from './src/lib/analytics';
 import { PendingVerificationView } from './components/PendingVerificationView';
+import { WaitlistScreen } from './components/WaitlistScreen';
+import { VerificationPendingScreen } from './components/VerificationPendingScreen';
+import { OnboardingFlow } from './components/OnboardingFlow';
+import { onboardingService } from './services/onboardingService';
+import { pushService } from './services/pushService';
 import {
     createVerificationRequest,
     getVerificationPolicy,
@@ -43,7 +49,6 @@ import {
     upsertVerificationDocument,
 } from './services/verificationService';
 import { supabase } from './src/lib/supabase';
-import { AdminPanel } from './components/admin/AdminPanel';
 // AUDIT-FIX: SEC-004 — Verification status now set via server-side RPC (complete_email_verification)
 
 const MatchesView = lazy(() => import('./components/MatchesView').then((m) => ({ default: m.MatchesView })));
@@ -57,8 +62,13 @@ const OnboardingView = lazy(() => import('./components/OnboardingView').then((m)
 const RegistrationFlow = lazy(() => import('./components/RegistrationFlow').then((m) => ({ default: m.RegistrationFlow })));
 const SwipeHistoryView = lazy(() => import('./components/SwipeHistoryView').then((m) => ({ default: m.SwipeHistoryView })));
 const ProfileCompletionView = lazy(() => import('./components/ProfileCompletionView').then((m) => ({ default: m.ProfileCompletionView })));
+const AdminPanelV2 = lazy(() => import('./components/admin/AdminPanelV2').then((m) => ({ default: m.AdminPanelV2 })));
+const AdminSecurityGate = lazy(() => import('./components/admin/AdminSecurityGate').then((m) => ({ default: m.AdminSecurityGate })));
 const FilterView = lazy(() => import('./components/FilterView').then((m) => ({ default: m.FilterView })));
 const NearbyView = lazy(() => import('./components/NearbyView').then((m) => ({ default: m.NearbyView })));
+const EventFeed = lazy(() => import('./components/EventFeed').then((m) => ({ default: m.EventFeed })));
+const ClubsView = lazy(() => import('./components/ClubsView').then((m) => ({ default: m.ClubsView })));
+const ConferencesView = lazy(() => import('./components/ConferencesView').then((m) => ({ default: m.ConferencesView })));
 
 type VerificationPayload = {
     method: 'EMAIL' | 'DOCUMENT';
@@ -79,6 +89,8 @@ type RegistrationData = {
     // Tier 1
     genderPreference?: string;
     city?: string;
+    current_lat?: number;
+    current_lng?: number;
     university?: string;
     // Tier 2
     graduationYear?: string;
@@ -90,9 +102,9 @@ type RegistrationData = {
 
 
 const LoadingScreen: React.FC = () => (
-  <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <div style={{ fontFamily: 'system-ui', fontSize: 16, opacity: 0.8 }}>Loading Vitalis...</div>
-  </div>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontFamily: 'system-ui', fontSize: 16, opacity: 0.8 }}>Loading Vitalis...</div>
+    </div>
 );
 
 const VERIFIED_STATUSES = new Set(['VERIFIED', 'AUTO_VERIFIED']);
@@ -132,6 +144,11 @@ const App: React.FC = () => {
     const removeSwipedProfile = useDiscoveryStore((state) => state.removeSwipedProfile);
     const clearSwipedProfiles = useDiscoveryStore((state) => state.clearSwipedProfiles);
     const addBlockedProfile = useDiscoveryStore((state) => state.addBlockedProfile);
+    const discoveryProfiles = useDiscoveryStore((state) => state.profiles);
+    const discoveryLoading = useDiscoveryStore((state) => state.isLoading);
+    const discoveryError = useDiscoveryStore((state) => state.fetchError);
+    const fetchProfiles = useDiscoveryStore((state) => state.fetchProfiles);
+    const removeDiscoveryProfile = useDiscoveryStore((state) => state.removeProfile);
     const matches = useMatchStore((state) => state.matches);
     const setMatches = useMatchStore((state) => state.setMatches);
     const addMatch = useMatchStore((state) => state.addMatch);
@@ -147,6 +164,7 @@ const App: React.FC = () => {
     const swipeHistory = useMatchStore((state) => state.swipeHistory);
     const setSwipeHistory = useMatchStore((state) => state.setSwipeHistory);
     const addSwipeHistory = useMatchStore((state) => state.addSwipeHistory);
+    const addMessage = useMatchStore((state) => state.addMessage);
     const notifications = useNotificationStore((state) => state.notifications);
     const markAllNotificationsRead = useNotificationStore((state) => state.markAllRead);
 
@@ -243,7 +261,7 @@ const App: React.FC = () => {
 
     const isNearbySmokeMode = typeof window !== 'undefined'
         ? new URLSearchParams(window.location.search).get('e2eNearby') === '1'
-            && ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+        && ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
         : false;
     useEffect(() => {
         if (!isNearbySmokeMode) return;
@@ -278,6 +296,13 @@ const App: React.FC = () => {
         if (authStep !== 'APP') return;
         void refreshSubscriptionStatus();
     }, [authStep, refreshSubscriptionStatus]);
+
+    // Schedule daily picks notification at 19:00 when user enters main app
+    useEffect(() => {
+        if (authStep !== 'APP') return;
+        pushService.scheduleDailyPicksNotification();
+        return () => pushService.cancelDailyPicksNotification();
+    }, [authStep]);
 
     useEffect(() => {
         const handleEscape = (event: KeyboardEvent): void => {
@@ -325,14 +350,27 @@ const App: React.FC = () => {
         return (): void => window.clearTimeout(toastId);
     }, [refreshSubscriptionStatus, showToast]);
 
+    // Invite code state (stored for potential use in registration flow)
+    const [_validatedInviteCode, setValidatedInviteCode] = useState<string | null>(null);
+
+    // Duplicate email overlay state
+    const [duplicateEmailError, setDuplicateEmailError] = useState<string | null>(null);
+
     // Logic to handle Login from Landing
     const handleStartApplication = () => {
-        setAuthStep('REGISTRATION');
+        setAuthStep('WAITLIST');
     };
+
+    const handleInviteValidated = useCallback((code: string) => {
+        setValidatedInviteCode(code);
+        setAuthStep('REGISTRATION');
+    }, [setAuthStep]);
 
     const handleStartLogin = () => {
         setAuthStep('LOGIN');
     };
+
+    // Admin access: only via secret URL, no visible entry points
 
     const handleConsentChoice = useCallback(async (consent: AnalyticsConsent) => {
         setAnalyticsConsent(consent);
@@ -363,7 +401,12 @@ const App: React.FC = () => {
             });
 
             if (error) {
-                showToast(error.message);
+                const errMsg = error.message?.toLowerCase() ?? '';
+                if (errMsg.includes('already registered') || errMsg.includes('already been registered') || errMsg.includes('user already') || errMsg.includes('already exists')) {
+                    setDuplicateEmailError(email ?? '');
+                } else {
+                    showToast(error.message);
+                }
                 return;
             }
 
@@ -378,7 +421,7 @@ const App: React.FC = () => {
         const nextVerificationStatus: Profile['verificationStatus'] = verification.method === 'EMAIL'
             ? 'AUTO_VERIFIED'
             : (shouldAutoApprove ? 'AUTO_VERIFIED' : 'PENDING');
-        const nextVerificationMethod: Profile['verificationMethod'] = verification.method === 'EMAIL' ? 'CORPORATE_EMAIL' : 'DOCUMENTS';
+        const nextVerificationMethod = (verification.method === 'EMAIL' ? 'CORPORATE_EMAIL' : 'DOCUMENTS') as VerificationMethod;
 
         // Update user profile with registered data
         const nextProfile: Profile = {
@@ -399,6 +442,8 @@ const App: React.FC = () => {
             genderPreference: (data.genderPreference as Profile['genderPreference']) || userProfile.genderPreference,
             university: data.university || userProfile.university,
             city: data.city || userProfile.city,
+            current_lat: data.current_lat || userProfile.current_lat,
+            current_lng: data.current_lng || userProfile.current_lng,
             // Tier 2
             graduationYear: data.graduationYear ? parseInt(data.graduationYear, 10) : userProfile.graduationYear,
             experienceYears: data.experienceYears ? parseInt(data.experienceYears, 10) : userProfile.experienceYears,
@@ -408,6 +453,7 @@ const App: React.FC = () => {
             verificationStatus: nextVerificationStatus,
             verificationMethod: nextVerificationMethod,
             verified: nextVerificationStatus === 'AUTO_VERIFIED',
+            userStatus: nextVerificationStatus === 'PENDING' ? 'pending_verification' : 'profile_incomplete' as UserStatus,
         };
 
         updateUserProfile(nextProfile);
@@ -482,21 +528,30 @@ const App: React.FC = () => {
             }
         }
 
-        // Check for onboarding status (simulated)
-        const hasSeen = localStorage.getItem('vitalis_onboarding_seen');
-        if (!hasSeen) {
-            setAuthStep('ONBOARDING');
-        } else {
-            setAuthStep('PROFILE_COMPLETION');
-        }
+        // Route based on verification status
         if (nextProfile.verificationStatus === 'AUTO_VERIFIED') {
             showToast('Welcome to Vitalis!');
+            setAuthStep('ONBOARDING_FLOW');
         } else {
             showToast('Verification pending. You will be notified when approved.');
+            setAuthStep('PENDING_VERIFICATION');
         }
     }, [setAuthStep, showToast, updateUserProfile, userProfile]);
 
-    const handleLoginSuccess = useCallback(() => {
+    const handleLoginSuccess = useCallback(async () => {
+        // After login, check user status and route accordingly
+        const { data } = await getMyProfile();
+        if (data) {
+            const userStatus = (data as Record<string, unknown>).user_status as string | undefined;
+            if (userStatus === 'pending_verification') {
+                setAuthStep('PENDING_VERIFICATION');
+                return;
+            }
+            if (userStatus === 'profile_incomplete') {
+                setAuthStep('ONBOARDING_FLOW');
+                return;
+            }
+        }
         setAuthStep('APP');
     }, [setAuthStep]);
 
@@ -504,6 +559,11 @@ const App: React.FC = () => {
         setAuthStep('PROFILE_COMPLETION');
         localStorage.setItem('vitalis_onboarding_seen', 'true');
     }, [setAuthStep]);
+
+    const handleOnboardingFlowComplete = useCallback(() => {
+        void onboardingService.updateUserStatus(userProfile.id, 'active');
+        setAuthStep('APP');
+    }, [setAuthStep, userProfile.id]);
 
 
 
@@ -583,10 +643,10 @@ const App: React.FC = () => {
     const hasHiddenProfiles = false;
 
     // Always show the first profile in the filtered list
-    
+
     const visibleProfiles = useMemo(() => {
-        // Base list f|| discovery is currently mock-backed in this build.
-        // Swiped/blocked sets come from zustand st||e.
+        // Base list for discovery is currently mock-backed in this build.
+        // Swiped/blocked sets come from zustand store.
         const hidden = new Set([...(blockedProfileIds ? Array.from(blockedProfileIds) : []), ...(swipedProfileIds ? Array.from(swipedProfileIds) : [])]);
         return MOCK_PROFILES
             .filter((p) => !hidden.has(p.id))
@@ -597,9 +657,7 @@ const App: React.FC = () => {
                 return true
             });
     }, [blockedProfileIds, swipedProfileIds, filters]);
-
     const currentProfile = visibleProfiles[0] || null;
-    const nextProfile = visibleProfiles[1] || null;
 
     const unreadNotificationsCount = useMemo(() => {
         return notifications.filter(n => !n.isRead).length;
@@ -771,8 +829,8 @@ const App: React.FC = () => {
             }
 
             setSwipeDirection(null);
-        }, 400); // Matches transition duration
-    }, [addMatch, addSwipeHistory, addSwipedProfile, currentProfile, dailySwipesRemaining, decrementSuperLike, decrementSwipe, guardRestrictedAction, isPremium, setCurrentMatch, setLastSwipedId, setShowPremiumAlert, setSwipeDirection, superLikesCount, swipeDirection, trackEvent, userProfile.firstMessagePreference, userProfile.isOnCall]);
+        }, 750); // Matches premium exit transition duration (0.7s)
+    }, [addMatch, addSwipeHistory, addSwipedProfile, currentProfile, dailySwipesRemaining, decrementSuperLike, decrementSwipe, guardRestrictedAction, isPremium, removeDiscoveryProfile, setCurrentMatch, setLastSwipedId, setShowPremiumAlert, setSwipeDirection, superLikesCount, swipeDirection, trackEvent, userProfile.firstMessagePreference, userProfile.isOnCall]);
 
     const handleRewind = useCallback(() => {
         if (!lastSwipedId) return;
@@ -836,7 +894,7 @@ const App: React.FC = () => {
 
     // --- Notification Logic ---
 
-    const handleViewChange = useCallback((view: 'home' | 'profile' | 'matches' | 'notifications' | 'likesYou' | 'premium' | 'history' | 'nearby') => {
+    const handleViewChange = useCallback((view: 'home' | 'profile' | 'matches' | 'notifications' | 'likesYou' | 'premium' | 'history' | 'nearby' | 'admin' | 'events' | 'clubs' | 'conferences') => {
         if (view === 'premium' && !guardRestrictedAction('premium', 'Premium upgrades unlock after verification approval.')) {
             return;
         }
@@ -888,21 +946,6 @@ const App: React.FC = () => {
         }
     }, [guardRestrictedAction, isNotificationProfileLocked, matches, setActiveChatMatch, setCurrentView, setViewingProfile, showToast]);
 
-
-    const getCardStyle = () => {
-        if (!swipeDirection) return {};
-
-        switch (swipeDirection) {
-            case SwipeDirection.LEFT:
-                return { transform: 'translateX(-150%) rotate(-20deg)', opacity: 0 };
-            case SwipeDirection.RIGHT:
-                return { transform: 'translateX(150%) rotate(20deg)', opacity: 0 };
-            case SwipeDirection.SUPER:
-                return { transform: 'translateY(-150%) scale(1.1)', opacity: 0 };
-            default:
-                return {};
-        }
-    };
 
     const renderHome = () => {
         // Check for daily limit reached
@@ -1010,39 +1053,74 @@ const App: React.FC = () => {
                             </button>
                         </div>
                     </div>
+                ) : discoveryLoading && discoveryProfiles.length === 0 ? (
+                    /* LOADING STATE — first fetch in progress */
+                    <div className="relative w-full aspect-[3/4] max-h-[60vh] bg-slate-900 rounded-3xl border border-slate-800 flex flex-col items-center justify-center p-8 shadow-2xl mx-4 animate-pulse" role="status" aria-label="Loading profiles">
+                        <div className="w-16 h-16 rounded-full bg-slate-800 mx-auto flex items-center justify-center mb-4 border border-slate-700">
+                            <div className="w-8 h-8 border-2 border-gold-500 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                        <h2 className="text-xl font-serif text-white mb-2">Finding profiles...</h2>
+                        <p className="text-slate-400 text-sm">Discovering verified medical professionals near you.</p>
+                    </div>
+                ) : discoveryError && discoveryProfiles.length === 0 ? (
+                    /* ERROR STATE — Redesigned Premium Fallback */
+                    <div className="relative w-full max-w-sm mx-4 aspect-[3/4] max-h-[60vh] rounded-[2rem] border border-slate-700/30 bg-transparent flex flex-col items-center justify-center p-8 overflow-hidden group animate-fade-in">
+                        {/* Ambient Glows */}
+                        <div className="absolute -top-32 -right-32 w-64 h-64 bg-gold-500/8 rounded-full blur-3xl transition-opacity duration-1000 opacity-40 group-hover:opacity-70 pointer-events-none"></div>
+                        <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-purple-500/8 rounded-full blur-3xl transition-opacity duration-1000 opacity-40 group-hover:opacity-70 pointer-events-none"></div>
+
+                        <div className="relative z-10 flex flex-col items-center w-full">
+                            {/* Icon Container */}
+                            <div className="relative mb-6">
+                                <div className="absolute inset-0 bg-gold-500/20 blur-xl rounded-full animate-pulse"></div>
+                                <div className="w-20 h-20 rounded-full bg-slate-900/80 border border-gold-500/30 flex items-center justify-center relative z-10 shadow-[0_0_20px_rgba(212,175,55,0.15)] backdrop-blur-sm">
+                                    <ShieldCheck className="text-gold-400" size={32} strokeWidth={1.5} />
+                                </div>
+                            </div>
+
+                            {/* Text Content */}
+                            <h2 className="text-3xl font-serif text-white mb-3 text-center tracking-wide">Connection Issue</h2>
+                            <p className="text-slate-400 mb-10 text-sm text-center font-light tracking-wide leading-relaxed px-2">
+                                We couldn&apos;t load the profiles right now. Please check your connection to continue discovering elite matches.
+                            </p>
+
+                            {/* Buttons */}
+                            <div className="flex flex-col gap-4 w-full">
+                                <button
+                                    onClick={() => void fetchProfiles()}
+                                    className="w-full py-4 rounded-xl bg-gradient-to-r from-gold-600 via-gold-500 to-gold-400 text-slate-950 font-bold tracking-widest text-xs uppercase shadow-[0_4px_20px_rgba(212,175,55,0.3)] hover:scale-[1.02] hover:shadow-[0_4px_25px_rgba(212,175,55,0.4)] active:scale-95 transition-all duration-300"
+                                >
+                                    Retry Connection
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        useDiscoveryStore.setState({
+                                            profiles: DEMO_PROFILES,
+                                            isLoading: false,
+                                            fetchError: null,
+                                            hasMore: false,
+                                        });
+                                        showToast("Previewing Demo Profiles");
+                                    }}
+                                    className="w-full py-4 rounded-xl bg-transparent border border-gold-500/50 text-gold-400 hover:bg-gold-500/10 text-xs font-bold uppercase tracking-widest hover:border-gold-400 transition-all duration-300"
+                                >
+                                    Preview Demo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 ) : currentProfile ? (
                     <div className="relative w-full aspect-[3/4] max-h-[60vh] px-4">
-                        {/* Next Card (Background) */}
-                        {nextProfile && (
-                            <div className="absolute inset-0 transform scale-95 translate-y-4 opacity-50 z-0 pointer-events-none transition-all duration-500 mx-4">
-                                <ProfileCard
-                                    profile={nextProfile}
-                                    onShowDetails={() => { }}
-                                    currentUser={userProfile}
-                                />
-                            </div>
-                        )}
 
-                        {/* Current Card (Foreground) */}
-                        <div
-                            className="absolute inset-0 z-10 transition-all duration-500 ease-out origin-bottom mx-4"
-                            style={getCardStyle()}
-                        >
-                            <ProfileCard
-                                profile={currentProfile}
-                                onShowDetails={() => setViewingProfile(currentProfile)}
-                                currentUser={userProfile}
-                            />
-
-                            {/* Super Like Overlay Animation */}
-                            {swipeDirection === SwipeDirection.SUPER && (
-                                <div className="absolute inset-0 z-20 flex items-center justify-center bg-blue-500/30 backdrop-blur-[2px] rounded-3xl animate-fade-in">
-                                    <div className="bg-white/20 p-6 rounded-full border border-white/30 shadow-[0_0_30px_rgba(59,130,246,0.6)] animate-bounce">
-                                        <Star size={80} className="text-blue-400 fill-blue-400 drop-shadow-lg" />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                        {/* Current Card (Foreground) — key triggers premium entrance on each new profile */}
+                        {/* Current Card (Foreground) — Framer Motion AnimatedSwipeCard */}
+                        <AnimatedSwipeCard
+                            profile={currentProfile}
+                            currentUser={userProfile}
+                            onShowDetails={() => setViewingProfile(currentProfile)}
+                            onSwipe={handleSwipe}
+                            programmaticSwipeDirection={swipeDirection}
+                        />
 
                         {/* AUDIT-FIX: [FE-006] - Pass canRewind prop for proper disabled state */}
                         <ControlPanel
@@ -1092,13 +1170,20 @@ const App: React.FC = () => {
                     </div>
                 )}
             </div>
-        )
+        );
     };
 
-    const isAdminRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+    // SECURITY: Admin route uses a non-guessable path to prevent discovery
+    const isAdminRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/__v-ctrl');
 
-    if (isAdminRoute) {
-        return <AdminPanel />;
+    if (isAdminRoute || currentView === 'admin') {
+        return (
+            <Suspense fallback={<div className="fixed inset-0 bg-slate-950" />}>
+                <AdminSecurityGate onClose={() => { window.location.href = '/'; }}>
+                    <AdminPanelV2 onClose={() => setCurrentView('home')} />
+                </AdminSecurityGate>
+            </Suspense>
+        );
     }
 
     // --- RENDER LANDING PAGE ---
@@ -1107,6 +1192,54 @@ const App: React.FC = () => {
             <LandingView
                 onEnter={handleStartApplication}
                 onLogin={handleStartLogin}
+                onDevBypass={() => {
+                    // Force a valid mock profile and premium state for Dev Bypass
+                    import('./constants').then(({ USER_PROFILE }) => {
+                        setUserProfile(USER_PROFILE);
+                        setIsPremium(true);
+                        setAuthStep('APP');
+                    }).catch(() => {
+                        setIsPremium(true);
+                        setAuthStep('APP');
+                    });
+                }}
+            />
+        );
+    }
+
+    // --- RENDER WAITLIST / INVITE GATE ---
+    if (authStep === 'WAITLIST') {
+        return (
+            <WaitlistScreen
+                onInviteValidated={handleInviteValidated}
+            />
+        );
+    }
+
+    // --- RENDER VERIFICATION PENDING ---
+    if (authStep === 'PENDING_VERIFICATION') {
+        return (
+            <VerificationPendingScreen
+                onUpgradeToPremium={() => {
+                    setAuthStep('APP');
+                    setCurrentView('premium');
+                }}
+                onLogout={() => {
+                    void signOut().finally(() => setAuthStep('LANDING'));
+                }}
+                isRejected={userProfile.verificationStatus === 'REJECTED'}
+                onRetry={() => setAuthStep('REGISTRATION')}
+            />
+        );
+    }
+
+    // --- RENDER ONBOARDING FLOW (post-approval profile completion) ---
+    if (authStep === 'ONBOARDING_FLOW') {
+        return (
+            <OnboardingFlow
+                userId={userProfile.id}
+                step="location"
+                onComplete={handleOnboardingFlowComplete}
             />
         );
     }
@@ -1124,14 +1257,73 @@ const App: React.FC = () => {
     // --- RENDER REGISTRATION FLOW ---
     if (authStep === 'REGISTRATION') {
         return (
-            <Suspense fallback={<LoadingScreen />}>
-                <RegistrationFlow
-                    onComplete={(profileData, verification) => {
-                        void handleRegistrationComplete(profileData, verification);
-                    }}
-                    onCancel={() => setAuthStep('LANDING')}
-                />
-            </Suspense>
+            <>
+                <Suspense fallback={<LoadingScreen />}>
+                    <RegistrationFlow
+                        onComplete={(profileData, verification) => {
+                            void handleRegistrationComplete(profileData, verification);
+                        }}
+                        onCancel={() => setAuthStep('LANDING')}
+                    />
+                </Suspense>
+
+                {/* Premium Duplicate Email Overlay */}
+                {duplicateEmailError && (
+                    <div className="fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 animate-fade-in">
+                        {/* Background ambience */}
+                        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-red-500/5 rounded-full blur-3xl pointer-events-none" />
+                        <div className="absolute bottom-1/3 right-1/4 w-64 h-64 bg-gold-500/5 rounded-full blur-3xl pointer-events-none" />
+
+                        <div className="relative z-10 max-w-sm w-full">
+                            {/* Icon */}
+                            <div className="text-center mb-8">
+                                <div className="w-24 h-24 rounded-full bg-red-900/20 border-2 border-red-500/25 flex items-center justify-center mx-auto mb-6 shadow-[0_0_40px_rgba(239,68,68,0.1)]">
+                                    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-red-400">
+                                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                        <circle cx="9" cy="7" r="4" />
+                                        <line x1="17" y1="11" x2="22" y2="11" />
+                                    </svg>
+                                </div>
+
+                                <h1 className="text-3xl font-serif font-bold text-white mb-3 tracking-tight">
+                                    Kayıtlı Hesap Bulundu
+                                </h1>
+                                <p className="text-slate-400 text-sm leading-relaxed max-w-xs mx-auto">
+                                    <span className="text-white font-semibold">{duplicateEmailError}</span> adresi ile zaten bir hesap oluşturulmuş. Giriş yapmayı deneyin.
+                                </p>
+                            </div>
+
+                            {/* Action Card */}
+                            <div className="bg-slate-900/80 border border-slate-800/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl">
+                                <div className="bg-amber-500/5 border border-amber-500/15 rounded-xl p-4 mb-6">
+                                    <p className="text-amber-400/90 text-xs leading-relaxed text-center">
+                                        Eğer şifrenizi unuttuysanız, giriş ekranından şifre sıfırlama işlemi yapabilirsiniz.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={() => {
+                                            setDuplicateEmailError(null);
+                                            setAuthStep('LOGIN');
+                                        }}
+                                        className="btn-primary w-full py-4 text-base group"
+                                    >
+                                        Giriş Yap
+                                    </button>
+
+                                    <button
+                                        onClick={() => setDuplicateEmailError(null)}
+                                        className="w-full py-3 rounded-xl border border-slate-700 text-slate-400 font-semibold text-sm hover:border-slate-600 hover:text-slate-300 transition-all"
+                                    >
+                                        Geri Dön
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </>
         );
     }
 
@@ -1311,6 +1503,7 @@ const App: React.FC = () => {
                             isPremium={isPremium}
                             enableEntryDissolve={showChatEntryDissolve}
                             onEntryDissolveDone={() => setShowChatEntryDissolve(false)}
+                            onSendMessage={addMessage}
                         />
                     ) : isFilterOpen ? (
                         <FilterView
@@ -1356,6 +1549,9 @@ const App: React.FC = () => {
                                     onUpdateProfile={handleUpdateProfile}
                                     isPremium={isPremium}
                                     onOpenDiscoverySettings={() => setIsFilterOpen(true)}
+                                    onLogout={() => {
+                                        void signOut().finally(() => setAuthStep('LANDING'));
+                                    }}
                                 />
                             )}
                             {currentView === 'history' && (
@@ -1375,6 +1571,29 @@ const App: React.FC = () => {
                                     onViewProfile={setViewingProfile}
                                     onBrowseProfiles={() => setCurrentView('home')}
                                     onRetryScan={() => { showToast('Nearby scan refreshed.'); }}
+                                />
+                            )}
+                            {currentView === 'events' && (
+                                <EventFeed
+                                    userId={userProfile.id}
+                                    userCity={userProfile.city || 'Istanbul'}
+                                    isPremium={isPremium}
+                                    isVerified={userProfile.verified}
+                                    onUpgradeClick={() => setCurrentView('premium')}
+                                />
+                            )}
+                            {currentView === 'clubs' && (
+                                <ClubsView
+                                    userId={userProfile.id}
+                                    userCity={userProfile.city || 'Istanbul'}
+                                    onBack={() => setCurrentView('home')}
+                                />
+                            )}
+                            {currentView === 'conferences' && (
+                                <ConferencesView
+                                    userId={userProfile.id}
+                                    userCity={userProfile.city || 'Istanbul'}
+                                    onBack={() => setCurrentView('events')}
                                 />
                             )}
                         </>

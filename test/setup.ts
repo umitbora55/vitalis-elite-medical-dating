@@ -6,7 +6,8 @@ afterEach(() => {
   cleanup();
 });
 
-if (!window.matchMedia) {
+// Guard for Node environment (integration tests run without DOM)
+if (typeof window !== 'undefined' && !window.matchMedia) {
   window.matchMedia = (query: string) => ({
     matches: false,
     media: query,

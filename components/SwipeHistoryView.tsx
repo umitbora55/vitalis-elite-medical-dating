@@ -102,7 +102,7 @@ const SwipeHistoryViewComponent: React.FC<SwipeHistoryViewProps> = ({
             <h2 className="text-2xl font-serif text-white flex items-center gap-2">
                 <Clock size={24} className="text-gold-500" /> Swipe History
             </h2>
-            <span className="text-[10px] text-slate-500 font-medium uppercase tracking-widest">
+            <span className="text-xs text-slate-500 font-medium uppercase tracking-widest">
                 Last 50 Actions
             </span>
         </div>
@@ -114,7 +114,7 @@ const SwipeHistoryViewComponent: React.FC<SwipeHistoryViewProps> = ({
                     <button
                         key={ft}
                         onClick={() => setFilterType(ft)}
-                        className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all ${
+                        className={`px-3 py-1.5 rounded text-xs font-bold uppercase transition-all ${
                             filterType === ft ? 'bg-gold-500 text-white' : 'text-slate-400 hover:text-white'
                         }`}
                     >
@@ -127,7 +127,7 @@ const SwipeHistoryViewComponent: React.FC<SwipeHistoryViewProps> = ({
                  <select 
                     value={timeFilter}
                     onChange={(e) => setTimeFilter(e.target.value as TimeFilter)}
-                    className="bg-transparent text-[10px] font-bold text-slate-400 focus:outline-none uppercase px-2"
+                    className="bg-transparent text-xs font-bold text-slate-400 focus:outline-none uppercase px-2"
                  >
                      <option value="ALL">Any Time</option>
                      <option value="24H">Last 24h</option>
@@ -151,15 +151,17 @@ const SwipeHistoryViewComponent: React.FC<SwipeHistoryViewProps> = ({
                         className="flex items-center gap-3 p-3 bg-slate-900/50 hover:bg-slate-900 rounded-xl border border-slate-800 transition-colors group relative"
                     >
                         {/* Profile Image */}
-                        <div 
-                            className="relative w-12 h-12 rounded-full overflow-hidden border border-slate-700 cursor-pointer"
+                        <button
+                            type="button"
+                            className="relative w-12 h-12 rounded-full overflow-hidden border border-slate-700 cursor-pointer flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 focus:ring-offset-slate-950"
                             onClick={() => onViewProfile(item.profile)}
+                            aria-label={`View ${item.profile.name}'s profile`}
                         >
-                            <img src={item.profile.images[0]} alt={item.profile.name} className="w-full h-full object-cover" />
-                        </div>
+                            <img src={item.profile.images[0]} alt={item.profile.name} className="w-full h-full object-cover" loading="lazy" />
+                        </button>
 
                         {/* Info */}
-                        <div className="flex-1 min-w-0" onClick={() => onViewProfile(item.profile)}>
+                        <button type="button" className="flex-1 min-w-0 text-left focus:outline-none focus:ring-2 focus:ring-gold-500 rounded-lg" onClick={() => onViewProfile(item.profile)} aria-label={`View ${item.profile.name}, ${item.profile.age} — ${item.profile.specialty}`}>
                             <div className="flex items-center gap-2">
                                 <h3 className="font-bold text-slate-200 text-sm truncate">{item.profile.name}, {item.profile.age}</h3>
                                 {item.action === 'LIKE' && <Heart size={12} className="text-green-500 fill-green-500" />}
@@ -167,27 +169,27 @@ const SwipeHistoryViewComponent: React.FC<SwipeHistoryViewProps> = ({
                                 {item.action === 'PASS' && <X size={12} className="text-red-500" />}
                             </div>
                             <div className="flex items-center gap-2">
-                                <p className="text-[10px] text-slate-500 uppercase font-bold">{item.profile.specialty}</p>
-                                <span className="text-[10px] text-slate-600">•</span>
-                                <span className="text-[10px] text-slate-500">{formatTime(item.timestamp)}</span>
+                                <p className="text-xs text-slate-500 uppercase font-bold">{item.profile.specialty}</p>
+                                <span className="text-xs text-slate-600">•</span>
+                                <span className="text-xs text-slate-500">{formatTime(item.timestamp)}</span>
                             </div>
-                        </div>
+                        </button>
 
                         {/* Actions */}
                         <div className="flex items-center gap-2">
                             {item.action === 'PASS' ? (
-                                <button 
+                                <button
                                     onClick={() => onUndoSwipe(item)}
-                                    className="p-2 rounded-full bg-slate-800 text-green-500 hover:bg-green-500 hover:text-white transition-colors border border-slate-700"
-                                    title="Re-Like"
+                                    className="p-2 rounded-full bg-slate-800 text-green-500 hover:bg-green-500 hover:text-white transition-colors border border-slate-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    aria-label={`Re-like ${item.profile.name}`}
                                 >
                                     <Heart size={16} />
                                 </button>
                             ) : (
-                                <button 
+                                <button
                                     onClick={() => onUndoSwipe(item)}
-                                    className="p-2 rounded-full bg-slate-800 text-slate-400 hover:bg-red-500 hover:text-white transition-colors border border-slate-700"
-                                    title="Undo Like"
+                                    className="p-2 rounded-full bg-slate-800 text-slate-400 hover:bg-red-500 hover:text-white transition-colors border border-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    aria-label={`Undo like on ${item.profile.name}`}
                                 >
                                     <RotateCcw size={16} />
                                 </button>

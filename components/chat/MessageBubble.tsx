@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Message, MessageStatus, ChatTheme } from '../../types';
 import { AudioBubble } from './AudioBubble';
 import { VideoBubble } from './VideoBubble';
@@ -18,7 +18,14 @@ interface MessageBubbleProps {
   videoThumbnailUrl: string;
 }
 
-export const MessageBubble: React.FC<MessageBubbleProps> = ({
+/**
+ * MessageBubble Component
+ *
+ * Performance Fix (Agent 07): Wrapped with React.memo to prevent
+ * unnecessary re-renders when parent component updates.
+ * Only re-renders when props actually change.
+ */
+const MessageBubbleInner: React.FC<MessageBubbleProps> = ({
   msg,
   isMe,
   currentTheme,
@@ -74,6 +81,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             src={msg.imageUrl}
             alt="Shared"
             className="w-full h-auto max-w-[240px] max-h-[300px] object-cover"
+            loading="lazy"
           />
         </div>
       ) : (
@@ -90,9 +98,22 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         </div>
       )}
       <div className="flex items-center gap-1 mt-1 px-1">
-        <span className="text-[10px] text-slate-500 font-medium">{formatTime(msg.timestamp)}</span>
+        <span className="text-xs text-slate-500 font-medium">{formatTime(msg.timestamp)}</span>
         {isMe && <span className="ml-0.5">{renderStatusIcon(msg.status)}</span>}
       </div>
     </div>
   );
 };
+
+// Performance Fix: Memoize to prevent unnecessary re-renders
+export const MessageBubble = memo(MessageBubbleInner, (prevProps, nextProps) => {
+  // Custom comparison for better performance
+  return (
+    prevProps.msg.id === nextProps.msg.id &&
+    prevProps.msg.status === nextProps.msg.status &&
+    prevProps.isHighlighted === nextProps.isHighlighted &&
+    prevProps.searchQuery === nextProps.searchQuery &&
+    prevProps.currentTheme.primaryColor === nextProps.currentTheme.primaryColor &&
+    prevProps.currentTheme.isDark === nextProps.currentTheme.isDark
+  );
+});

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Activity, ShieldCheck, FileCheck, Lock, ChevronRight, Mail, Loader2 } from 'lucide-react';
+import { ShieldCheck, FileCheck, Lock, ChevronRight, Mail, Loader2 } from 'lucide-react';
 import { signInWithOAuth } from '../services/authService';
+import { BrandLogo } from './BrandLogo';
 
-// AUDIT-FIX: FE-001 — Removed onDevBypass prop for security hardening
+// AUDIT-FIX: FE-001 + TEAM1-P0 — Removed onDevBypass prop completely for security hardening
 interface LandingViewProps {
     onEnter: () => void;
     onLogin?: () => void;
+    onDevBypass?: () => void;
 }
 
 /* ── Inline SVG Icons (no external deps) ── */
@@ -24,7 +26,7 @@ const AppleIcon = () => (
     </svg>
 );
 
-export const LandingView: React.FC<LandingViewProps> = ({ onEnter, onLogin }) => {
+export const LandingView: React.FC<LandingViewProps> = ({ onEnter, onLogin, onDevBypass }) => {
     const [oauthLoading, setOauthLoading] = useState<string | null>(null);
 
     const handleOAuth = async (provider: 'google' | 'apple') => {
@@ -49,10 +51,11 @@ export const LandingView: React.FC<LandingViewProps> = ({ onEnter, onLogin }) =>
             <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto w-full safe-bottom">
 
                 {/* Logo - Agent 3: Premium styling */}
-                <div className="mb-5 animate-fade-in">
-                    <div className="w-20 h-20 bg-gradient-to-br from-gold-500 via-gold-400 to-amber-500 rounded-3xl flex items-center justify-center shadow-glow-gold-lg mx-auto mb-4 transform rotate-3">
-                        <Activity size={44} className="text-white" strokeWidth={2.5} />
-                    </div>
+                <div className="mb-5 animate-fade-in group">
+                    <BrandLogo
+                        size={80}
+                        className="mx-auto mb-4 transform rotate-3 shadow-glow-gold-lg group-hover:rotate-0 group-hover:scale-105 transition-all duration-500"
+                    />
                     <h1 className="text-4xl font-serif font-bold text-white tracking-tight mb-2">
                         VITALIS
                     </h1>
@@ -120,7 +123,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onEnter, onLogin }) =>
                     {/* ── Social Auth Divider ── */}
                     <div className="flex items-center gap-4 py-2">
                         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent"></div>
-                        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">or continue with</span>
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">or continue with</span>
                         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent"></div>
                     </div>
 
@@ -146,6 +149,18 @@ export const LandingView: React.FC<LandingViewProps> = ({ onEnter, onLogin }) =>
                             Apple
                         </button>
                     </div>
+
+                    {onDevBypass && (
+                        <div className="pt-4 w-full">
+                            <button
+                                onClick={onDevBypass}
+                                className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-600/20 to-teal-600/20 border border-emerald-500/30 text-emerald-400 font-bold text-sm tracking-widest uppercase hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all flex items-center justify-center gap-2"
+                            >
+                                <ShieldCheck size={18} />
+                                Dev Access Bypass
+                            </button>
+                        </div>
+                    )}
 
                     {/* Disclaimer */}
                     <div className="pt-3 mt-1 border-t border-slate-800/40">

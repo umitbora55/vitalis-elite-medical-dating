@@ -9,7 +9,11 @@ export type ViewType =
   | 'likesYou'
   | 'premium'
   | 'history'
-  | 'nearby';
+  | 'admin'
+  | 'nearby'
+  | 'events'
+  | 'clubs'
+  | 'conferences';
 
 interface UiState {
   currentView: ViewType;

@@ -35,13 +35,8 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onClose }) => {
     setErrorMessage(null);
     setIsProcessing(true);
 
-    const stripeMap: Record<string, 'GOLD' | 'PLATINUM'> = {
-      DOSE: 'GOLD',
-      FORTE: 'PLATINUM',
-      ULTRA: 'PLATINUM',
-    };
-
-    const { sessionUrl, error } = await createCheckoutSession(stripeMap[selectedPlan] || 'GOLD');
+    // AUDIT-FIX: FE-003/BE-021 — Send actual tier name directly (DOSE/FORTE/ULTRA)
+    const { sessionUrl, error } = await createCheckoutSession(selectedPlan as 'DOSE' | 'FORTE' | 'ULTRA');
     if (error || !sessionUrl) {
       setErrorMessage(error?.message || 'Checkout could not be started.');
       setIsProcessing(false);
@@ -207,7 +202,7 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onClose }) => {
                   }`}
               >
                 {plan.badge && (
-                  <div className="absolute -top-2.5 left-3 px-2.5 py-1 bg-gradient-to-r from-amber-500 to-amber-400 text-[9px] font-bold text-black uppercase tracking-wider rounded-full shadow-sm">
+                  <div className="absolute -top-2.5 left-3 px-2.5 py-1 bg-gradient-to-r from-amber-500 to-amber-400 text-xs font-bold text-black uppercase tracking-wider rounded-full shadow-sm">
                     {plan.badge}
                   </div>
                 )}

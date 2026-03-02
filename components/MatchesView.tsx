@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Match, Profile, MatchSortOption } from '../types';
-import { MessageCircle, Search, ArrowUpDown, Check, Clock, Zap, Timer, Stethoscope } from 'lucide-react';
+import { MessageCircle, Search, ArrowUpDown, Check, Stethoscope } from 'lucide-react';
 import { calculateCompatibility } from '../utils/compatibility';
-import { USER_PROFILE } from '../constants'; // Import current user for compatibility calc
+import { USER_PROFILE } from '../constants';
+import { MatchCardSkeleton } from './LoadingSpinner';
 
 interface MatchesViewProps {
   matches: Match[];
@@ -10,21 +11,10 @@ interface MatchesViewProps {
   onExtendMatch?: (matchId: string) => void;
   isPremium?: boolean;
   dailyExtensions?: number;
+  isLoading?: boolean;
 }
 
-/** Human-readable time remaining */
-function formatTimeLeft(ms: number): string {
-  if (ms <= 0) return 'Süre doldu';
-  const hours = Math.floor(ms / 3_600_000);
-  const minutes = Math.floor((ms % 3_600_000) / 60_000);
-  if (hours >= 24) {
-    const days = Math.floor(hours / 24);
-    const h = hours % 24;
-    return `${days}g ${h}s`;
-  }
-  if (hours > 0) return `${hours}s ${minutes}dk`;
-  return `${minutes}dk`;
-}
+
 
 /** Progress ratio 0→1 where 1 = full time, 0 = expired */
 function getTimerProgress(match: Match): number {
@@ -35,19 +25,13 @@ function getTimerProgress(match: Match): number {
   return Math.min(1, remaining / total);
 }
 
-/** Progress bar colour: green → orange → red */
-function getTimerColor(progress: number): string {
-  if (progress > 0.5) return 'bg-emerald-500';
-  if (progress > 0.2) return 'bg-orange-500';
-  return 'bg-red-500';
-}
+
+
 
 const MatchesViewComponent: React.FC<MatchesViewProps> = ({
   matches,
   onMatchSelect,
-  onExtendMatch,
-  isPremium = false,
-  dailyExtensions = 0,
+  isLoading = false,
 }) => {
   const [sortOption, setSortOption] = useState<MatchSortOption>(MatchSortOption.NEWEST);
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
@@ -110,19 +94,7 @@ const MatchesViewComponent: React.FC<MatchesViewProps> = ({
     [MatchSortOption.COMPATIBLE]: "Most Compatible"
   };
 
-  const formatMatchTime = (timestamp: number) => {
-    const diff = Date.now() - timestamp;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
 
-    if (minutes < 60) return `${minutes} min ago`;
-    if (hours < 24) return `${hours} hours ago`;
-    if (days === 1) return `Yesterday`;
-    if (days < 7) return `${days} days ago`;
-    if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
-    return `Long time ago`;
-  };
 
   const getStatusColor = (profile: Profile) => {
     if (profile.isOnlineHidden) return 'bg-slate-500';
@@ -132,17 +104,13 @@ const MatchesViewComponent: React.FC<MatchesViewProps> = ({
     return 'bg-slate-500';
   };
 
-  const canExtend = (match: Match): boolean => {
-    if (!match.expiresAt || !match.isActive) return false;
-    if (match.extended && !isPremium) return false; // Free users: 1 per match
-    if (!isPremium && dailyExtensions >= 1) return false; // Free users: 1/day
-    return true;
-  };
+
 
   return (
     <div className="w-full h-full max-w-md mx-auto pt-20 px-4 pb-4 flex flex-col">
+      {/* Dark Mode Fix (Agent 11): Use dark: prefix for theme-aware colors */}
       <div className="flex items-center justify-between mb-4 px-2">
-        <h2 className="text-2xl font-serif text-white">Matches</h2>
+        <h2 className="text-2xl font-serif text-slate-900 dark:text-white">Matches</h2>
         <span className="text-xs font-bold text-gold-500 bg-gold-500/10 px-3 py-1 rounded-full border border-gold-500/20">
           {filteredMatches.length} CONNECTIONS
         </span>
@@ -158,15 +126,19 @@ const MatchesViewComponent: React.FC<MatchesViewProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by name, role or specialty..."
+            placeholder="Search matches..."
             className="w-full bg-slate-900 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-sm text-slate-300 focus:outline-none focus:border-gold-500/50 transition-all placeholder:text-slate-600"
           />
         </div>
 
+        {/* Touch Target Fix (Agent 01): Minimum 44px touch area */}
         <div className="relative">
           <button
             onClick={() => setIsSortMenuOpen(!isSortMenuOpen)}
-            className="h-full px-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:border-slate-700 transition-colors"
+            aria-label="Sort matches"
+            aria-expanded={isSortMenuOpen}
+            aria-haspopup="listbox"
+            className="h-11 w-11 bg-slate-900 dark:bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 dark:hover:text-white hover:border-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gold-500"
           >
             <ArrowUpDown size={18} />
           </button>
@@ -188,122 +160,122 @@ const MatchesViewComponent: React.FC<MatchesViewProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto hide-scrollbar space-y-3 pb-20">
-        {sortedMatches.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-[50vh] opacity-50 space-y-4">
+      <div className="flex-1 overflow-y-auto hide-scrollbar pb-20 space-y-8">
+        {/* Loading State with Skeleton */}
+        {isLoading ? (
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <div className="h-4 w-32 bg-slate-800 rounded animate-pulse mx-2" />
+              <div className="flex gap-4 overflow-x-hidden pb-4 px-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex-shrink-0 w-24 flex flex-col items-center gap-2">
+                    <div className="w-20 h-20 rounded-2xl bg-slate-800 animate-pulse" />
+                    <div className="w-16 h-3 bg-slate-800 rounded animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="h-4 w-24 bg-slate-800 rounded animate-pulse mx-2" />
+              {[1, 2, 3, 4, 5].map((i) => (
+                <MatchCardSkeleton key={i} />
+              ))}
+            </div>
+          </div>
+        ) : sortedMatches.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-[40vh] opacity-50 space-y-4">
             <div className="w-20 h-20 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center">
               <MessageCircle size={32} className="text-slate-600" />
             </div>
             <div className="text-center">
               <p className="text-slate-300 font-serif text-lg mb-1">No matches found</p>
               <p className="text-slate-500 text-sm max-w-[200px]">
-                {searchQuery ? "Try adjusting your search criteria." : "Profiles you like will appear here once they like you back."}
+                {searchQuery ? "Try adjusting your search criteria." : "Start swiping to find your match!"}
               </p>
             </div>
           </div>
         ) : (
-          sortedMatches.map((match) => {
-            const isNew = Date.now() - match.timestamp < 24 * 60 * 60 * 1000;
-            const timeString = formatMatchTime(match.timestamp);
-            const timerProgress = getTimerProgress(match);
-            const hasTimer = match.expiresAt != null && !match.firstMessageSentAt;
-            const timeLeft = hasTimer ? match.expiresAt! - Date.now() : 0;
-            const isUrgent = hasTimer && timeLeft < 3 * 3_600_000; // < 3 hours
+          <>
+            {/* SECTION 1: NEW MATCHES (Horizontal Scroll) */}
+            {sortedMatches.some(m => !m.lastMessage) && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold text-gold-500 uppercase tracking-wider px-2">New Connections</h3>
+                <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar px-2 snap-x">
+                  {sortedMatches.filter(m => !m.lastMessage).map((match) => {
+                    const timerProgress = getTimerProgress(match);
+                    // Map bg- color to border- color approximately
+                    let borderColor = 'border-gold-500/30';
+                    if (timerProgress < 0.2) borderColor = 'border-red-500';
+                    else if (timerProgress < 0.5) borderColor = 'border-orange-500';
 
-            return (
-              <div
-                key={match.profile.id + '-' + match.timestamp}
-                className="group relative"
-              >
-                <div
-                  onClick={() => onMatchSelect(match)}
-                  className="flex items-center gap-4 p-4 bg-slate-900/50 hover:bg-slate-900 rounded-2xl border border-slate-800/50 hover:border-gold-500/30 transition-all cursor-pointer relative overflow-hidden"
-                >
-                  {/* Timer Progress Bar */}
-                  {hasTimer && (
-                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-800">
+                    return (
                       <div
-                        className={`h-full ${getTimerColor(timerProgress)} transition-all duration-1000 ease-linear`}
-                        style={{ width: `${timerProgress * 100}%` }}
-                      />
-                    </div>
-                  )}
-
-                  {/* New Badge */}
-                  {isNew && (
-                    <div className="absolute top-0 left-0 bg-gradient-to-r from-red-500 to-pink-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-br-lg shadow-sm animate-pulse">
-                      NEW
-                    </div>
-                  )}
-
-                  <div className="relative">
-                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-slate-700 group-hover:border-gold-500 transition-colors">
-                      <img src={match.profile.images[0]} alt={match.profile.name} className="w-full h-full object-cover" />
-                    </div>
-                    {/* Status Indicator */}
-                    <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 ${getStatusColor(match.profile)} border-2 border-slate-900 rounded-full`}></div>
-                    {/* On-Call Icon */}
-                    {match.profile.isOnCall && (
-                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-600 border-2 border-slate-900 rounded-full flex items-center justify-center" title="Nöbette">
-                        <Stethoscope size={10} className="text-white" />
+                        key={match.profile.id}
+                        onClick={() => onMatchSelect(match)}
+                        className="snap-start flex-shrink-0 w-24 flex flex-col items-center gap-2 group cursor-pointer"
+                      >
+                        <div className={`relative w-20 h-20 rounded-2xl overflow-hidden border-2 ${borderColor} group-hover:border-gold-500 transition-all shadow-lg group-hover:shadow-[0_0_15px_rgba(245,158,11,0.2)]`}>
+                          <img src={match.profile.images[0]} alt={match.profile.name} className="w-full h-full object-cover" loading="lazy" />
+                          {/* Status Dot */}
+                          <div className={`absolute bottom-1 right-1 w-3 h-3 ${getStatusColor(match.profile)} border-2 border-slate-900 rounded-full`}></div>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-bold text-slate-200 truncate w-full">{match.profile.name}</p>
+                          {/* New Badge */}
+                          <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full font-bold">NEW</span>
+                        </div>
                       </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-1">
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="font-bold text-slate-100 truncate text-lg">{match.profile.name}</h3>
-                        {/* Quick Reply Badge */}
-                        {match.profile.quickReplyBadge && (
-                          <span className="text-[10px] text-amber-400 flex items-center gap-0.5" title="Hızlı Yanıt">
-                            <Zap size={10} />
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
-                        {new Date(match.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-xs text-gold-500 uppercase font-bold tracking-wide">{match.profile.specialty}</p>
-                    </div>
-
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm text-slate-400 truncate group-hover:text-slate-300 transition-colors max-w-[140px]">
-                        {match.lastMessage || "Tap to start chatting"}
-                      </p>
-                      {hasTimer ? (
-                        <span className={`text-[10px] font-bold whitespace-nowrap flex items-center gap-1 ${isUrgent ? 'text-red-400' : 'text-orange-400/70'}`}>
-                          <Timer size={10} />
-                          {formatTimeLeft(timeLeft)}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-green-500/70 font-medium whitespace-nowrap">
-                          Matched {timeString} 💚
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                    )
+                  })}
                 </div>
-
-                {/* Extend Button */}
-                {hasTimer && canExtend(match) && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onExtendMatch?.(match.profile.id);
-                    }}
-                    className="absolute top-2 right-2 z-10 bg-slate-800/90 hover:bg-gold-600/20 border border-slate-700 hover:border-gold-500/50 text-slate-400 hover:text-gold-400 text-[9px] font-bold uppercase px-2 py-1 rounded-lg transition-all flex items-center gap-1"
-                    title="Süreyi 12 saat uzat"
-                  >
-                    <Clock size={10} /> Uzat
-                  </button>
-                )}
               </div>
-            )
-          })
+            )}
+
+            {/* SECTION 2: MESSAGES (Vertical List) */}
+            {sortedMatches.some(m => !!m.lastMessage) && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider px-2">Messages</h3>
+                <div className="space-y-2">
+                  {sortedMatches.filter(m => !!m.lastMessage).map((match) => {
+                    // Only need timeString for Messages view
+                    const isNew = Date.now() - match.timestamp < 24 * 60 * 60 * 1000;
+
+                    return (
+                      <div
+                        key={match.profile.id}
+                        onClick={() => onMatchSelect(match)}
+                        className="flex items-center gap-4 p-3 bg-slate-900/40 hover:bg-slate-900/80 rounded-xl border border-transparent hover:border-slate-700 transition-all cursor-pointer group"
+                      >
+                        <div className="relative">
+                          <div className="w-14 h-14 rounded-full overflow-hidden border border-slate-700 group-hover:border-slate-500 transition-colors">
+                            <img src={match.profile.images[0]} alt={match.profile.name} className="w-full h-full object-cover" loading="lazy" />
+                          </div>
+                          {match.profile.isOnCall && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 border border-slate-900 rounded-full flex items-center justify-center">
+                              <Stethoscope size={8} className="text-white" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-baseline mb-0.5">
+                            <h4 className="font-bold text-slate-200 truncate">{match.profile.name}</h4>
+                            <span className="text-xs text-slate-500 whitespace-nowrap">{new Date(match.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <p className={`text-xs truncate max-w-[160px] transition-colors ${isNew ? 'text-slate-200 font-medium' : 'text-slate-400 group-hover:text-slate-300'}`}>
+                              {match.lastMessage}
+                            </p>
+                            {/* Unread indicator could go here */}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

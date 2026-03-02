@@ -130,7 +130,7 @@ export const AudioBubble: React.FC<AudioBubbleProps> = ({
 
         <button
           onClick={toggleSpeed}
-          className={`px-2 py-1 rounded-md text-[10px] font-bold transition-colors ${
+          className={`px-2 py-1 rounded-md text-xs font-bold transition-colors ${
             isMe
               ? currentTheme.isDark
                 ? 'bg-white/20 hover:bg-white/30 text-white'
@@ -143,7 +143,7 @@ export const AudioBubble: React.FC<AudioBubbleProps> = ({
       </div>
 
       <div
-        className={`flex justify-between w-full px-1 text-[9px] font-mono font-medium ${
+        className={`flex justify-between w-full px-1 text-xs font-mono font-medium ${
           isMe
             ? currentTheme.isDark
               ? 'text-white/70'

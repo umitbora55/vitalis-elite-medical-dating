@@ -1,277 +1,401 @@
-# VITALIS FRONTEND AUDIT REPORT
+# VITALIS -- FRONTEND UI/UX AUDIT REPORT v2
 
-**Generated:** 2026-02-15
-**Auditor:** Frontend/UI-UX Auditor (Claude Opus 4.5)
-**Branch:** main (00fee4b)
-**Scope:** Web Frontend (React/Vite)
+**Generated:** 2026-02-17
+**Auditor:** Claude Opus 4.6 (Frontend/UI-UX Agent)
+**Project:** Vitalis Elite Medical Dating Platform
+**Branch:** main (6c41987)
+**Scope:** Web application components, design system, navigation, accessibility, performance, responsive design, animations, forms, premium features
+**Base Documents:** RECON_REPORT.md, artifacts/baseline/00_RECON_REPORT.md, AUTOMATION_SUMMARY.txt
 
 ---
 
 ### OZET
-- Toplam bulgu: 24 (CRITICAL: 2, HIGH: 6, MEDIUM: 11, LOW: 5)
-- En yuksek riskli 3 bulgu: FE-001, FE-002, FE-003
-- No finding moduller: hooks/useTheme.ts, hooks/useBoost.ts, stores/userStore.ts (iyi yapilandirilmis)
+- Toplam bulgu: **30** (CRITICAL: **1**, HIGH: **6**, MEDIUM: **15**, LOW: **8**)
+- En yuksek riskli 3 bulgu: **FE-001**, **FE-002**, **FE-003**
+- No finding moduller: `ErrorBoundary`, `LoadingSpinner`, `SwipeableCard (RN)`, `stores/`, `services/`
+
+**Onceki Raporla Karsilastirma (v1 -> v2):**
+- FE-001 (v1 Dev Bypass): KALDIRILMIS -- App.tsx'ten bypass butonu basariyla cikarilmis
+- FE-002 (v1 Error Boundary): DUZELTILMIS -- `ErrorBoundary.tsx` artik retry/go-home/report-bug icerir
+- FE-003 (v1 Loading Screen): DUZELTILMIS -- `LoadingSpinner.tsx` branded spinner ve skeleton icerir
+- FE-006 (v1 ControlPanel): DUZELTILMIS -- Rewind butonu artik disabled state'e sahip
+- ChatView.tsx Regex Injection: DUZELTILMIS -- `escapeRegExp()` fonksiyonu eklenmis (satir 60)
 
 ---
 
-## FINDINGS TABLE
+## AUTOMATION BASELINE
+
+| Check | Status | Detail |
+|-------|--------|--------|
+| TypeScript (`tsc --noEmit`) | PASSED | 0 errors |
+| ESLint | SKIPPED | No `eslint.config.js` -- flat config v9 migration needed |
+| npm audit | 1 LOW | `qs` indirect dep (GHSA-w7fw-mjwx-w883, CVSS 3.7) |
+
+---
+
+## BULGU TABLOSU
 
 | ID | Severity | Impact | Likelihood | Confidence | Effort | Dosya:Satir | Kanit | Etki | Oneri | Ornek duzeltme |
 |---|---|---|---|---|---|---|---|---|---|---|
-| FE-001 | CRITICAL | 5 | 5 | high | 1h | App.tsx:1057-1071 | `onDevBypass={import.meta.env.DEV ? () => {...}}` | import.meta.env.DEV bundler tarafindan prod'da false olur ama bundle'a kod dahil edilir | DEV bypass kodunu tamamen kaldir veya env var kontrolunu build time'da yap | `onDevBypass={undefined}` veya kodu tamamen sil |
-| FE-002 | CRITICAL | 5 | 4 | high | 2h | index.tsx:61 | `<Sentry.ErrorBoundary fallback={<p>Something went wrong.</p>}>` | Kullanici hata durumunda sadece "Something went wrong" goruyor, retry veya destek imkani yok | Kullanici dostu error boundary UI olustur: retry butonu, destek linki | Bkz: Detay FE-002 |
-| FE-003 | HIGH | 4 | 4 | high | 2h | App.tsx:76-80 | `const LoadingScreen: React.FC = () => (<div>Loading...</div>)` | Lazy-load sirasinda sadece "Loading..." text, skeleton veya spinner yok | Skeleton UI veya branded spinner ekle | Bkz: Detay FE-003 |
-| FE-004 | HIGH | 4 | 3 | high | 4h | App.tsx:1-1415 | 1415 satir god component | Test edilemez, refactor zor, performans riskleri | Modullere ayir: AuthFlow, HomeView, Navigation vb. | Extract custom hooks ve sub-components |
-| FE-005 | HIGH | 4 | 3 | high | 3h | ChatView.tsx:1-1185 | 1185 satir god component | Ayni sorun: test edilemez, state yonetimi karmasik | Chat sub-components zaten var, daha fazla extract yap | ChatProvider context, useChat hook |
-| FE-006 | HIGH | 3 | 4 | high | 1h | ControlPanel.tsx:17-24 | Rewind butonu disabled state olmadan render | isPremium olmadan tiklandiginda showPremiumAlert tetikleniyor ama buton gorsel olarak aktif gorunuyor | Disabled state ekle: `disabled={!isPremium && !lastSwipedId}` | `className={!isPremium ? 'opacity-50' : ''}` |
-| FE-007 | HIGH | 3 | 4 | high | 2h | OnboardingView.tsx:86-92 | Buton disabled state yok, loading state yok | Cift tiklama ile duplicate state degisiklikleri olabilir | isSubmitting state ve disabled prop ekle | `disabled={isSubmitting}` |
-| FE-008 | HIGH | 3 | 3 | high | 2h | ProfileCard.tsx:30-37 | `nextImage` fonksiyonu index reset yapmadan loop yapiyor | Bkz: Detay FE-008 | Edge case: tek resimli profilde loop sorunu yok ama UX kotu | currentImageIndex reset logic kontrol et |
-| FE-009 | MEDIUM | 3 | 3 | high | 3h | App.tsx:172-198 | `useEffect` icerisinde mock matches set ediliyor | Prod'da gercek data gelmeden once mock data gosteriliyor | useEffect'i auth kontrolu ile sarmala, prod'da disable et | `if (!IS_DEV) return;` ekle |
-| FE-010 | MEDIUM | 3 | 3 | high | 2h | constants.ts:248-608 | Mock data IS_DEV kontrolu ile korunuyor ama tum kod bundle'a dahil | Bundle boyutu gereksiz yere artmis (608 LOC) | Dynamic import veya ayri mock module | `import('./mocks')` only in dev |
-| FE-011 | MEDIUM | 3 | 3 | medium | 4h | FilterView.tsx:85-106 | Age input min/max validation yok, invalid state render | Kullanici 150 veya negatif yas girebilir | Zod validation + clamp logic ekle | `const val = Math.max(20, Math.min(80, parseInt(value)))` |
-| FE-012 | MEDIUM | 3 | 2 | high | 2h | MatchesView.tsx:159-201 | Match card'larda unique key olarak timestamp kullaniliyor | Ayni timestamp'li matchler sorun cikarabilir | profile.id kullan | `key={match.profile.id}` |
-| FE-013 | MEDIUM | 2 | 4 | high | 1h | AppHeader.tsx:53-60 | History butonu mobile'da hidden ama accessibility anouncement yok | Screen reader kullanicilari icin eksik bilgi | `aria-hidden="true"` ve responsive aria-label | Bkz: Detay FE-013 |
-| FE-014 | MEDIUM | 2 | 3 | high | 2h | ProfileDetailView.tsx:129-152 | Image gallery horizontal scroll icin pagination indicator tiklanamiyor | Pagination dot'lari sadece gorsel, interactive degil | onClick handler ekle veya scroll-snap ile sync et | Bkz: Detay FE-014 |
-| FE-015 | MEDIUM | 2 | 3 | medium | 3h | RegistrationFlow.tsx:540-601 | Document upload drag-drop destegi yok | Modern UX beklentisi, sadece click-to-upload var | onDragOver, onDrop handlers ekle | React dropzone veya native DnD API |
-| FE-016 | MEDIUM | 2 | 3 | medium | 2h | PremiumView.tsx:197-234 | Plan secim kartlari keyboard navigation destegi eksik | Tab ile gezilebilir ama space/enter ile secilemez | onKeyDown handler ekle | `onKeyDown={(e) => e.key === 'Enter' && setSelectedPlan(plan.id)}` |
-| FE-017 | MEDIUM | 2 | 3 | medium | 2h | LoginView.tsx:55-107 | Form submit ile Enter tusu calisiyor ama password visibility toggle yok | Kullanici sifreyi goremeden giris yapmak zorunda | Password visibility toggle ekle | `type={showPassword ? 'text' : 'password'}` |
-| FE-018 | MEDIUM | 2 | 2 | medium | 3h | StoryViewer komponent yok audit'te | Story viewer modal'da swipe gesture yok (touch) | Mobile UX eksik | Touch gesture handler ekle | react-swipeable veya native touch events |
-| FE-019 | MEDIUM | 2 | 2 | low | 2h | LandingView.tsx:14 | Background image external URL (Unsplash) | CDN bagimliligi, yavaslama riski | Optimize edilmis local asset kullan | Vite image import veya public folder |
-| FE-020 | LOW | 2 | 2 | high | 1h | ProfileCard.tsx:111 | `text-caption` custom class kullaniliyor | Tailwind config'de tanimli olmayabilir | Tailwind config kontrol et veya inline text-xs kullan | `text-xs` |
-| FE-021 | LOW | 2 | 2 | medium | 1h | MatchesView.tsx:111 | Search input placeholder Turkce/Ingilizce karisik degil ama uzun | UX: placeholder 40+ karakter | Kisalt veya i18n kullan | `placeholder="Search..."` |
-| FE-022 | LOW | 1 | 2 | high | 0.5h | NearbyView.tsx:92 | Toggle checkbox icin visible label yok | Screen reader icin sadece aria-label var, gorsel label yok | Gorsel label ekle veya tooltip | `<span>Visible to others</span>` |
-| FE-023 | LOW | 1 | 2 | medium | 1h | NotificationsView.tsx:13-14 | Inline SVG placeholder hardcoded | Kod okunurlugu kotu, ayri dosyaya tasi | SVG dosyasi veya Lucide icon kullan | `import { UserIcon } from './icons'` |
-| FE-024 | LOW | 1 | 1 | low | 1h | App.tsx:456 | Toast emoji kullanimi `showToast("Boost Activated! ")` | Emoji kullanimi tutarsiz (bazen var bazen yok) | Emoji kullanimi standardize et veya kaldir | Tutarli emoji policy |
+| FE-001 | CRITICAL | 5 | 4 | high | 4h | App.tsx:531 | `let filtered = MOCK_PROFILES.filter(profile => {` | Tum kesif motoru sahte verilerle calisiyor, gercek kullanici gorulmuyor | Supabase sorgularina gecis yapin | Bkz: Detay FE-001 |
+| FE-002 | HIGH | 4 | 5 | high | 3h | App.tsx:96 | 1449 satirlik monolith -- ~50 store selector, ~20 useCallback | Bakim zorluklari, test edilebilirlik dusuk, buyuk bundle | App.tsx'i custom hook ve alt komponentlere bolerek parcalayin | Bkz: Detay FE-002 |
+| FE-003 | HIGH | 4 | 4 | high | 2h | PremiumView.tsx:38-41 | `FORTE: 'PLATINUM', ULTRA: 'PLATINUM'` -- ayni Stripe plana map | ULTRA icin fazla odeme yapan kullanici FORTE ile ayni plani alir | Her tier icin ayri Stripe price ID kullanin | `{ DOSE: 'DOSE', FORTE: 'FORTE', ULTRA: 'ULTRA' }` |
+| FE-004 | HIGH | 3 | 5 | high | 2h | App.tsx:1166 | `<h2>Hesabin Dondurulmus</h2>` vs `"Ghost Mode Active"` | Karisik Turkce/Ingilizce icerik, tutarsiz kullanici deneyimi | i18n kutuphanesi entegre edin | `const { t } = useTranslation()` |
+| FE-005 | HIGH | 4 | 3 | high | 3h | ChatView.tsx:107 | `useState<Message[]>(match.messages \|\| [])` | Mesajlar store ile senkronize degil, sayfa yenilendiginde kaybolur | Mesajlari tamamen store uzerinden yonetin | `useMatchStore(s => s.getMessages(matchId))` |
+| FE-006 | HIGH | 3 | 4 | high | 2h | App.tsx:1185 | `bg-slate-50 dark:bg-slate-950` ana container'da var ama icerik dark-only | Acik modda beyaz bg uzerinde beyaz/acik metin okunamaz | Tum komponentlere `dark:` prefix class'lari ekleyin | `text-slate-900 dark:text-white` |
+| FE-007 | HIGH | 4 | 3 | high | 2h | ProfileCard.tsx:76-77 | `style={{ backgroundImage: \`url(\${...})\` }}` | LCP olumsuz, lazy/srcset/decode yok, buyuk Unsplash resimleri | `<img>` elementine gecin | Bkz: Detay FE-007 |
+| FE-008 | MEDIUM | 3 | 4 | high | 1h | MatchOverlay.tsx:73 | `new Audio('https://assets.mixkit.co/...')` | CDN down olursa hata gizlenir, autoplay policy, 3rd-party | Ses dosyalarini `/public/sounds/` dizinine tasiyin | `import matchSound from '/sounds/match.mp3'` |
+| FE-009 | MEDIUM | 3 | 4 | high | 2h | App.tsx:868-881 | `const getCardStyle = () => { ... }` | Her render'da yeniden olusturulur, gereksiz hesaplama | `useMemo` ile saralayin | `useMemo(() => getCardStyle(), [swipeDirection])` |
+| FE-010 | MEDIUM | 3 | 3 | high | 1h | StoryViewer.tsx:135-150 | `<div className="w-1/3 h-full" onClick={handlePrev}>` | Screen reader erisilemez, klavye navigasyonu yok | `<button>` veya `role="button"` kullanin | `<button aria-label="Previous story">` |
+| FE-011 | MEDIUM | 3 | 3 | high | 1h | MatchesView.tsx:214 | `<div onClick={() => onMatchSelect(match)} className="...cursor-pointer">` | Klavye erisilebilirligi yok, tabIndex/onKeyDown eksik | `<button>` elementine gecin | `<button type="button" onClick={...}>` |
+| FE-012 | MEDIUM | 3 | 4 | high | 1h | NearbyView.tsx:31-43 | `Date.now()` useMemo icinde ama dependency'de yok | 20dk once aktif kullanici hala listede, stale filtre | `nowMs` state + interval ile guncelleyin | Bkz: Detay FE-012 |
+| FE-013 | MEDIUM | 3 | 3 | high | 2h | ProfileDetailView.tsx:147-151 | `bg-white/30` -- tum indicator'lar ayni renk | Kullanici hangi fotografta oldugunu bilemiyor | Scroll pozisyonunu izleyin, aktif index'e `bg-white` verin | `IntersectionObserver` ile aktif index |
+| FE-014 | MEDIUM | 3 | 3 | high | 1h | MatchOverlay.tsx:59 | `createParticles(isPremium ? 38 : 28)` | 28-38 DOM element, dusuk perf cihazlarda FPS dususu | Particle sayisini azaltin, `will-change` ekleyin | Count'u 15'e dusurun |
+| FE-015 | MEDIUM | 2 | 4 | high | 0.5h | LandingView.tsx:44 | `bg-[url('https://images.unsplash.com/...')]` | Offline durumda bos arka plan, 3rd-party request | Resmi `/public/images/` dizinine indirin | `bg-[url('/images/landing-bg.webp')]` |
+| FE-016 | MEDIUM | 3 | 3 | medium | 2h | ChatView.tsx:164-166 | `scrollIntoView({ behavior: 'smooth' })` | Cok mesajda performans, ilk acilista gereksiz animasyon | Ilk yuklemede `'auto'`, sonraki `'smooth'` | `behavior: isInitial ? 'auto' : 'smooth'` |
+| FE-017 | MEDIUM | 2 | 4 | high | 0.5h | src/lib/analytics.ts:23-28 | `localStorage.getItem(KEY)` -- try-catch yok | Incognito/storage dolu durumda exception firlatir | try-catch ekleyin | `try { return localStorage.getItem(...) } catch { return null }` |
+| FE-018 | MEDIUM | 3 | 3 | high | 1h | App.tsx:237-238 | `useEffect(() => { setMatches(...) }, [])` -- bos dependency | Closure stale deger okuyabilir, strict mode double-invoke | Callback pattern kullanin | `setMatches(prev => prev.length > 0 ? prev : init)` |
+| FE-019 | MEDIUM | 3 | 3 | high | 1h | MyProfileView.tsx:305 | `option.id as any` | TypeScript strict mode'a ragmen tip guvenligi kiriliyor | `FirstMessagePreference` tipini kullanin | `option.id as FirstMessagePreference` |
+| FE-020 | MEDIUM | 2 | 3 | medium | 1h | AppHeader.tsx:42 | 6 nav butonu dar alanda `gap-1` | Mobilde touch target'lar birbirine cok yakin | Bottom tab bar veya hamburger menu | 4 ana sekme, diger ozellikler profilde |
+| FE-021 | MEDIUM | 2 | 3 | high | 2h | App.tsx:1242 | `<main>` -- skip-to-content link yok | WCAG 2.4.1 ihlali, screen reader tekrar dinler | Skip link ekleyin | `<a href="#main" className="sr-only focus:not-sr-only">` |
+| FE-022 | MEDIUM | 2 | 3 | high | 1h | ProfileCard.tsx:30-37 | `nextImage` sadece click, touch/swipe yok | Mobilde dogal swipe beklentisi karsilanmiyor | Touch event handler ekleyin | `onTouchStart/Move/End` |
+| FE-023 | LOW | 2 | 3 | high | 0.5h | ControlPanel.tsx:19 | `pointer-events-none` container, `auto` butonlar | Gap alanlarina tiklanamaz, arka karta gecis olabilir | Container'a `pointer-events-auto` verin | `className="... pointer-events-auto"` |
+| FE-024 | LOW | 2 | 2 | high | 1h | ChatView.tsx:34-52 | `MOCK_RESPONSES`, `MOCK_SHARED_PHOTOS` prod'da aktif | Gercek olmayan oto-yanitlar ve fotograflar gorulur | DEV guard ekleyin veya kaldirin | `import.meta.env.DEV ? simulate : noop` |
+| FE-025 | LOW | 2 | 2 | medium | 2h | SwipeHistoryView.tsx:155-162 | `<div onClick={() => onViewProfile(...)}>` | role, tabIndex, onKeyDown eksik, a11y sorunu | `<button>` elementine gecin | `<button type="button" onClick={...}>` |
+| FE-026 | LOW | 1 | 3 | high | 0.5h | RegistrationFlow.tsx:43-54 | `'Kimi gormek istedigini sec'` vs `'Full name is required'` | Karisik dil validasyon mesajlari | Tek dile standardize edin | Tum Zod mesajlarini ayni dilde yazin |
+| FE-027 | LOW | 2 | 2 | medium | 1h | ProfileCard.tsx:16-28 | Her ProfileCard kendi `setInterval(60s)` baslatir | 10 profil = 10 timer, gereksiz kaynak tuketimi | `nowMs` prop olarak gectirin | `<ProfileCard nowMs={nowMs} />` |
+| FE-028 | LOW | 1 | 2 | high | 0.5h | PremiumView.tsx:33,44 | `handlePurchase` async, onClick void donmez | Unhandled promise rejection riski | void pattern kullanin | `onClick={() => { void handlePurchase(); }}` |
+| FE-029 | LOW | 1 | 2 | medium | 1h | MatchOverlay.tsx:263-296 | Inline `<style>` keyframe animasyonlari | Her mount'ta DOM'a style inject edilir | tailwind.config.js keyframes'e tasiyin | Bkz: Detay FE-029 |
+| FE-030 | LOW | 1 | 2 | high | 0.5h | MyProfileView.tsx:461,464 | `< div className="h-10" ></div >` -- JSX bosluklar | Calisiyor ama kod kalitesi tutarsiz | Bosluklari temizleyin | `<div className="h-10"></div>` |
 
 ---
 
-## DETAILED FINDINGS
+## DETAYLI KANITLAR
 
-### Detay FE-002: Error Boundary Fallback UI
+### Detay FE-001: Tum Kesif Motoru MOCK_PROFILES Kullaniyor
 
-**Mevcut Kod (index.tsx:61):**
+Dosya: `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/App.tsx`
+
+Mock kullanim satirlari:
 ```tsx
-<Sentry.ErrorBoundary fallback={<p>Something went wrong.</p>}>
-  <App />
-</Sentry.ErrorBoundary>
+// App.tsx:2 -- Import
+import { MOCK_PROFILES, MOCK_LIKES_YOU_PROFILES, ... } from './constants';
+
+// App.tsx:216-235 -- Initial matches mock data
+const initialMatches: Match[] = [
+    { profile: MOCK_PROFILES[0], ... }, // Dr. Sarah
+    { profile: MOCK_PROFILES[1], ... }, // James
+    { profile: MOCK_PROFILES[2], ... }, // Elena
+];
+
+// App.tsx:531 -- Ana profil filtreleme (DISCOVERY ENGINE)
+let filtered = MOCK_PROFILES.filter(profile => {
+
+// App.tsx:585 -- Kalan profil sayisi
+const unswipedCount = MOCK_PROFILES.filter(p => !swipedProfileIds.has(p.id) ...
+
+// App.tsx:917 -- LikesYou count
+<span>{MOCK_LIKES_YOU_PROFILES.length} Likes</span>
+
+// App.tsx:1308 -- LikesYou view'e mock data
+profiles={MOCK_LIKES_YOU_PROFILES}
+
+// App.tsx:1333 -- NearbyView'e mock data
+profiles={MOCK_PROFILES}
 ```
 
-**Sorun:** Kullanici kritik bir hata aldizinda sadece beyaz ekranda "Something went wrong." goruyor. Retry imkani, destek linki veya detayli bilgi yok.
+**Etki:** Production'da gercek kullanicilar gorulmez. Tum kullanicilar ayni sahte profilleri gorur. Bu uygulamanin temel islevselligini tamamen kiriliyor.
 
-**Onerilen Duzeltme:**
+**Onerilen cozum:**
 ```tsx
-const ErrorFallback: React.FC<{ error: Error; resetError: () => void }> = ({ resetError }) => (
-  <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
-    <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
-      <AlertTriangle size={40} className="text-red-500" />
-    </div>
-    <h1 className="text-2xl font-serif text-white mb-3">Bir hata olustu</h1>
-    <p className="text-slate-400 mb-6">Beklenmeyen bir sorun yasandi. Lutfen tekrar deneyin.</p>
-    <button onClick={resetError} className="btn-primary">
-      Tekrar Dene
-    </button>
-    <a href="mailto:support@vitalis.com" className="text-gold-400 mt-4 text-sm">
-      Destek ile iletisime gec
-    </a>
-  </div>
-);
-```
-
----
-
-### Detay FE-003: Loading Screen
-
-**Mevcut Kod (App.tsx:76-80):**
-```tsx
-const LoadingScreen: React.FC = () => (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-300 text-sm">
-        Loading...
-    </div>
-);
-```
-
-**Sorun:** Lazy-load sirasinda kullanici sadece "Loading..." text goruyor. Markayla uyumlu degil, UX kalitesi dusuk.
-
-**Onerilen Duzeltme:**
-```tsx
-const LoadingScreen: React.FC = () => (
-  <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4">
-    <div className="w-16 h-16 bg-gradient-to-br from-gold-500 to-gold-600 rounded-2xl flex items-center justify-center animate-pulse">
-      <Activity size={32} className="text-white" />
-    </div>
-    <div className="flex gap-1">
-      <div className="w-2 h-2 bg-gold-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-      <div className="w-2 h-2 bg-gold-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-      <div className="w-2 h-2 bg-gold-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-    </div>
-  </div>
-);
+// stores/discoveryStore.ts icinde
+fetchProfiles: async (userId: string, filters: Filters) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .neq('id', userId)
+    .gte('age', filters.ageMin)
+    .lte('age', filters.ageMax)
+    .limit(50);
+  if (error) throw error;
+  set({ profiles: data });
+}
 ```
 
 ---
 
-### Detay FE-008: ProfileCard Image Navigation
+### Detay FE-002: App.tsx Monolith (1449 satir)
 
-**Mevcut Kod (ProfileCard.tsx:30-37):**
+Dosya: `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/App.tsx`
+
+Tek dosyada bulunan state yonetimi:
+- Satir 97-147: ~50 store selector (authStore, userStore, uiStore, discoveryStore, matchStore, notificationStore)
+- Satir 151-162: Timer state ve effect (`nowMs`)
+- Satir 164-196: Auth state listener (`onAuthStateChange`)
+- Satir 237-238: Mock initial matches
+- Satir 528-590: Profil filtreleme mantigi (visibleProfiles)
+- Satir 868-881: `getCardStyle()` inline fonksiyon
+- Satir 883-1072: `renderHome()` -- 190 satirlik inline render
+- Satir 1074-1181: Auth/registration/pending/frozen ekranlari
+- Satir 1183-1449: Ana uygulama render (header, toast, consent, story, chat, views)
+
+**Onerilen cozum:**
+```
+hooks/useSwipeEngine.ts     -- swipe/filter/discovery mantigi
+hooks/useMatchManager.ts    -- match CRUD, expiry, extend
+hooks/useAuthRouter.ts      -- auth step routing
+components/HomeScreen.tsx   -- renderHome() ayri komponent
+components/AuthRouter.tsx   -- auth adim yonetimi
+components/AppShell.tsx     -- header + toast + consent + main
+```
+
+---
+
+### Detay FE-007: ProfileCard backgroundImage Kullanimi
+
+Dosya: `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/components/ProfileCard.tsx` satir 76-77
+
 ```tsx
-const nextImage = (e: React.MouseEvent): void => {
-    e.stopPropagation();
-    if (currentImageIndex < profile.images.length - 1) {
-      setCurrentImageIndex(prev => prev + 1);
-    } else {
-      setCurrentImageIndex(0);
+<div
+    className="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-out transform group-hover:scale-105"
+    style={{ backgroundImage: `url(${profile.images[currentImageIndex]})` }}
+    onClick={nextImage}
+    role="img"
+    aria-label={`${profile.name}'s photo...`}
+    tabIndex={0}
+>
+```
+
+Sorunlar:
+1. `backgroundImage` CSS resimleri tarayici tarafindan `<img>` elementlerinden daha gec yuklenir -- LCP olumsuz etkilenir
+2. `loading="lazy"`, `srcset`, `decode="async"` gibi native optimizasyonlar kullanilamiyor
+3. `profile.images` URL'leri tam boyut Unsplash resimleri (tipik 2000x3000px)
+4. `width`/`height` belirtilmedigi icin CLS riski
+
+**Onerilen cozum:**
+```tsx
+<img
+    src={profile.images[currentImageIndex]}
+    loading={currentImageIndex === 0 ? 'eager' : 'lazy'}
+    decoding="async"
+    width={400}
+    height={600}
+    className="absolute inset-0 w-full h-full object-cover transition-all duration-700"
+    alt={`${profile.name}'s photo ${currentImageIndex + 1} of ${profile.images.length}`}
+    onClick={nextImage}
+/>
+```
+
+---
+
+### Detay FE-012: NearbyView Stale Date.now()
+
+Dosya: `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/components/NearbyView.tsx` satirlar 31-44
+
+```tsx
+const nearbyUsers = useMemo(() => {
+    if (!isVisible) return [];
+    return profiles.filter(p => {
+        if (p.id === currentUser.id) return false;
+        if (p.distance > 5) return false;
+        if (p.isOnlineHidden) return false;
+        const isRecent = (Date.now() - p.lastActive) < 20 * 60 * 1000; // 20 mins
+        const isAvailable = p.isAvailable &&
+            (!p.availabilityExpiresAt || p.availabilityExpiresAt > Date.now());
+        return isRecent || isAvailable;
+    }).sort((a, b) => a.distance - b.distance);
+}, [profiles, currentUser.id, isVisible]);
+//   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Date.now() dependency'de YOK
+```
+
+`Date.now()` her cagrildiginda farkli deger uretir ama useMemo dependency array'inde olmadigi icin memo cached degerini dondurur. 20 dakikadan fazla sure gecse bile, `profiles` veya `isVisible` degismedigi surece filtre guncellenmez.
+
+**Onerilen cozum:**
+```tsx
+const [nowMs, setNowMs] = useState(Date.now());
+useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(id);
+}, []);
+
+const nearbyUsers = useMemo(() => {
+    // ... ayni filtre mantigi, Date.now() yerine nowMs kullanin
+    const isRecent = (nowMs - p.lastActive) < 20 * 60 * 1000;
+    const isAvailable = p.isAvailable &&
+        (!p.availabilityExpiresAt || p.availabilityExpiresAt > nowMs);
+    // ...
+}, [profiles, currentUser.id, isVisible, nowMs]); // nowMs eklendi
+```
+
+---
+
+### Detay FE-029: MatchOverlay Inline Style Blogu
+
+Dosya: `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/components/MatchOverlay.tsx` satirlar 263-296
+
+```tsx
+<style>{`
+    @keyframes fall {
+        0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+        100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
     }
-  };
+    .animate-fall { animation-name: fall; animation-timing-function: linear; ... }
+    @keyframes ping-once { ... }
+    @keyframes slow-rotate { ... }
+    @keyframes handoff-bar { ... }
+`}</style>
 ```
 
-**Sorun:** Fonksiyon calisir ama UX acisindan:
-1. Onceki resme geri donme imkani yok (prevImage)
-2. Hangi resimde oldugu sadece indicator bar'dan anlasilir
-3. Touch swipe destegi yok
+Her mount'ta 4 ayri keyframe animasyonu DOM'a inject edilir. Bu pattern maintainability acisindan problemlidir ve SSR ortamlarinda hydration mismatch olusturabilir.
 
-**Onerilen Iyilestirme:**
-```tsx
-// Swipe gesture support
-const handleTouchStart = (e: React.TouchEvent) => {
-  setTouchStart(e.touches[0].clientX);
-};
-
-const handleTouchEnd = (e: React.TouchEvent) => {
-  const delta = touchStart - e.changedTouches[0].clientX;
-  if (Math.abs(delta) > 50) {
-    delta > 0 ? nextImage() : prevImage();
-  }
-};
-```
-
----
-
-### Detay FE-013: AppHeader Responsive Accessibility
-
-**Mevcut Kod (AppHeader.tsx:53-60):**
-```tsx
-<button
-  onClick={() => setView('history')}
-  aria-label="Open swipe history"
-  className={`${navButtonClass('history')} hidden sm:flex`}
->
-  <Clock size={22} strokeWidth={2} />
-</button>
-```
-
-**Sorun:** `hidden sm:flex` ile mobile'da gizleniyor ama screen reader bu butonu hala anounce edebilir.
-
-**Onerilen Duzeltme:**
-```tsx
-<button
-  onClick={() => setView('history')}
-  aria-label="Open swipe history"
-  aria-hidden="true" // veya responsive aria-hidden
-  tabIndex={-1} // mobile'da focus almamasi icin
-  className={`${navButtonClass('history')} hidden sm:flex`}
->
+**Onerilen cozum:** `tailwind.config.js` icine tasiyin:
+```js
+// tailwind.config.js extend
+keyframes: {
+    fall: {
+        '0%': { transform: 'translateY(-10vh) rotate(0deg)', opacity: '1' },
+        '100%': { transform: 'translateY(110vh) rotate(360deg)', opacity: '0' },
+    },
+    'ping-once': { ... },
+    'slow-rotate': { '100%': { transform: 'rotate(360deg)' } },
+    'handoff-bar': { '100%': { transform: 'translateX(100%)' } },
+},
+animation: {
+    fall: 'fall var(--fall-duration, 3s) linear forwards',
+    'ping-once': 'ping-once 0.4s cubic-bezier(0,0,0.2,1)',
+    'slow-rotate': 'slow-rotate 14s linear infinite',
+}
 ```
 
 ---
 
-### Detay FE-014: Image Gallery Pagination
+## 3RD-PARTY URL BAGIMLILIKLARI
 
-**Mevcut Kod (ProfileDetailView.tsx:146-152):**
-```tsx
-{profile.images.length > 1 && (
-   <div className="absolute top-5 left-5 right-5 flex gap-2 z-40">
-       {profile.images.map((_, idx) => (
-           <div key={idx} className="flex-1 h-1.5 rounded-full bg-white/30 backdrop-blur-sm"></div>
-       ))}
-   </div>
-)}
-```
+| URL | Dosya | Kullanim | Risk |
+|-----|-------|----------|------|
+| `images.unsplash.com/photo-1516549655169...` | LandingView.tsx:44, MatchOverlay.tsx:44 | CSS background | CDN down = bos bg |
+| `images.unsplash.com/photo-1551076805...` | App.tsx:491 | Mock profil resmi | Prod'da kalirsa dis bagimlilik |
+| `images.unsplash.com/photo-1576091160...` (x4) | ChatView.tsx:48-51, :743 | Mock chat fotograflari | Prod'da kalirsa dis bagimlilik |
+| `assets.mixkit.co/...sfx/2003/...` | MatchOverlay.tsx:73 | Match pop ses efekti | CDN down = sessiz match |
+| `assets.mixkit.co/...sfx/270/...` | MatchOverlay.tsx:100 | Celebrating ses efekti | CDN down = sessiz match |
+| `www.transparenttextures.com/patterns/snow.png` | App.tsx:1159 | Frozen account texture | CDN down = bos desen |
+| `www.transparenttextures.com/patterns/cubes.png` | OnboardingView.tsx:72 | Onboarding texture | CDN down = bos desen |
+| `via.placeholder.com/...` (x4) | mobile/app/(tabs)/*.tsx | Mobile fallback resimleri | CDN down = kirik resim |
 
-**Sorun:** Pagination indicator'lar sadece gorsel, tiklanabilir degil.
-
-**Onerilen Duzeltme:**
-```tsx
-{profile.images.map((_, idx) => (
-  <button
-    key={idx}
-    onClick={() => scrollToImage(idx)}
-    aria-label={`Go to image ${idx + 1}`}
-    className={`flex-1 h-1.5 rounded-full transition-colors ${
-      idx === currentIndex ? 'bg-white' : 'bg-white/30'
-    }`}
-  />
-))}
-```
+**Toplam:** 12 farkli dis kaynak URL, 6 farkli CDN. Tamaminin lokale indirilmesi gerekmektedir.
 
 ---
 
-## NO FINDING MODULES
+## MODUL BAZLI OZET
 
-Asagidaki moduller incelendi ve kayda deger sorun bulunamadi:
-
-| Modul | Neden No Finding |
-|-------|------------------|
-| hooks/useTheme.ts | Clean implementation, effect cleanup dogru, system preference listener mevcut |
-| hooks/useBoost.ts | State yonetimi temiz, timer cleanup mevcut |
-| stores/userStore.ts | Zustand best practices, minimal state |
-| components/Tooltip.tsx | Basit, accessibility uyumlu |
-| services/authService.ts | Sadece Supabase wrapper, frontend concern degil |
-
----
-
-## PERFORMANCE CONCERNS
-
-| Concern | Dosya | Aciklama | Oneri |
-|---------|-------|----------|-------|
-| Large Bundle | constants.ts | 608 LOC mock data prod bundle'a dahil | Dynamic import veya tree-shaking |
-| No Memoization | App.tsx:507-560 | `visibleProfiles` useMemo kullaniliyor (iyi) ama dependency array buyuk | Selector pattern ile optimize et |
-| Image Loading | ProfileCard.tsx | Lazy loading yok, tum resimler eager load | `loading="lazy"` ekle |
-| Re-renders | ChatView.tsx:103-104 | `messagesRef.current = messages` her render'da | useRef callback pattern |
-
----
-
-## ACCESSIBILITY SUMMARY
-
-| WCAG Criteria | Status | Notes |
-|---------------|--------|-------|
-| 1.1.1 Non-text Content | PARTIAL | Alt text mevcut ama bazen generic ("Profile photo") |
-| 1.4.3 Contrast (AA) | PARTIAL | `text-slate-500` on `bg-slate-900` kontrast yeterli degil |
-| 2.1.1 Keyboard | PARTIAL | Modal'lar keyboard ile kapatilabilir, ama focus trap yok |
-| 2.4.4 Link Purpose | PASS | Butonlarda aria-label mevcut |
-| 4.1.2 Name, Role, Value | PARTIAL | Custom toggle'larda role="switch" eksik |
+| Modul/Dizin | Bulgu Sayisi | Notlar |
+|---|---|---|
+| App.tsx (Ana Giris) | 7 | Monolith, mock data, dil, dark mode, dep array, skip link, getCardStyle |
+| components/ChatView.tsx | 3 | Local state/store sync, mock data, scroll performansi |
+| components/ProfileCard.tsx | 3 | LCP/backgroundImage, timer coklamasi, click-only navigation |
+| components/PremiumView.tsx | 2 | Stripe mapping hatasi, async handler |
+| components/MatchOverlay.tsx | 2 | Dis CDN ses, inline style |
+| components/MyProfileView.tsx | 2 | `as any` assertion, JSX spacing |
+| components/RegistrationFlow.tsx | 1 | Karisik dil validasyon mesajlari |
+| components/MatchesView.tsx | 1 | Div click erisebilirlik |
+| components/ProfileDetailView.tsx | 1 | Galeri indicator sync |
+| components/StoryViewer.tsx | 1 | Touch zone erisebilirlik |
+| components/NearbyView.tsx | 1 | Stale Date.now() |
+| components/SwipeHistoryView.tsx | 1 | Non-interactive div |
+| components/LandingView.tsx | 1 | Dis kaynak resim |
+| components/ControlPanel.tsx | 1 | pointer-events mantigi |
+| components/AppHeader.tsx | 1 | Sikisik mobil nav |
+| src/lib/analytics.ts | 1 | localStorage try-catch eksik |
+| components/ErrorBoundary.tsx | 0 | No finding -- retry + go home + report bug iyi uygulanmis |
+| components/LoadingSpinner.tsx | 0 | No finding -- skeleton + spinner + aria attr mevcut |
+| components/SwipeableCard.tsx (RN) | 0 | No finding -- gesture/haptics/memo dogru, iyi kalite |
+| stores/ (6 store) | 0 | No finding -- Zustand best practices, persist middleware dogru |
+| services/ (auth, checkout, etc.) | 0 | No finding -- Frontend perspektifinden servis cagrilari dogru |
 
 ---
 
-## RECOMMENDATIONS PRIORITY
+## ERISILEBILIRLIK OZETI (WCAG 2.1)
 
-### Immediate (P0 - Before Production)
-1. FE-002: Error boundary UI iyilestirmesi
-2. FE-003: Loading screen UX
-3. FE-006: Button disabled states
-
-### Short-term (P1 - Sprint)
-1. FE-004/FE-005: God component refactoring
-2. FE-010: Mock data bundle optimization
-3. FE-011: Form validation
-
-### Medium-term (P2 - Backlog)
-1. FE-014-FE-018: UX improvements
-2. Accessibility audit ve WCAG AA compliance
-3. Performance optimization (lazy loading, memoization)
+| WCAG Kriteri | Durum | Notlar |
+|---|---|---|
+| 1.1.1 Non-text Content | KISMI | `alt` ve `aria-label` cogunlukla mevcut, ProfileCard'da role="img" var |
+| 1.4.3 Kontrast (AA) | KISMI | `text-slate-500` on `bg-slate-900` kontrast sinirda (4.08:1) |
+| 2.1.1 Keyboard | KISMI | Modal'lar ESC ile kapanir, ama bazi div onClick'ler klavye ile erisilemez (FE-010/011/025) |
+| 2.4.1 Bypass Blocks | BASARISIZ | Skip-to-content link yok (FE-021) |
+| 2.4.4 Link Purpose | BASARILI | Butonlarda aria-label mevcut |
+| 4.1.2 Name, Role, Value | KISMI | StoryViewer touch zones'da role eksik, NearbyView toggle'da sr-only |
 
 ---
 
-## CONCLUSION
+## PERFORMANS OZETI
 
-Vitalis frontend genel olarak iyi yapilandirilmis bir React uygulamasi. Tasarim tutarliligi yuksek, Tailwind ile olusturulmus premium UI mevcut. Ancak:
-
-1. **God Component Anti-pattern:** App.tsx ve ChatView.tsx cok buyuk, refactoring gerekli
-2. **Error/Loading States:** Kullanici deneyimi acisindan eksik
-3. **Accessibility:** Temel aria-label'lar mevcut ama WCAG AA icin ek calisma gerekli
-4. **Bundle Size:** Mock data prod bundle'da, optimization gerekli
-
-Toplam tahmini duzeltme suresi: ~40-50 saat
+| Konu | Dosya | Aciklama | Oneri |
+|---|---|---|---|
+| LCP | ProfileCard.tsx | CSS backgroundImage, `<img>` degil | `<img>` ile degistir, lazy load |
+| Bundle Bloat | constants.ts (608 LOC) | Mock data prod bundle'a dahil | Dynamic import veya DEV guard |
+| Timer Proliferation | ProfileCard.tsx | Her kart kendi 60s interval'i | Prop ile gectir |
+| Re-render | App.tsx:868 | `getCardStyle()` memoize edilmemis | useMemo |
+| DOM Count | MatchOverlay.tsx | 28-38 confetti particle DOM element | Sayiyi azalt veya Canvas |
+| Scroll Perf | ChatView.tsx | Smooth scroll her mesajda | Ilk yukleme auto, sonra smooth |
 
 ---
 
-*Report generated by Frontend Auditor Agent*
+## ONCELIK SIRASI (Onerilen Duzeltme Plani)
+
+### P0 -- Hemen (Production oncesi zorunlu)
+| # | ID | Konu | Effort |
+|---|---|---|---|
+| 1 | FE-001 | Mock data -> gercek Supabase sorgulari | 4h |
+| 2 | FE-003 | Stripe tier mapping duzeltmesi | 2h |
+
+### P1 -- Bu Sprint
+| # | ID | Konu | Effort |
+|---|---|---|---|
+| 3 | FE-002 | App.tsx parcalama | 3h |
+| 4 | FE-005 | ChatView mesaj state/store sync | 3h |
+| 5 | FE-004 | Dil tutarliligi (i18n) | 2h |
+| 6 | FE-007 | Resim optimizasyonu (bg -> img) | 2h |
+| 7 | FE-006 | Dark mode tutarliligi | 2h |
+
+### P2 -- Sonraki Sprint
+| # | ID | Konu | Effort |
+|---|---|---|---|
+| 8 | FE-008 | Dis CDN ses dosyalarini lokale al | 1h |
+| 9 | FE-010 | StoryViewer touch zone a11y | 1h |
+| 10 | FE-011 | MatchesView div->button a11y | 1h |
+| 11 | FE-012 | NearbyView stale time fix | 1h |
+| 12 | FE-013 | Galeri indicator sync | 2h |
+| 13 | FE-016 | Chat scroll optimizasyonu | 2h |
+| 14 | FE-021 | Skip-to-content link | 2h |
+| 15 | FE-015 | Dis kaynak resimleri lokale indir | 0.5h |
+
+### P3 -- Backlog
+| # | ID'ler | Konu | Effort |
+|---|---|---|---|
+| 16+ | FE-009,014,017-020,022-030 | Diger MEDIUM ve LOW bulgular | ~12h toplam |
+
+**Toplam tahmini duzeltme suresi:** ~40h
+
+---
+
+## NOTLAR
+
+1. **Onceki Duzeltmeler Dogrulandi:** v1 raporundaki FE-001 (Dev Bypass), FE-002 (Error Boundary), FE-003 (Loading Screen), FE-006 (ControlPanel disabled state) basariyla duzeltilmis. ChatView regex injection da `escapeRegExp()` ile giderilmis.
+
+2. **ESLint Eksik:** Proje `eslint.config.js` dosyasina sahip degil. ESLint v9 flat config migrasyon yapilmali. Kod kalitesi sorunlarinin otomatik tespiti engelleniyor.
+
+3. **TypeScript Temiz:** `tsc --noEmit` 0 hata rapor eder. Tip guvenligi iyi uygulanmis (FE-019 `as any` disinda).
+
+4. **Lazy Loading Iyi:** `React.lazy()` ve `Suspense` ile MatchesView, ChatView, ProfileDetailView, OnboardingView, RegistrationFlow, PremiumView dogru lazy load ediliyor.
+
+5. **Erisebilirlik Temeli Iyi:** 81 `aria-label/role` kullanimi 18 dosyada tespit edildi. `aria-modal`, `aria-live`, `aria-expanded`, `aria-haspopup` dogru kullanilmis. Eksikler: bazi div onClick'ler, skip link, touch zones.
+
+6. **React.memo Kullanimi:** `MatchesView`, `SwipeHistoryView`, `SwipeableCard (RN)` dogru `React.memo` ile sarmalanmis. `useMemo` ve `useCallback` toplam 31 kullanim 13 dosyada.
+
+7. **Error Boundary Iyi:** `ErrorBoundary` class component retry, go home, report bug islevselligine sahip. `withErrorBoundary` HOC da mevcut. App en ust seviyede sarmalanmis.
+
+8. **Mobil RN Iyi:** `SwipeableCard.tsx` -- Reanimated, GestureHandler, Haptics, `memo` dogru uygulanmis.
+
+---
+
+**END OF FRONTEND AUDIT REPORT v2**

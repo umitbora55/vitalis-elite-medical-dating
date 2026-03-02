@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vitalis.health/schemas/moderation_case",
+  "title": "ModerationCase",
+  "description": "A unified moderation work item covering verification, report, appeal, fraud, ATO, or safety case types.",
+  "type": "object",
+  "required": ["case_type", "subject_id", "status", "priority"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique case identifier"
+    },
+    "case_type": {
+      "type": "string",
+      "enum": ["verification", "report", "appeal", "fraud", "ato", "safety"],
+      "description": "Category of moderation work"
+    },
+    "subject_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID of the user whose account is the subject of this case"
+    },
+    "reporter_id": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "UUID of the user who filed the report. Null for system-generated cases (fraud/ATO)."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["open", "in_progress", "escalated", "resolved", "closed"],
+      "description": "Workflow state of the case"
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["P0", "P1", "P2", "P3"],
+      "description": "P0 = 1h SLA (critical), P1 = 24h, P2 = 72h, P3 = best effort"
+    },
+    "assigned_to": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "UUID of the moderator currently assigned to this case. Null if unassigned."
+    },
+    "sla_due_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 deadline by which the case must have first moderator action"
+    },
+    "resolution_code": {
+      "type": ["string", "null"],
+      "enum": [
+        "no_action",
+        "warning",
+        "temp_ban",
+        "perm_ban",
+        "verified",
+        "rejected",
+        "escalated_external",
+        null
+      ],
+      "description": "Outcome code set when the case is resolved or closed. Null while open/in-progress."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the case was created"
+    },
+    "resolved_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the case was resolved or closed. Null while active."
+    }
+  },
+  "additionalProperties": false
+}

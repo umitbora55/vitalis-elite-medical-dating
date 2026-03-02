@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vitalis.health/schemas/verification_decision",
+  "title": "VerificationDecision",
+  "description": "Final moderation decision on a healthcare professional verification request. Consumed by admin-decide-verification Edge Function.",
+  "type": "object",
+  "required": ["request_id", "decision", "reviewer_id"],
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID of the verification_request being decided"
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["approve", "reject", "need_more_info"],
+      "description": "Final outcome of the review"
+    },
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "unreadable",
+        "expired",
+        "suspected_fake",
+        "name_mismatch",
+        "wrong_doc_type",
+        "not_active",
+        "other"
+      ],
+      "description": "Required when decision is 'reject'. Provides the user with a clear rejection reason."
+    },
+    "notes": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "Optional free-text moderator notes. Never shown to the user directly; internal audit trail only."
+    },
+    "reviewer_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID of the moderator who issued this decision (populated from auth.uid() server-side)"
+    },
+    "decided_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp of when the decision was recorded"
+    }
+  },
+  "if": {
+    "properties": {
+      "decision": { "const": "reject" }
+    },
+    "required": ["decision"]
+  },
+  "then": {
+    "required": ["reason_code"],
+    "description": "reason_code must be present when decision is reject"
+  },
+  "additionalProperties": false
+}

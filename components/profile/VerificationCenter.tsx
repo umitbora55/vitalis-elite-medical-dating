@@ -43,7 +43,7 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                     <CheckCircle size={14} className="text-blue-500" fill="currentColor" stroke="black" />
                   )}
                 </div>
-                <p className="text-[10px] text-slate-500">Badge to prove you're real.</p>
+                <p className="text-xs text-slate-500">Badge to prove you're real.</p>
               </div>
             </div>
             <button
@@ -81,7 +81,7 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                     <CheckCircle size={14} className="text-green-500" fill="currentColor" stroke="black" />
                   )}
                 </div>
-                <p className="text-[10px] text-slate-500">Secure your account.</p>
+                <p className="text-xs text-slate-500">Secure your account.</p>
               </div>
             </div>
             <button
@@ -119,7 +119,7 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                     <CheckCircle size={14} className="text-purple-500" fill="currentColor" stroke="black" />
                   )}
                 </div>
-                <p className="text-[10px] text-slate-500">Preferred for professionals.</p>
+                <p className="text-xs text-slate-500">Preferred for professionals.</p>
               </div>
             </div>
             <button

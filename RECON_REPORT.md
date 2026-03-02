@@ -1,487 +1,396 @@
-# VITALIS ELITE MEDICAL DATING - RECONNAISSANCE REPORT
-
-**Generated:** 2026-02-15
-**Codebase Status:** Main branch (00fee4b)
-**Purpose:** Security audit baseline for frontend, backend, security, and privacy auditors
+# VITALIS — Elite Medical Dating App: RECON REPORT
+Tarih: 2026-02-28 | Tarayıcı: Keşif Ajanı (Tam Tarama)
 
 ---
 
-## EXECUTIVE SUMMARY
+## 1. Tech Stack
 
-Vitalis is a **dating application for medical professionals** built as a **monorepo-hybrid** with a web frontend and partial mobile foundation. The application handles **highly sensitive PII and health data** including medical licenses, institutional affiliations, and professional verification documents. Current state includes **critical authentication bypasses** and **incomplete security hardening**.
+| Katman | Teknoloji |
+|--------|-----------|
+| Framework | React 19.2.4 + TypeScript 5.8.2 (strict mode) |
+| Build | Vite 6.2.0 (port 3000) |
+| Backend/DB | Supabase (PostgreSQL + Auth + Storage + Realtime + Edge Functions/Deno) |
+| State | Zustand 5.0.11 (8 store) |
+| UI Kit | Tailwind CSS 3.4.17 + lucide-react 0.563.0 + framer-motion 12 |
+| Form | react-hook-form 7.71.1 + zod 4.3.6 |
+| Ödeme | Stripe (@stripe/stripe-js 8.7.0) |
+| Analytics | Mixpanel 2.74.0 + PostHog 1.343.2 (consent-gated) |
+| Hata Izleme | Sentry 10.38.0 (sendDefaultPii: false — DUZELTILDi) |
+| Push | Firebase 12.9.0 (FCM) |
+| AI | Google Gemini (@google/genai 1.40.0) |
+| Test | Vitest 4 + Testing Library + Playwright 1.58.2 (e2e) |
+| Mobile | /mobile — Expo Router, React Native (AYRI proje, boilerplate) |
+| Rust Gateway | /SafeAgent — Cargo/Tokio gateway (AYRI proje) |
 
 ---
 
-## 1. REPOSITORY STRUCTURE
-
-### Monorepo Status: PARTIAL HYBRID
-- **Root:** Vite-based React web application (primary)
-- **`/mobile`:** Expo React Native shell (minimal - boilerplate only, no integration)
-- **`/supabase`:** Database migrations + Edge Functions (Deno)
-- **Commands run from:** Project root (web app)
-
-### Directory Layout (1-level depth)
+## 2. Klasör Yapısı (1 Seviye)
 
 ```
-/
-├── App.tsx                    # Main app (1267 LOC - god component)
-├── components/                # UI components (chat, profile, onboarding)
-├── services/                  # API wrappers (auth, profile, payment, safety)
-├── stores/                    # Zustand state management (auth, user, discovery, match, UI, notification)
-├── src/lib/                   # Third-party integrations (Supabase, Firebase, Stripe, Sentry, analytics)
+vitalis---elite-medical-dating/
+├── App.tsx                    Ana router + auth state machine (god component ~98KB)
+├── types.ts                   Global TypeScript tip tanımları
+├── constants/                 MOCK_PROFILES, USER_PROFILE, demoScenarios.ts
+├── components/                ~95+ React bileşeni
+│   ├── admin/                 AdminPanelV2, VerificationQueue, ReportQueue,
+│   │                          KPIDashboard, AIBiasAudit, AppealQueue...
+│   ├── security/              ContentWarningOverlay, ToxicityNudge, ProfileRiskBadge,
+│   │                          ChatSafetyBanner, LocationPrivacySettings,
+│   │                          HealthcarePrivacySettings, BlockedUsersList
+│   ├── moderation/            ModerationStatusScreen, AppealForm, MyReportsView,
+│   │                          TransparencyCenter, CommunityGuidelines
+│   └── monetization/          EthicalPlanSelector, PremiumPaywall, TripMode,
+│                              AdvancedFilters, SubscriptionManagement, ProfileCoaching,
+│                              DateConcierge, FreeUserManifesto, PrivacyControls
+├── services/                  57 servis dosyasi (Supabase sorgulari + is mantigi)
+├── stores/                    8 Zustand store
+├── hooks/                     useTheme, useBoost, useSwipeLimit, useRecording,
+│                              usePhotoHashCheck
+├── utils/                     compatibility.ts (match skoru), compatibility.test.ts
+├── src/lib/                   supabase.ts, stripe.ts, firebase.ts, analytics.ts,
+│                              sentry.ts, pushNotifications.ts, react-native-compat.ts,
+│                              assets-registry-mock.ts
 ├── supabase/
-│   ├── migrations/            # PostgreSQL schema (init, verification, security hardening)
-│   └── functions/             # Edge functions (Stripe checkout, webhooks, Gemini icebreaker)
-├── hooks/                     # React hooks (theme, boost, swipe limit)
-├── types.ts                   # TypeScript definitions (Profile, Match, Message, Verification)
-├── constants.ts               # Mock data + config (608 LOC - bloats prod bundle)
-├── mobile/                    # Expo shell (NOT INTEGRATED - separate package.json)
-├── audit/                     # Pre-launch checklists (security, compliance, deployment)
-└── .claude/                   # Agent directives (security-auditor, backend-auditor)
-```
-
-**Critical Finding:** No `/api` or `/pages` directory - API logic lives in Supabase Edge Functions + RLS policies.
-
----
-
-## 2. TECH STACK
-
-### Frontend (Web)
-- **Framework:** React 19.2.4 + Vite 6.2.0
-- **Language:** TypeScript 5.8.2 (strict mode implied)
-- **Routing:** Client-side view switching (no routing library)
-- **State:** Zustand 5.0.11
-- **UI:** Tailwind CSS 3.4.17 (CDN in dev, postcss in build)
-- **Forms:** React Hook Form 7.71.1 + Zod 4.3.6 validation
-- **Icons:** Lucide React 0.563.0
-
-### Backend (BaaS)
-- **Database:** Supabase (PostgreSQL + PostGIS for geolocation)
-- **Auth:** Supabase Auth (`@supabase/supabase-js` 2.95.3)
-- **Storage:** Supabase Storage (verification documents)
-- **Functions:** Supabase Edge Functions (Deno runtime)
-  - `create-checkout-session` (Stripe integration)
-  - `webhooks-stripe` (subscription lifecycle)
-  - `generate-icebreaker` (Gemini AI integration)
-
-### Third-Party Services
-- **Payments:** Stripe (`@stripe/stripe-js` 8.7.0)
-- **Analytics:** Mixpanel 2.74.0, PostHog 1.343.2
-- **Monitoring:** Sentry 10.38.0 (**sendDefaultPii: true** - HIGH RISK)
-- **Push:** Firebase 12.9.0 (incomplete - token not persisted)
-- **AI:** Google Gemini (`@google/genai` 1.40.0 - unused in frontend)
-
-### Mobile (Dormant)
-- **Framework:** Expo SDK 54.0.33 (React Native 0.81.5)
-- **Routing:** Expo Router 6.0.23
-- **State:** No shared stores with web (separate app)
-- **Status:** Boilerplate only - NOT connected to backend
-
-### DevOps & Testing
-- **Bundler:** Vite 6.2.0
-- **Tests:** Vitest 4.0.18 (BROKEN - runs node_modules tests)
-- **E2E:** Playwright 1.58.2
-- **CI:** Husky 9.1.7 pre-commit hooks (BLOCKED by failing tests)
-- **Linting:** ESLint 9.39.2 (BROKEN - v9/flat config mismatch)
-
----
-
-## 3. AUTHENTICATION FLOW
-
-### Registration Flow (CRITICAL SECURITY GAPS)
-
-**Path:** `LandingView` → `RegistrationFlow` → `PendingVerificationView` → `OnboardingView` → `App`
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ 1. LANDING (authStep: 'LANDING')                               │
-│    ├─ "Get Started" → RegistrationFlow                         │
-│    ├─ "Login" → LoginView                                      │
-│    └─ [DEV ONLY] "Skip to App" → BYPASS ALL ❌ (CRITICAL)     │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ 2. REGISTRATION (authStep: 'REGISTRATION')                     │
-│    Component: /components/RegistrationFlow.tsx                 │
-│    Steps:                                                       │
-│      1. Personal Info (name, age, role, specialty, hospital)   │
-│      2. Credentials (email, password)                          │
-│      3. Verification Method:                                   │
-│         A. EMAIL → Domain validation (tier 1/2/3)             │
-│            - Domain checked against verified_domains table     │
-│            - Email saved to verified_work_emails               │
-│            - verificationStatus = 'VERIFIED'                   │
-│         B. DOCUMENT → Upload license/ID                        │
-│            - File → Supabase Storage (verification_documents)  │
-│            - verification_requests.status = 'PENDING'          │
-│            - verificationStatus = 'PENDING_VERIFICATION'       │
-│    [DEV BYPASS] "Simulate Admin Approval" → SKIP ❌ (CRITICAL)│
-│    Calls: signUpWithEmail() → supabase.auth.signUp()          │
-│    Profile: upsertProfile() → profiles table                  │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ 3A. PENDING VERIFICATION (if status != 'VERIFIED')             │
-│     Component: /components/PendingVerificationView.tsx         │
-│     - Document review: Manual admin approval required          │
-│     - Cannot access app until status = 'VERIFIED'              │
-│     - Options: Retry verification | Logout                     │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ 3B. ONBOARDING (authStep: 'ONBOARDING') - First-time only      │
-│     Component: lazy(() => import('./components/OnboardingView'))│
-│     - Add photos (min 2 required)                              │
-│     - Select interests, personality tags                       │
-│     - Answer profile questions                                 │
-│     - Set localStorage('vitalis_onboarding_seen', 'true')      │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ 4. MAIN APP (authStep: 'APP')                                  │
-│    - Home (swipe/match)                                        │
-│    - Matches/Chat                                              │
-│    - Profile                                                   │
-│    - Premium upgrade                                           │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Login Flow
-
-**Path:** `LoginView` → `App`
-
-```
-LoginView
-  ├─ signInWithEmail(email, password)
-  │   └─ supabase.auth.signInWithPassword()
-  ├─ Success → getSession() → load user profile
-  └─ Failure → show error toast
-```
-
-### Session Management
-
-- **Token Storage:** Supabase localStorage (auth.token)
-- **Refresh:** Automatic via `@supabase/supabase-js`
-- **Logout:** `signOut()` → `supabase.auth.signOut()` → redirect to LANDING
-- **State Listener:** `onAuthStateChange()` in services/authService.ts
-
-### Critical Vulnerabilities
-
-1. **DEV BYPASS IN PRODUCTION:** App.tsx:1057-1071 - "Skip to App" button not env-guarded
-2. **ADMIN APPROVAL SIMULATION:** RegistrationFlow.tsx:501 - Verification bypass in prod
-3. **NO SERVER-SIDE AUTH CHECKS:** Edge functions validate token but app logic trusts client state
-4. **RLS NOT ENFORCED ON ALL TABLES:** Only profiles + messages have RLS policies
-
----
-
-## 4. DATA CLASSES & SENSITIVE DATA
-
-### PII (Personally Identifiable Information)
-
-| Field | Table | Type | Protection |
-|-------|-------|------|------------|
-| **Name** | `profiles.name` | VARCHAR(100) | RLS: auth.uid() = id |
-| **Age** | `profiles.age` | INTEGER | Public (match visibility) |
-| **Email** | `auth.users.email` | VARCHAR | Supabase Auth (encrypted) |
-| **Phone** | `profiles.phone` | VARCHAR(50) | RLS + UNIQUE constraint |
-| **Location (Geo)** | `profiles.location` | GEOGRAPHY(POINT) | RLS + hideable via `is_location_hidden` |
-| **Location City** | `profiles.location_city` | VARCHAR(100) | Fuzzy visibility |
-| **Hospital/Institution** | `profiles.hospital` | VARCHAR(200) | Hideable via `institution_hidden` |
-
-### Health/Professional Data (HIPAA-adjacent)
-
-| Field | Table | Type | Sensitivity | Storage Location |
-|-------|-------|------|-------------|------------------|
-| **Medical Role** | `profiles.role` | VARCHAR(50) | Medium | Database (RLS) |
-| **Specialty** | `profiles.specialty` | VARCHAR(100) | Medium | Database (indexed) |
-| **Sub-Specialty** | `profiles.sub_specialty` | VARCHAR(100) | Medium | Database |
-| **Education** | `profiles.education` | VARCHAR(200) | Low | Database |
-| **Verification Documents** | `verification_requests.document_url` | TEXT | **CRITICAL** | Supabase Storage (RLS?) |
-| **Work Email** | `verified_work_emails.email` | TEXT | High | Database (domain-tier mapping) |
-| **License Badge** | `profiles.verification_badges` | JSONB | Medium | Database (boolean flags) |
-
-### Relationship/Behavioral Data
-
-| Data Class | Storage | Type | Privacy Controls |
-|------------|---------|------|------------------|
-| **Swipes** | `swipes` table | LEFT/RIGHT/SUPER | UNIQUE(swiper_id, swiped_id) |
-| **Matches** | `matches` table | profile_1_id ↔ profile_2_id | RLS on participants |
-| **Messages** | `messages` table | TEXT/audio/video/image | RLS: match participants only |
-| **Photos** | `profile_photos.url` | TEXT (Supabase Storage URL) | Ordered, scored (performance_score) |
-| **Stories** | `profiles.stories` (App state) | JSONB-like | Not persisted in DB (in-memory) |
-| **Blocks** | `blocks` table | blocker_id → blocked_id | RLS on blocker |
-| **Reports** | `reports` table | reporter_id → reported_id + reason | Admin-only review |
-
-### Financial Data
-
-| Field | Table | Type | Protection |
-|-------|-------|------|------------|
-| **Stripe Subscription ID** | `subscriptions.store_transaction_id` | TEXT | No UNIQUE constraint ❌ (duplicate risk) |
-| **Plan** | `subscriptions.plan` | VARCHAR(20) | DOSE/FORTE/ULTRA |
-| **Expiry** | `subscriptions.expires_at` | TIMESTAMPTZ | Checked client-side + DB |
-| **Platform** | `subscriptions.platform` | VARCHAR(20) | web/ios/android |
-
-### Compliance Notes
-
-- **GDPR:** No explicit consent tracking for analytics (analytics.ts checks localStorage)
-- **CCPA:** No "Do Not Sell" mechanism
-- **HIPAA:** Not HIPAA-compliant (no BAA, no audit logs, no encryption-at-rest verification)
-- **Data Retention:** No TTL policies on messages/swipes/photos
-
----
-
-## 5. CRITICAL SURFACES (Attack Vectors)
-
-### A. Supabase Edge Functions (API Endpoints)
-
-| Function | Path | Auth | Inputs | Risks |
-|----------|------|------|--------|-------|
-| **create-checkout-session** | `/functions/v1/create-checkout-session` | Bearer token | `{ plan: "GOLD"\|"PLATINUM" }` | ❌ Origin header used for redirect URLs (open redirect risk) |
-| **webhooks-stripe** | `/functions/v1/webhooks-stripe` | Stripe signature | Webhook payload | ❌ No idempotency (duplicate subscriptions) |
-| **generate-icebreaker** | `/functions/v1/generate-icebreaker` | Bearer token | Profile data → Gemini API | ⚠️ PII sent to third-party AI |
-
-**Common Vulnerabilities:**
-- CORS: `create-checkout-session` validates origin, `webhooks-stripe` allows `*`
-- Input Validation: Minimal (plan enum check only)
-- Rate Limiting: None visible
-- Error Disclosure: Generic messages (good)
-
-### B. Frontend Forms (User Input)
-
-| Form | Component | Validation | Sanitization | Risks |
-|------|-----------|------------|--------------|-------|
-| **Registration** | `RegistrationFlow.tsx` | Zod schema | None | XSS in bio/name if rendered unsafely |
-| **Chat Input** | `ChatView.tsx` | Length check only | None | ❌ Regex injection (line 58) |
-| **Search/Highlight** | `ChatView.tsx` | None | None | ❌ Unescaped RegExp (runtime crash) |
-| **Report Reason** | `ProfileDetailView.tsx` | Enum dropdown | N/A | Low risk |
-| **Bio/Question Answers** | `MyProfileView.tsx` | Length limits | None | XSS if server renders |
-
-**Critical Finding:** ChatView.tsx:58 - User search input directly in `new RegExp(highlight)` without escaping.
-
-### C. File Uploads
-
-| Upload Type | Destination | Validation | Risks |
-|-------------|-------------|------------|-------|
-| **Verification Documents** | Supabase Storage (`verification_documents` bucket) | File type check (client-side only) | ❌ No server-side MIME validation, ❌ No malware scan, ❌ RLS policy unclear |
-| **Profile Photos** | Supabase Storage (`profile_photos` bucket) | Assumed (not shown in code) | Same as above |
-| **Story Images** | Not persisted (in-memory only) | N/A | Low risk (ephemeral) |
-
-### D. Third-Party Integrations
-
-| Service | Integration Point | Data Shared | Risks |
-|---------|-------------------|-------------|-------|
-| **Stripe** | `checkoutService.ts` → Edge function | User ID, email, plan selection | ⚠️ Webhook replay (no idempotency table) |
-| **Gemini AI** | `geminiService.ts` → Edge function | Profile bio, specialty, interests | ⚠️ PII to Google (no anonymization) |
-| **Sentry** | `sentry.ts` (init on error) | `sendDefaultPii: true` | ❌ IP addresses, user agents sent by default |
-| **Mixpanel/PostHog** | `analytics.ts` (event tracking) | Profile ID, actions, timestamps | ⚠️ No consent banner (relies on localStorage check) |
-| **Firebase** | `pushNotifications.ts` (FCM token) | Device token | ⚠️ Token not persisted in DB (incomplete) |
-
-### E. Database RLS (Row-Level Security)
-
-**PROTECTED:**
-- `profiles`: Users see/update own profile only
-- `messages`: Match participants only
-
-**UNPROTECTED (Missing RLS):**
-- `subscriptions` ❌
-- `verification_requests` ❌
-- `verified_work_emails` ❌
-- `swipes` ❌
-- `matches` (has RLS but policy not shown in init.sql)
-- `blocks` ❌
-- `reports` ❌
-- `notifications` ❌
-
-**Impact:** Any authenticated user with direct database access (bypassing client app) can read/modify these tables.
-
-### F. Client-Side State (Zustand Stores)
-
-| Store | File | Sensitive Data | Persistence |
-|-------|------|----------------|-------------|
-| **authStore** | `stores/authStore.ts` | authStep (LANDING/LOGIN/REGISTRATION/APP) | None (memory only) |
-| **userStore** | `stores/userStore.ts` | Full profile object (name, age, hospital, photos) | Assumed localStorage |
-| **discoveryStore** | `stores/discoveryStore.ts` | swipedProfileIds, blockedProfileIds, dailySwipesRemaining | localStorage |
-| **matchStore** | `stores/matchStore.ts` | matches[], swipeHistory[] | Assumed localStorage |
-
-**Risk:** Sensitive data in localStorage = XSS → full profile dump.
-
----
-
-## 6. MONOREPO STATUS & BUILD COMMANDS
-
-### Monorepo Type: PARTIAL HYBRID
-
-**Web App (Primary)**
-```bash
-# From root directory
-npm install           # Installs web dependencies
-npm run dev           # Vite dev server (port 3000)
-npm run build         # Production build → /dist
-npm run preview       # Preview production build
-npm test              # Vitest (BROKEN - fails on node_modules tests)
-npm run test:ci       # CI tests (BLOCKED by failures)
-npm run type-check    # TypeScript validation
-```
-
-**Mobile App (Separate)**
-```bash
-cd mobile
-npm install           # Separate node_modules
-npm start             # Expo dev server
-npm run ios           # iOS simulator
-npm run android       # Android emulator
-```
-
-**Database (Supabase CLI)**
-```bash
-# Migrations
-supabase migration new <name>
-supabase db push
-
-# Functions
-supabase functions deploy create-checkout-session
-supabase functions deploy webhooks-stripe
-```
-
-**Status:** Mobile and web are **ISOLATED** - no shared code, state, or API integration. Mobile contains only Expo boilerplate.
-
-### Environment Variables
-
-**Client-side (Vite):**
-```
-VITE_SUPABASE_URL           # Supabase project URL
-VITE_SUPABASE_ANON_KEY      # Public anon key
-VITE_STRIPE_PUBLIC_KEY      # Stripe publishable key
-VITE_FIREBASE_*             # FCM config (7 vars)
-VITE_MIXPANEL_TOKEN
-VITE_POSTHOG_KEY
-VITE_SENTRY_DSN
-```
-
-**Server-side (Edge Functions):**
-```
-STRIPE_SECRET_KEY           # Stripe API key
-STRIPE_PRICE_GOLD           # Price ID for Gold tier
-STRIPE_PRICE_PLATINUM       # Price ID for Platinum tier
-STRIPE_WEBHOOK_SECRET       # Webhook signing secret
-SUPABASE_SERVICE_ROLE_KEY   # Admin key for RLS bypass
-APP_BASE_URL                # Used in checkout redirects
-ALLOWED_ORIGINS             # CORS allowlist
-GEMINI_API_KEY              # Google AI API key
+│   ├── migrations/            33 SQL migration dosyasi
+│   └── functions/             15 Edge Function (Deno)
+├── mobile/                    Expo Router app (AYRI proje — kendi tsconfig'i)
+├── SafeAgent/                 Rust/Cargo gateway projesi (AYRI proje)
+├── .env.example               Ortam degiskeni sablonu
+└── .env.local                 Gercek sirlar (DIKKAT: repo'da mevcut)
 ```
 
 ---
 
-## 7. KEY FILES FOR AUDITORS
+## 3. Monorepo Durumu
 
-### Frontend Security Review
-```
-/App.tsx                                    # Main app (1267 LOC - auth flow, god component)
-/components/RegistrationFlow.tsx            # Registration + verification bypass
-/components/ChatView.tsx                    # 1000+ LOC - regex injection (line 58)
-/components/ProfileDetailView.tsx           # Block/report handlers
-/components/MyProfileView.tsx               # Profile editing + privacy settings
-/services/authService.ts                    # Auth wrappers (minimal)
-/services/safetyService.ts                  # Block/report persistence
-/src/lib/supabase.ts                        # Supabase client init
-/src/lib/sentry.ts                          # PII leakage (sendDefaultPii: true)
-/src/lib/analytics.ts                       # Tracking consent (localStorage-based)
-```
+**Hybrid Yapi — Tek Kok DEGIL:**
 
-### Backend Security Review
-```
-/supabase/migrations/20260209_init.sql      # Schema + RLS policies (incomplete)
-/supabase/migrations/20260209_verification.sql  # Verification tables
-/supabase/migrations/20260211_security_hardening.sql  # Security improvements
-/supabase/functions/create-checkout-session/index.ts  # Stripe integration
-/supabase/functions/webhooks-stripe/index.ts          # Webhook handler (no idempotency)
-/supabase/functions/generate-icebreaker/index.ts      # Gemini AI integration
-/services/checkoutService.ts                # Client-side checkout flow
-/services/subscriptionService.ts            # Subscription state
-/services/verificationService.ts            # Document upload + status updates
-```
+| Alt Proje | Dizin | Komut |
+|-----------|-------|-------|
+| Web App (ana) | `/` (kok) | `npm run dev` |
+| Mobile | `/mobile` | `cd mobile && npx expo start` |
+| Rust Gateway | `/SafeAgent` | `cd SafeAgent && cargo run` |
+| Edge Functions | `/supabase/functions/` | `supabase functions serve` |
 
-### Data Privacy Review
+tsconfig.json `mobile/` ve `supabase/functions/` dizinlerini exclude eder.
+`components/SwipeableCard.tsx` ve `services/pushService.ts` da tsconfig'den exclude edilmis.
+Komutlar **kok dizinde** calistirilmali (Web App icin).
+
+---
+
+## 4. Auth Akisi
+
+### State Machine (stores/authStore.ts)
 ```
-/types.ts                                   # Data models (Profile, Message, Match)
-/constants.ts                               # Mock data (remove from production)
-/services/profileService.ts                 # Profile CRUD
-/services/geminiService.ts                  # AI integration (PII exposure)
-/src/lib/pushNotifications.ts               # FCM token handling (incomplete)
-/stores/userStore.ts                        # Client-side profile storage
-/supabase/migrations/20260209_verification.sql  # Verified email/domain storage
+LANDING → WAITLIST → LOGIN
+       → REGISTRATION → PENDING_VERIFICATION → ONBOARDING_FLOW
+                                             → ONBOARDING
+                                             → PROFILE_COMPLETION
+                                             → APP
 ```
 
-### Configuration & Infrastructure
-```
-/package.json                               # Dependencies (audit for CVEs)
-/vite.config.ts                             # Build config
-/.env.example                               # Environment template
-/.env.local                                 # Actual secrets (DO NOT COMMIT)
-/.husky/pre-commit                          # Git hooks (blocked by failing tests)
-/vitest.config.ts                           # Test config (broken exclude pattern)
-/audit/SECURITY_CHECKLIST.md                # Pre-launch security tasks
-/SECURITY_URGENT.md                         # Known critical issues
-/MASTER_ISSUES.md                           # Verified bug list
-```
+### Dosya Zinciri
 
-### Documentation
+| Adim | Dosya | Fonksiyon |
+|------|-------|-----------|
+| Supabase client init | `src/lib/supabase.ts` | `createClient()` — env validation ile |
+| Kayit | `services/authService.ts` | `signUpWithEmail()` |
+| Giris | `services/authService.ts` | `signInWithEmail()` |
+| OAuth | `services/authService.ts` | `signInWithOAuth()` |
+| Magic link | `services/authService.ts` | `signInWithMagicLink()` |
+| Session dinleme | `App.tsx` | `onAuthStateChange()` |
+| Sifremi unuttum | `services/authService.ts` | `resetPassword()`, `updatePassword()` |
+| Cikis | `services/authService.ts` | `signOut()` → localStorage+sessionStorage.clear() |
+| Token refresh | Supabase JS client otomatik yonetir | — |
+| OTP dogrulama | `services/verificationService.ts` | `sendVerificationOtp()`, `verifyOtp()` |
+| Doktor dogrulama | `services/verificationService.ts` | `createVerificationRequest()`, `uploadVerificationDocument()` |
+| Admin erisim | `services/adminService.ts` | `checkAdminAccess()` |
+| Admin UI kapisi | `components/admin/AdminSecurityGate.tsx` | IP + device fingerprint whitelist |
+
+---
+
+## 5. Veri Sinifları
+
+### PII (Kisisel Veriler)
+| Alan | Konum |
+|------|-------|
+| name, age | `types.ts::Profile`, `profiles` tablosu |
+| email | `auth.users` (Supabase Auth) |
+| city, location | `Profile.city`, `Profile.location` |
+| university | `Profile.university` |
+| phone | OTP dogrulamasi icin (verificationService) |
+
+### Saglik Verisi (Ozel Nitelikli)
+| Alan | Konum |
+|------|-------|
+| role (MedicalRole) | `types.ts::MedicalRole`, `profiles.role` |
+| specialty (Specialty) | `types.ts::Specialty`, `profiles.specialty` |
+| hospital/institution | `Profile.hospital` (gizlenebilir: `institutionHidden`) |
+| verification documents | `verification_documents` tablosu + Supabase Storage |
+| face_embeddings | `20260228_liveness_verification_system.sql` — KVKK ozel nitelikli |
+| liveness_checks | Ayni migration |
+| fraud_signals | Ayni migration |
+| user_risk_scores | Ayni migration |
+
+### Iliski / Davranis Verisi
+| Alan | Konum |
+|------|-------|
+| matches | `stores/matchStore.ts`, `types.ts::Match` (localStorage persist) |
+| messages | `types.ts::Message`, `services/chatService.ts`, `conversations` tablosu |
+| photos | `services/photoService.ts` → `profile-photos` bucket |
+| swipe history | `stores/matchStore.ts` (localStorage) |
+| date_invitations | `20260228_date_flow_system.sql` |
+| trusted_contacts | Ayni migration |
+| date_feedback | Ayni migration |
+
+---
+
+## 6. Kritik Yuzeyler
+
+### Mesajlasma
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/chatService.ts` — Supabase Realtime, match-gated conversation olusturma, RPC: `create_conversation`
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/components/ChatView.tsx` — Ana sohbet UI
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/contentModerationService.ts` — Kural tabanli mesaj moderasyonu (<5ms, kural motoru)
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/components/security/ToxicityNudge.tsx` — Gonderim oncesi uyari
+
+### Medya Upload
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/photoService.ts` — `profile-photos` bucket, max 5MB, 6 foto limiti, JPEG/PNG/WEBP
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/verificationService.ts` — `uploadVerificationDocument()` — `verification-docs` bucket, max 10MB
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/supabase/functions/moderate-image/` — Edge Function goruntu moderasyonu
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/watermarkService.ts` — Fotograf filigrani
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/photoHashService.ts` — Fotograf hash kontrolu (duplicate tespit)
+
+### Arama / Match
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/discoveryService.ts` — `fetchDiscoveryProfiles()` — Supabase RLS ile filtreleme, pagination
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/stores/discoveryStore.ts` — gunluk swipe limiti, bloklu profiller
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/slateService.ts` — Gunluk 7 oneri motoru (date_prob x response_prob x trust x freshness x sigmoid)
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/utils/compatibility.ts` — Client-side uyumluluk skoru
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/explanationService.ts` — "Neden Eslestik" 11 faktor aciklama sistemi (DSA Art.27)
+
+### Odeme
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/src/lib/stripe.ts` — Stripe JS init (VITE_STRIPE_PUBLIC_KEY)
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/checkoutService.ts` — `createCheckoutSession('DOSE'|'FORTE'|'ULTRA')` → Edge Function
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/supabase/functions/create-checkout-session/` — Stripe Checkout Session olusturma
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/supabase/functions/webhooks-stripe/` — Webhook handler
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/subscriptionService.ts` — `getActiveSubscription()`
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/stores/capabilityStore.ts` — Capability flags (canUseTripMode, canUseAdvancedFilters, canUseIncognito...)
+
+### Doktor Dogrulama
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/verificationService.ts` — Domain lookup, OTP, belge yukleme, durum guncelleme
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/healthcareVerificationService.ts` — Turkiye saglik domain lookup, liveness, face embedding, fraud signals, risk skoru, trust badge, appeal
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/components/LivenessCheck.tsx` — Video-selfie challenge UI (4 challenge: blink/turn_right/turn_left/smile)
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/components/TrustBadge.tsx` — Rozet goruntusu + VerificationStatusPanel
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/adminModerationService.ts` — Admin moderation islemleri
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/components/admin/VerificationQueue.tsx` — Admin review kuyrugu
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/supabase/functions/admin-decide-verification/` — Edge Function onay/ret
+
+### Guvenlik
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/locationPrivacyService.ts` — 500-1500m konum obfuscation
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/profileRiskService.ts` — 0-100 risk skoru, 5 seviye
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/deviceAbuseService.ts` — Cihaz kotu kullanim tespiti
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/services/autoRestrictionService.ts` — Otomatik kisitlama
+- `/Users/umitboragunaydin/Desktop/Eski Masaüstü/vitalis---elite-medical-dating/components/admin/AdminSecurityGate.tsx` — IP + device fingerprint whitelist
+
+---
+
+## 7. Ucuncu Parti Servisler
+
+| Servis | Amac | Config Dosyasi |
+|--------|------|----------------|
+| Supabase | DB, Auth, Storage, Realtime, Edge Functions | `src/lib/supabase.ts`, `.env.local` |
+| Stripe | Odeme / Abonelik (DOSE/FORTE/ULTRA) | `src/lib/stripe.ts`, `.env.local` |
+| Firebase | Push Notification (FCM) | `src/lib/firebase.ts`, `.env.local` |
+| Mixpanel | Analytics | `src/lib/analytics.ts`, `.env.local` |
+| PostHog | Analytics | `src/lib/analytics.ts`, `.env.local` |
+| Sentry | Hata Izleme | `src/lib/sentry.ts`, `.env.local` |
+| Google Gemini | AI (icebreaker, coaching, AI consent) | `services/geminiService.ts`, server-side secret |
+
+---
+
+## 8. Ortam Dosyalari
+
+| Dosya | Durum |
+|-------|-------|
+| `.env.example` | Kok dizinde mevcut, tum key'ler dokumante |
+| `.env.local` | Kok dizinde mevcut — GERCEK SIRLAR var |
+
+### Beklenen Env Degiskenleri
 ```
-/README.md                                  # Setup instructions
-/DESIGN_OVERHAUL.md                         # Design system notes
-/TECH_DEBT.md                               # Technical debt backlog
-/REFACTOR_PLAN.md                           # Planned refactors
-/.claude/agents/security-auditor.md         # Security audit agent directives
-/.claude/agents/backend-auditor.md          # Backend audit agent directives
+VITE_SUPABASE_URL          (zorunlu — startup'ta throw eder)
+VITE_SUPABASE_ANON_KEY     (zorunlu — startup'ta throw eder)
+VITE_STRIPE_PUBLIC_KEY     (opsiyonel — odeme devre disi kalir, console.warn)
+VITE_FIREBASE_API_KEY      (opsiyonel — push devre disi kalir)
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+VITE_FIREBASE_VAPID_KEY
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_MIXPANEL_TOKEN        (opsiyonel — analytics devre disi)
+VITE_POSTHOG_KEY           (opsiyonel)
+VITE_POSTHOG_HOST          (varsayilan: https://app.posthog.com)
+VITE_SENTRY_DSN            (opsiyonel — hata izleme devre disi)
+VITE_APP_VERSION
+
+# Server-side (Edge Functions — Supabase Dashboard'da saklanmali):
+# STRIPE_SECRET_KEY
+# STRIPE_WEBHOOK_SECRET
+# SUPABASE_SERVICE_ROLE_KEY
+# GEMINI_API_KEY
+# APP_BASE_URL
+# ALLOWED_ORIGINS
 ```
 
 ---
 
-## 8. KNOWN CRITICAL ISSUES (from SECURITY_URGENT.md & MASTER_ISSUES.md)
+## 9. Migration Dosyalari (33 adet)
 
-### P0 - PRODUCTION BLOCKERS
-
-1. **Auth Bypass (App.tsx:1057):** "Skip to App" button not env-guarded → anyone can skip verification
-2. **Admin Approval Simulation (RegistrationFlow.tsx:501):** Dev bypass button in production
-3. **Regex Injection (ChatView.tsx:58):** User input in RegExp constructor → DoS crash
-4. **FK Mismatch (init.sql:18):** profiles.id references `public.users` but app uses `auth.users` → FK violations
-5. **Test CI Broken (vitest.config.ts):** Tests run node_modules → all commits blocked by pre-commit hook
-
-### P1 - HIGH PRIORITY
-
-1. **Stripe Webhook Replay:** No idempotency table → duplicate subscriptions on retry
-2. **Missing RLS:** 8+ tables without row-level security (subscriptions, verifications, reports, etc.)
-3. **Sentry PII Leakage:** `sendDefaultPii: true` → IP addresses sent to third party
-4. **Push Token Not Persisted:** Firebase token fetched but not saved to database
-5. **Verification Badge Always Shown:** UI doesn't check `verificationStatus` before rendering badge
-
-### P2 - MEDIUM PRIORITY
-
-1. **God Components:** App.tsx (1267 LOC), ChatView.tsx (1000+ LOC) → unmaintainable
-2. **Tailwind CDN in Production:** Runtime CSS → performance penalty
-3. **Mock Data in Bundle:** constants.ts (608 LOC) → bloats production build
-4. **ESLint v9/Flat Config Mismatch:** Linter doesn't run
+| Dosya | Icerik |
+|-------|--------|
+| `20260209_init.sql` | Ana sema baslangioi |
+| `20260210_verification.sql` | Dogrulama sistemi |
+| `20260211_security_hardening.sql` | Guvenlik sikilastirma |
+| `20260212_account_deletion_executor.sql` | Hesap silme executor |
+| `20260213_verification_documents_storage.sql` | Belge storage |
+| `20260215_drop_unused_users_table.sql` | Temizlik |
+| `20260216_profile_data_collection.sql` | Profil verileri |
+| `20260217_profile_preferences.sql` | Tercihler |
+| `20260218_consolidate_deletion.sql` | Silme konsolidasyonu |
+| `20260218_discovery_rls.sql` | Discovery RLS |
+| `20260218_verification_status_protection.sql` | Durum koruma |
+| `20260228_daily_slate_system.sql` | Gunluk 7 oneri + 5 RPC |
+| `20260228_date_flow_system.sql` | Date davet + guvenlik + 8 tablo |
+| `20260228_ethical_monetization.sql` | Etik abonelik sistemi |
+| `20260228_explanation_system.sql` | DSA Art.27 aciklama sistemi |
+| `20260228_liveness_verification_system.sql` | Liveness + face embedding + 16 tablo |
+| `20260228_privacy_first_ai.sql` | AI gizlilik sistemi |
+| `20260228_security_default_on.sql` | Guvenlik varsayilan acik + 5 tablo |
+| `20260228_transparent_moderation.sql` | Seffaf moderasyon |
+| `20260320_admin_verification_foundation.sql` | Admin dogrulama temeli |
+| `20260320_admin_verification_modpanel.sql` | Admin panel |
+| `20260321_admin_verification_hardening.sql` | Sikilastirma |
+| `20260322_seed_invite_code.sql` | Davet kodu tohumu |
+| `001_complete_schema.sql` | Tam sema (1. tur) |
+| `002_user_journey.sql` | Kullanici yolculugu |
+| `003_match_date_flow.sql` | Match ve date akisi |
+| `004_premium_privacy.sql` | Premium + gizlilik |
+| `005_events_community.sql` | Etkinlik + topluluk |
+| `006_admin_panel.sql` | Admin paneli |
+| `007_anti_abuse.sql` | Anti-abuse |
+| `008_moat_features.sql` | Moat ozellikleri |
+| `_applied/20260216_profile_discovery_rls.sql` | Uygulanmis RLS |
 
 ---
 
-## 9. DEPLOYMENT CONTEXT
+## 10. Store Envanteri (8 adet)
 
-- **Hosting:** Assumed Vercel/Netlify (Vite build output)
-- **Database:** Supabase Cloud
-- **Storage:** Supabase Storage (verification docs, photos)
-- **Functions:** Supabase Edge Functions (Deno)
-- **CDN:** Assumed (for Supabase Storage URLs)
-- **CI/CD:** Git hooks via Husky (currently BLOCKED)
+| Store | Dosya | State | Persist |
+|-------|-------|-------|---------|
+| authStore | `stores/authStore.ts` | authStep (LANDING/LOGIN/REGISTRATION/APP...) | Hayir |
+| userStore | `stores/userStore.ts` | profile: Profile, isPremium, premiumTier | Hayir |
+| discoveryStore | `stores/discoveryStore.ts` | profiles[], swipedProfileIds, blockedProfileIds, dailySwipesRemaining, filters | Hayir |
+| matchStore | `stores/matchStore.ts` | matches[], activeChatMatch, swipeHistory, dailyExtensions | localStorage (persist middleware) |
+| uiStore | `stores/uiStore.ts` | currentView, isFilterOpen, viewingProfile, viewingStoryProfile | Hayir |
+| notificationStore | `stores/notificationStore.ts` | notifications[] | Hayir |
+| slateStore | `stores/slateStore.ts` | slate, currentIndex, sessionStats, viewMode, pendingMatchCount | Hayir |
+| capabilityStore | `stores/capabilityStore.ts` | canUseTripMode, canUseAdvancedFilters, canUseIncognito, canHideActivity... | Hayir |
 
 ---
 
-## END OF RECONNAISSANCE REPORT
+## 11. Servis Envanteri (57 dosya)
 
-**Next Steps for Auditors:**
+| Kategori | Servisler |
+|----------|-----------|
+| Auth | authService, verificationService, healthcareVerificationService, inviteService |
+| Profil | profileService, onboardingService, accountService |
+| Kesif | discoveryService, filterService, advancedFilterService, elitePoolService, picksService |
+| Match/Slate | slateService, matchTimerService |
+| Chat | chatService, voiceIntroService |
+| Fotograf | photoService, photoHashService, watermarkService |
+| Odeme | subscriptionService, checkoutService, subscriptionPlanService |
+| Guvenlik | safetyService, blockAndReportService, contentModerationService, profileRiskService, locationPrivacyService, deviceAbuseService, autoRestrictionService, deviceService |
+| Date Akisi | dateInvitationService, dateSafetyService, datePlanService, dateCheckinService, dateConciergeService |
+| Sosyal | clubService, eventService, conferenceService, vouchService, reputationService |
+| Admin | adminService, adminModerationService, adminPanelService, violationService, appealService, transparentModerationService |
+| AI | geminiService, explanationService, profileCoachingService, aiConsentService |
+| Konum | locationService, tripModeService, dutyModeService, availabilityService |
+| Analytics | analyticsService, pushService, qrCheckinService, eventMatchService, planPledgeService |
 
-1. **Frontend Auditor:** Focus on App.tsx, RegistrationFlow, ChatView regex injection, XSS vectors
-2. **Backend Auditor:** RLS policy completeness, Edge Function auth, Stripe idempotency, FK integrity
-3. **Security Auditor:** Auth bypasses (P0), third-party PII leakage (Sentry/Gemini), file upload validation
-4. **Privacy Auditor:** GDPR consent flows, data retention policies, PII minimization in analytics
+---
 
-**Critical Action Required:** Fix P0 issues before ANY production deployment.
+## 12. Kritik Sorunlar (Guncel Tarama)
+
+### console.log Bulgulari
+| Dosya | Satir | Aciklama | Oncelik |
+|-------|-------|----------|---------|
+| `services/pushService.ts` | 105 | Web'de push kayit atlama logu | Dusuk |
+| `components/admin/AdminSecurityGate.tsx` | 123-127 | Device fingerprint + IP konsola yaziliyor | YUKSEK — Guvenlik riski |
+| `src/lib/analytics.ts` | 81 | eslint-disable ile suppress edilmis console.warn | Orta |
+
+### TODO / FIXME
+| Dosya | Satir | Icerik |
+|-------|-------|--------|
+| `mobile/app/(tabs)/index.tsx` | 120 | `// TODO: Implement boost (premium feature)` — eksik implementasyon |
+
+### `as any` / Tip Guvenligi
+| Dosya | Adet | Not |
+|-------|------|-----|
+| `App.tsx` | 2 | Dikkat gerektirir |
+| `components/NearbyView.test.tsx` | 1 | Test dosyasi |
+| `components/MyProfileView.tsx` | 1 | Uretim kodu |
+| `src/lib/react-native-compat.ts` | 1 | Compat shim |
+| `src/lib/assets-registry-mock.ts` | 2 | Mock dosya |
+
+### tsconfig Exclude'lar (Tip Denetiminden Muaf)
+- `components/SwipeableCard.tsx`
+- `services/pushService.ts`
+- `mobile/` dizini (tumu)
+- `supabase/functions/` dizini (tumu)
+
+### eslint-disable Kullanimi
+| Dosya | Kural | Not |
+|-------|-------|-----|
+| `components/monetization/AdvancedFilters.tsx` (2) | `@typescript-eslint/no-explicit-any` | Gercek any kullanimi |
+| `components/NearbyView.test.tsx` | `@typescript-eslint/no-explicit-any` | Test mock |
+| `components/RegistrationFlow.tsx` | `react-hooks/exhaustive-deps` | useEffect dep eksigi |
+| `components/DailyPicksView.tsx` | `react-hooks/exhaustive-deps` | useEffect dep eksigi |
+| `src/lib/supabase.ts` | `no-new` | URL dogrulama icin |
+
+### .env.local Durumu
+`.env.local` dosyasi kok dizinde mevcut. `.gitignore` kontrolu yapilmali.
+
+### Pozitif Bulgular (Duzeltilmis Sorunlar)
+- Supabase client startup'ta env validation yapar (throw eder) — env eksiksiz olmak zorunda
+- `signOut()` localStorage + sessionStorage temizler (SEC-006 fix kayitli)
+- Sentry'de `sendDefaultPii: false` ve Authorization header silme aktif
+- Analytics consent-gated — KVKK uyumlu tasarim
+- `as any` sayisi cok dusuk (5 toplam) — genel tip guvenligi iyi
+- `noImplicitAny: true`, `strictNullChecks: true`, `noImplicitReturns: true` aktif
+- AUDIT-FIX yorumlari mevcut (SEC-004, SEC-006, FE-003, BE-021) — aktif hardening sureci
+
+---
+
+## 13. Edge Functions (15 adet)
+
+| Fonksiyon | Amac |
+|-----------|------|
+| `create-checkout-session` | Stripe Checkout Session |
+| `webhooks-stripe` | Stripe webhook isleme |
+| `generate-icebreaker` | Gemini AI ile buz kirici mesaj |
+| `admin-verification-queue` | Admin dogrulama kuyrugu |
+| `admin-verification-case` | Tek vaka detayi |
+| `admin-claim-verification-request` | Vaka talep etme |
+| `admin-get-verification-doc-url` | Imzali dokuman URL |
+| `admin-decide-verification` | Onay/ret karari |
+| `admin-settings` | Uygulama ayarlari |
+| `admin-audit-logs` | Denetim kayitlari |
+| `scheduled-retention-cleanup` | Veri saklama temizligi |
+| `delete-account` | Hesap silme |
+| `moderate-image` | Goruntu moderasyonu |
+| `push-worker` | Push bildirim gonderici |
+| `_shared/admin.ts` | Paylasilan admin yardimcilari |
+
+---
+
+*Rapor tamamlandi. Tum dosya yollari mutlak path olarak referanslanmistir.*
+*Onceki rapor bilgileri (2026-02-15) bu versiyona entegre edilmistir.*

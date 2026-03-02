@@ -1,0 +1,64 @@
+import React, { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
+import { DAILY_SWIPE_LIMIT, DEFAULT_MESSAGE_TEMPLATES, MOCK_PROFILES, USER_PROFILE } from './constants';
+import { DEMO_PROFILES } from './constants/demoScenarios';
+import { recordSwipe } from './services/discoveryService';
+import { SwipeDirection, Match, Profile, FilterPreferences, Specialty, MedicalRole, Notification, NotificationType, ReportReason, SwipeHistoryItem, MessageTemplate, ChatTheme, VerificationMethod, UserStatus } from './types';
+import type { ProfileCompletionData } from './components/ProfileCompletionView';
+import { AppHeader } from './components/AppHeader';
+import { AnimatedSwipeCard } from './components/AnimatedSwipeCard';
+import { ControlPanel } from './components/ControlPanel';
+import { MatchOverlay } from './components/MatchOverlay';
+import { LandingView } from './components/LandingView';
+
+import { StoryRail } from './components/StoryRail';
+import { StoryViewer } from './components/StoryViewer';
+import { LoginView } from './components/LoginView';
+import { ShieldCheck, FilterX, Zap, Crown, CheckCircle2, Lock, Hourglass, Ghost, Snowflake, Play, Heart } from 'lucide-react';
+import { useAuthStore } from './stores/authStore';
+import { useUserStore } from './stores/userStore';
+import { useUiStore } from './stores/uiStore';
+import { useDiscoveryStore } from './stores/discoveryStore';
+import { useMatchStore } from './stores/matchStore';
+import { useNotificationStore } from './stores/notificationStore';
+import { useTheme } from './hooks/useTheme';
+import { useBoost } from './hooks/useBoost';
+import { useSwipeLimit } from './hooks/useSwipeLimit';
+import { signUpWithEmail, signOut, onAuthStateChange } from './services/authService';
+import { blockProfile as persistBlockProfile, reportProfile as persistReportProfile } from './services/safetyService';
+import { getMyProfile, mapRowToProfile, upsertProfile } from './services/profileService';
+import { getActiveSubscription } from './services/subscriptionService';
+import {
+    AnalyticsConsent,
+    getAnalyticsConsent,
+    initAnalytics,
+    setAnalyticsConsent,
+    trackEvent,
+} from './src/lib/analytics';
+import { PendingVerificationView } from './components/PendingVerificationView';
+import { WaitlistScreen } from './components/WaitlistScreen';
+import { VerificationPendingScreen } from './components/VerificationPendingScreen';
+import { OnboardingFlow } from './components/OnboardingFlow';
+import { onboardingService } from './services/onboardingService';
+import { pushService } from './services/pushService';
+import {
+    createVerificationRequest,
+    getVerificationPolicy,
+    getVerificationSettings,
+    saveVerifiedEmail,
+    updateProfileVerificationStatus,
+    uploadVerificationDocument,
+    upsertVerificationDocument,
+    upsertVerificationDocument,
+} from './services/verificationService';
+import { supabase } from './src/lib/supabase';
+import { AdminPanel } from './components/admin/AdminPanel';
+import { accountService } from './services/accountService';
+// AUDIT-FIX: SEC-004 — Verification status now set via server-side RPC (complete_email_verification)
+
+const MatchesView = lazy(() => import('./components/MatchesView').then((m) => ({ default: m.MatchesView })));
+const ChatView = lazy(() => import('./components/ChatView').then((m) => ({ default: m.ChatView })));
+const ProfileDetailView = lazy(() => import('./components/ProfileDetailView').then((m) => ({ default: m.ProfileDetailView })));
+const MyProfileView = lazy(() => import('./components/MyProfileView').then((m) => ({ default: m.MyProfileView })));
+const NotificationsView = lazy(() => import('./components/NotificationsView').then((m) => ({ default: m.NotificationsView })));
+const LikesYouView = lazy(() => import('./components/LikesYouView').then((m) => ({ default: m.LikesYouView })));
+const PremiumView = lazy(() => import('./components/PremiumView').then((m) => ({ default: m.PremiumView })));

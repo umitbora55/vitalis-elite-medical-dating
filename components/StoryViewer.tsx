@@ -108,7 +108,7 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ profile, onClose, onSe
         <div className="absolute top-4 left-0 right-0 p-4 z-20 flex items-center justify-between">
             <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full border border-white/20 overflow-hidden">
-                    <img src={profile.images[0]} alt={profile.name} className="w-full h-full object-cover" />
+                    <img src={profile.images[0]} alt={profile.name} className="w-full h-full object-cover" loading="lazy" />
                 </div>
                 <div>
                     <h3 className="text-white font-bold text-sm shadow-sm">{profile.name}</h3>
@@ -170,10 +170,10 @@ export const StoryViewer: React.FC<StoryViewerProps> = ({ profile, onClose, onSe
                                  <div key={viewer.id} className="flex items-center justify-between p-1">
                                      <div className="flex items-center gap-3">
                                          <div className="w-8 h-8 rounded-full overflow-hidden border border-white/20 relative">
-                                             <img src={viewer.avatar} alt={viewer.name} className="w-full h-full object-cover" />
+                                             <img src={viewer.avatar} alt={viewer.name} className="w-full h-full object-cover" loading="lazy" />
                                              {/* Viewer Reaction Badge */}
                                              {viewer.reaction && (
-                                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-slate-800 rounded-full flex items-center justify-center text-[10px] shadow-sm">
+                                                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-slate-800 rounded-full flex items-center justify-center text-xs shadow-sm">
                                                     {viewer.reaction}
                                                 </div>
                                              )}

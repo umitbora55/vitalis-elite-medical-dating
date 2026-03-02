@@ -4,6 +4,7 @@
 
 /* === BASE LAYER - Agent 1 & 2 === */
 @layer base {
+
   /* Smooth scrolling */
   html {
     scroll-behavior: smooth;
@@ -33,12 +34,13 @@
 
 /* === COMPONENT LAYER - Premium Patterns === */
 @layer components {
+
   /* Premium Card - Agent 3 */
   .card-premium {
     @apply rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
     transition: box-shadow 300ms cubic-bezier(0.22, 1, 0.36, 1),
-                transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+      transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .card-premium:hover {
@@ -140,10 +142,12 @@
 
 /* === UTILITY LAYER === */
 @layer utilities {
+
   /* Scrollbar hiding */
   .hide-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -152,6 +156,7 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -180,23 +185,19 @@
 
   /* Image shimmer loading */
   .shimmer-bg {
-    background: linear-gradient(
-      90deg,
-      theme('colors.slate.200') 0%,
-      theme('colors.slate.100') 50%,
-      theme('colors.slate.200') 100%
-    );
+    background: linear-gradient(90deg,
+        theme('colors.slate.200') 0%,
+        theme('colors.slate.100') 50%,
+        theme('colors.slate.200') 100%);
     background-size: 200% 100%;
     animation: shimmer 1.5s linear infinite;
   }
 
   .dark .shimmer-bg {
-    background: linear-gradient(
-      90deg,
-      theme('colors.slate.800') 0%,
-      theme('colors.slate.700') 50%,
-      theme('colors.slate.800') 100%
-    );
+    background: linear-gradient(90deg,
+        theme('colors.slate.800') 0%,
+        theme('colors.slate.700') 50%,
+        theme('colors.slate.800') 100%);
     background-size: 200% 100%;
   }
 
@@ -212,6 +213,7 @@
 
 /* === REDUCED MOTION === */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -224,6 +226,58 @@
 
 /* === CUSTOM ANIMATIONS - Agent 7 === */
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* === PREMIUM CARD ENTRANCE ANIMATION === */
+@keyframes card-reveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(24px);
+    filter: blur(4px) brightness(0.8);
+  }
+
+  60% {
+    filter: blur(0px) brightness(1.02);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0px);
+    filter: blur(0px) brightness(1);
+  }
+}
+
+.card-enter {
+  animation: card-reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Premium card entrance for AnimatedSwipeCard */
+@keyframes cardEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(24px);
+    filter: blur(8px) brightness(0.6);
+  }
+
+  40% {
+    opacity: 0.7;
+    filter: blur(2px) brightness(1.08);
+  }
+
+  70% {
+    filter: blur(0) brightness(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0) brightness(1);
+  }
 }

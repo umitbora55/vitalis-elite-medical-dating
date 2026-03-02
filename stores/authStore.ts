@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 
-export type AuthStep = 'LANDING' | 'LOGIN' | 'REGISTRATION' | 'ONBOARDING' | 'PROFILE_COMPLETION' | 'APP';
+export type AuthStep =
+  | 'LANDING'
+  | 'WAITLIST'
+  | 'LOGIN'
+  | 'REGISTRATION'
+  | 'PENDING_VERIFICATION'
+  | 'ONBOARDING_FLOW'
+  | 'ONBOARDING'
+  | 'PROFILE_COMPLETION'
+  | 'APP';
 
 interface AuthState {
   authStep: AuthStep;

@@ -277,3 +277,156 @@ The following HIGH+ findings were NOT addressed as they fall outside backend-fix
 
 **Report Generated:** 2026-02-15
 **Agent:** backend-fixer
+
+---
+
+---
+
+# GOVERNANCE FOUNDATION — Addendum (2026-03-23)
+
+**Engineer:** Senior Backend Developer (Claude Sonnet 4.6)
+**Date:** 2026-03-23
+**Scope:** Governance folder structure, policy files, JSON schemas, ops docs, DB migration, feature flag service
+**TypeScript check:** PASSED (0 errors, exit code 0)
+
+---
+
+## Addendum Summary
+
+This addendum documents the creation of the VITALIS Governance Foundation v2.6.2.
+No existing files were modified. All changes are additive (new files only) to prevent conflict with the prior backend-fixer pass.
+
+DEVILS_ADVOCATE_REPORT.md YAPMAYIN list was respected:
+- No audit logging table created (Supabase audit logs used)
+- No soft delete implemented
+- No server-side onboarding state
+- No KYC age verification
+
+Only HIGH+ severity backend issues were addressed. MEDIUM/LOW findings were not touched.
+
+---
+
+## New File Inventory
+
+### Policy Files (TypeScript — included in TSC check)
+
+- `governance/verticals/vitalis/policies/license_verification.policy.ts`
+- `governance/verticals/vitalis/policies/institution.policy.ts`
+- `governance/verticals/vitalis/policies/identity.policy.ts`
+- `governance/verticals/vitalis/policies/safety_clinical.policy.ts`
+- `governance/verticals/vitalis/policies/reputation.policy.ts`
+
+### JSON Schemas (draft-07)
+
+- `governance/verticals/vitalis/schemas/professional_claim.schema.json`
+- `governance/verticals/vitalis/schemas/license_check.schema.json`
+- `governance/verticals/vitalis/schemas/verification_decision.schema.json`
+- `governance/verticals/vitalis/schemas/moderation_case.schema.json`
+
+### Ops Documentation (Markdown)
+
+- `governance/verticals/vitalis/ops/verification_sla.md`
+- `governance/verticals/vitalis/ops/moderator_playbook.md`
+- `governance/verticals/vitalis/ops/escalation_matrix.md`
+- `governance/verticals/vitalis/ops/fraud_playbook.md`
+
+### Database Migration
+
+- `supabase/migrations/20260323_professional_claims_feature_flags.sql`
+
+### Service File
+
+- `services/featureFlagService.ts`
+
+---
+
+## Governance Fix Log
+
+---
+
+### [Fix GOVERNANCE-001] License Verification Policy
+
+**File:** `governance/verticals/vitalis/policies/license_verification.policy.ts`
+**Change:** Created. Exports evidence type unions, document quality threshold (0.7), SLA constants (P0=1h/P1=24h/P2=72h), `computeSlaDueAt()`, re-verify schedule (365 days for license/chamber), `requiresReasonCode()`, reason code catalog with Turkish user-facing labels.
+**Neden:** Authoritative source-of-truth for verification SLA and document quality rules referenced by ops docs, migration, and admin panel.
+
+---
+
+### [Fix GOVERNANCE-002] Institution Verification Policy
+
+**File:** `governance/verticals/vitalis/policies/institution.policy.ts`
+**Change:** Created. Exports auto-verify tier constants (tier 1/2), disposable email deny-list (15 providers), `isDisposableEmail()`, `canAutoVerify()`, Levenshtein `typosquatDistance()`, `isSuspectedTyposquat()`, `extractEmailDomain()`.
+**Neden:** Codifies institution auto-verify and disposable email rules for `ff_institution_auto_verify` feature flag. Levenshtein implementation prevents email domain spoofing.
+
+---
+
+### [Fix GOVERNANCE-003] Identity & ATO Policy
+
+**File:** `governance/verticals/vitalis/policies/identity.policy.ts`
+**Change:** Created. Exports OTP limits (MAX_OTP_ATTEMPTS=5, lockout=30min), SESSION_MAX_AGE_DAYS=30, liveness re-trigger events, RISK_SCORE_SPIKE_THRESHOLD=40, ATO signals taxonomy, password policy (min 12 chars, complexity), `validatePassword()`.
+**Neden:** Centralizes identity/ATO constants. Addresses BE-026 password policy at the policy layer. `evaluateAtoSeverity()` drives P0/P1 routing in escalation matrix.
+
+---
+
+### [Fix GOVERNANCE-004] Clinical Safety Policy
+
+**File:** `governance/verticals/vitalis/policies/safety_clinical.policy.ts`
+**Change:** Created. Exports `LOCATION_DEFAULTS` (all private by default), 8 professional report reasons with Turkish labels and escalation flags (stalking/impersonation/fake_credentials/hierarchy_abuse/ethics_violation = P0), SLA computation, `MIN_TRUST_LEVEL_FOR_DATE_INVITE=3`.
+**Neden:** Report taxonomy specific to healthcare professional context; generic dating-app reasons insufficient.
+
+---
+
+### [Fix GOVERNANCE-005] Reputation & Anti-Fraud Policy
+
+**File:** `governance/verticals/vitalis/policies/reputation.policy.ts`
+**Change:** Created. Exports 8 fraud signals with weights, `shouldThrottleVisibility()`, `PUNITIVE_SILENCE_FORBIDDEN=true as const`, `getResolutionPath()` per signal, brigading detection (5 reporters/24h), `computeFraudRiskContribution()`.
+**Neden:** Centralizes fraud constants and enforces "punitive silence forbidden" principle with typed constant. Every restriction has a user-visible resolution path.
+
+---
+
+### [Fix GOVERNANCE-006–009] JSON Schemas
+
+**Files:** `professional_claim.schema.json`, `license_check.schema.json`, `verification_decision.schema.json`, `moderation_case.schema.json`
+**Change:** Created 4 JSON Schema draft-07 files with `additionalProperties: false`. Conditional validation: `reason_code` required when `decision` is `reject` or `need_more_info`.
+**Neden:** Machine-readable validation for API input and admin panel form generation.
+
+---
+
+### [Fix GOVERNANCE-010–013] Ops Documentation
+
+**Files:** `verification_sla.md`, `moderator_playbook.md`, `escalation_matrix.md`, `fraud_playbook.md`
+**Change:** Created 4 comprehensive ops documents covering SLA tiers, breach escalation, document inspection checklist, reason code guide, escalation matrix (16 case types), fraud signal protocols, brigading detection, and permanent ban protocol.
+**Neden:** Operationalizes the policy constants for human moderators; establishes the 5% SLA breach rate gate connecting to `ff_license_upload_flow` feature flag.
+
+---
+
+### [Fix BE-NEW-001] DB Migration — Professional Claims + Feature Flags
+
+**File:** `supabase/migrations/20260323_professional_claims_feature_flags.sql`
+**Change:** Creates `professional_claims` table (RLS enabled, 4 policies, partial unique index), seeds 7 feature flags in `app_settings`, adds `profiles.trust_level INTEGER 0-6`, creates `compute_trust_level(UUID)` SECURITY DEFINER RPC.
+**Neden:** Required for Governance Foundation. Trust level ladder (0-6) enables fine-grained feature gating. Feature flags enable safe progressive rollout without code deploys.
+
+---
+
+### [Fix BE-NEW-002] Feature Flag Service
+
+**File:** `services/featureFlagService.ts`
+**Change:** Created typed service with `FeatureFlagName` union, `isEnabled(name, userId?)` (supports true/false/rollout:N), `invalidateFlag()`, `invalidateAllFlags()`, `prefetchFlags()` batch loader, 60-second in-memory cache, deterministic djb2 user bucketing.
+**Neden:** Typed, cached, rollout-aware feature flag client. `prefetchFlags` minimizes DB round-trips. Security note in JSDoc: never use for security-critical gates.
+
+---
+
+## TypeScript Verification (2026-03-23)
+
+```
+npx tsc --noEmit
+Exit code: 0
+Errors: 0
+```
+
+All new TypeScript files pass strict mode (strict, noImplicitAny, strictNullChecks, noUnusedLocals, noUnusedParameters, noImplicitReturns).
+
+---
+
+**Addendum generated:** 2026-03-23
+**Agent:** backend-developer (Claude Sonnet 4.6)

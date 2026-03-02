@@ -197,7 +197,7 @@ export const SafetyCenter: React.FC<SafetyCenterProps> = ({
             <AlertTriangle size={20} fill="currentColor" className="text-white" />
             ACIL YARDIM / IHBAR
           </button>
-          <p className="text-center text-[10px] text-slate-400 mt-2">
+          <p className="text-center text-xs text-slate-400 mt-2">
             Taciz, tehdit veya acil guvenlik durumlarinda kullanin.
           </p>
         </div>

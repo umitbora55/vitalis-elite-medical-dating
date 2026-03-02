@@ -87,6 +87,17 @@ const bootstrapAuth = async (): Promise<void> => {
 
 void bootstrapAuth();
 
+// ── Dismiss Vitalis splash after React mounts (min 1.5s hold) ────────────
+const dismissSplash = () => {
+  const splash = document.getElementById('vitalis-splash');
+  if (!splash) return;
+  splash.classList.add('hidden');
+  setTimeout(() => splash.remove(), 650);
+};
+
+const SPLASH_MIN_MS = 1500;
+const splashStart = Date.now();
+
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
@@ -96,3 +107,12 @@ root.render(
     </Sentry.ErrorBoundary>
   </React.StrictMode>
 );
+
+// Wait for React paint AND minimum hold time, then fade out
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    const elapsed = Date.now() - splashStart;
+    const remaining = Math.max(0, SPLASH_MIN_MS - elapsed);
+    setTimeout(dismissSplash, remaining);
+  });
+});

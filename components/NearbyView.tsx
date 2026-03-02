@@ -21,7 +21,8 @@ export const NearbyView: React.FC<NearbyViewProps> = ({
   onBrowseProfiles,
   onRetryScan,
 }) => {
-  const isVisible = currentUser.privacySettings?.showInNearby;
+  const now = Date.now();
+  const isVisible = currentUser.privacySettings?.showInNearby ?? true;
 
   // Filter logic: 
   // 1. Distance <= 5km
@@ -32,23 +33,31 @@ export const NearbyView: React.FC<NearbyViewProps> = ({
       if (!isVisible) return []; // If I'm hidden, I see no one (Reciprocity)
 
       return profiles.filter(p => {
+          const distanceKm = Number.isFinite(p.distance) ? p.distance : 0;
           if (p.id === currentUser.id) return false;
-          if (p.distance > 5) return false;
+          if (distanceKm > 5) return false;
           if (p.isOnlineHidden) return false; // Respect their privacy
           
-          const isRecent = (Date.now() - p.lastActive) < 20 * 60 * 1000; // 20 mins
-          const isAvailable = p.isAvailable && (!p.availabilityExpiresAt || p.availabilityExpiresAt > Date.now());
+          const hasRecentActivity = Number.isFinite(p.lastActive) && p.lastActive > 0 && (now - p.lastActive) < 20 * 60 * 1000; // 20 mins
+          const isAvailable = p.isAvailable && (!p.availabilityExpiresAt || p.availabilityExpiresAt > now);
 
-          return isRecent || isAvailable;
-      }).sort((a, b) => a.distance - b.distance);
-  }, [profiles, currentUser.id, isVisible]);
+          const hasAnyLastSeen = p.lastActive > 0 && Number.isFinite(p.lastActive);
+          return hasRecentActivity || isAvailable || !hasAnyLastSeen;
+      }).sort((a, b) => {
+          const left = Number.isFinite(a.distance) ? a.distance : 0;
+          const right = Number.isFinite(b.distance) ? b.distance : 0;
+          return left - right;
+      });
+   }, [profiles, currentUser.id, isVisible]);
 
   const formatDistance = (dist: number) => {
+      if (!Number.isFinite(dist)) return 'Unknown';
       if (dist < 1) return `${Math.floor(dist * 1000)} m`;
       return `${dist.toFixed(1)} km`;
   };
 
   const getStatusText = (p: Profile) => {
+      if (!Number.isFinite(p.lastActive) || p.lastActive <= 0) return 'Last seen unknown';
       if (p.isAvailable) return "Available Now";
       const mins = Math.floor((Date.now() - p.lastActive) / 60000);
       if (mins < 1) return "Active now";
@@ -75,7 +84,7 @@ export const NearbyView: React.FC<NearbyViewProps> = ({
                 </div>
                 <div>
                     <h2 className="text-xl font-serif text-white leading-none">Nearby Active</h2>
-                    <p className="text-[10px] text-slate-400 font-medium mt-1">Within 5 km radius</p>
+                    <p className="text-xs text-slate-400 font-medium mt-1">Within 5 km radius</p>
                 </div>
             </div>
 
@@ -91,7 +100,7 @@ export const NearbyView: React.FC<NearbyViewProps> = ({
                     />
                     <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
                 </label>
-                <span className="text-[9px] text-slate-500 mt-1">{isVisible ? 'Visible' : 'Hidden'}</span>
+                <span className="text-xs text-slate-500 mt-1">{isVisible ? 'Visible' : 'Hidden'}</span>
             </div>
         </div>
 
@@ -151,7 +160,7 @@ export const NearbyView: React.FC<NearbyViewProps> = ({
                                 onClick={() => onViewProfile(user)}
                             >
                                 <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-slate-700">
-                                    <img src={user.images[0]} alt={user.name} className="w-full h-full object-cover" />
+                                    <img src={user.images[0]} alt={user.name} className="w-full h-full object-cover" loading="lazy" />
                                 </div>
                                 <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 border-slate-900 rounded-full ${user.isAvailable ? 'bg-green-500' : 'bg-orange-500'}`}></div>
                             </button>
@@ -164,14 +173,14 @@ export const NearbyView: React.FC<NearbyViewProps> = ({
                             >
                                 <div className="flex items-center justify-between mb-0.5">
                                     <h3 className="font-bold text-white text-sm truncate">{user.name}, {user.age}</h3>
-                                    <span className="text-[10px] font-bold text-gold-500 flex items-center gap-1 bg-gold-500/10 px-1.5 py-0.5 rounded">
+                                    <span className="text-xs font-bold text-gold-500 flex items-center gap-1 bg-gold-500/10 px-1.5 py-0.5 rounded">
                                         <MapPin size={8} /> {formatDistance(user.distance)}
                                     </span>
                                 </div>
-                                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mb-1">{user.specialty}</p>
+                                <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-1">{user.specialty}</p>
                                 <div className="flex items-center gap-1.5">
                                     <Clock size={10} className={user.isAvailable ? "text-green-500" : "text-slate-500"} />
-                                    <span className={`text-[10px] ${user.isAvailable ? "text-green-400 font-bold" : "text-slate-500"}`}>
+                                    <span className={`text-xs ${user.isAvailable ? "text-green-400 font-bold" : "text-slate-500"}`}>
                                         {getStatusText(user)}
                                     </span>
                                 </div>

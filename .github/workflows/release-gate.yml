@@ -1,0 +1,658 @@
+name: Release Gate
+
+on:
+  push:
+    branches: [release/*]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Stage 0: Preflight — type-check + lint
+  # ─────────────────────────────────────────────
+  preflight:
+    name: Preflight (type-check + lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript type-check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint --if-present
+
+  # ─────────────────────────────────────────────
+  # Stage 1: Unit / Component Tests
+  # ─────────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests (Vitest)
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:ci
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────
+  # Stage 2: E2E Smoke Tests (Playwright)
+  # ─────────────────────────────────────────────
+  e2e-smoke:
+    name: E2E Smoke Tests (Playwright / Chromium)
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build app
+        run: npm run build
+
+      - name: Run E2E smoke tests
+        run: npx playwright test e2e/smoke/
+        env:
+          E2E_PREVIEW: '1'
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────
+  # Stage 3: Security Gates
+  # ─────────────────────────────────────────────
+  security:
+    name: Security Gates (secrets + CSP)
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: GitLeaks Secret Scan
+        uses: gitleaks/gitleaks-action@v2.3.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+      - name: Build Secret Check
+        run: |
+          echo "Scanning dist/ for leaked secrets..."
+          if grep -rE "(eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]+|sk_live_[A-Za-z0-9]+|service_role)" dist/; then
+            echo "❌ SECRET LEAK DETECTED IN BUILD OUTPUT"
+            exit 1
+          fi
+          echo "✅ No secrets found in build output"
+
+      - name: CSP Header Check
+        run: |
+          if grep -q "Content-Security-Policy" dist/index.html; then
+            echo "✅ CSP meta tag found in dist/index.html"
+          else
+            echo "⚠️  CSP meta tag NOT found in dist/index.html"
+            exit 1
+          fi
+
+      - name: Source Secrets Lint
+        run: npm run lint:secrets
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-report
+          path: dist/
+          retention-days: 3
+
+  # ─────────────────────────────────────────────
+  # Stage 4: Build & Bundle Analysis
+  # ─────────────────────────────────────────────
+  build-analysis:
+    name: Build & Bundle Analysis
+    needs: [unit-tests, security]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+      - name: Bundle Size Check
+        run: |
+          echo "=== JS bundle sizes ==="
+          du -sk dist/assets/*.js | sort -n | awk '{printf "%s KB  %s\n", $1, $2}'
+
+          LARGEST=$(du -sk dist/assets/*.js | sort -n | tail -1 | awk '{print $1}')
+          echo ""
+          echo "Largest single JS chunk: ${LARGEST} KB"
+
+          if [ "$LARGEST" -gt 800 ]; then
+            echo "⚠️  Bundle size ${LARGEST} KB exceeds 800 KB warning threshold (current baseline ~603 KB)"
+          else
+            echo "✅ Bundle size within threshold"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+          retention-days: 3
+
+  # ─────────────────────────────────────────────
+  # Stage 5: Governance Checks
+  # ─────────────────────────────────────────────
+
+  governance-schema-validate:
+    name: Governance — Schema Validation
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check governance folder exists
+        run: |
+          if [ ! -d "governance/verticals/vitalis" ]; then
+            echo "governance/verticals/vitalis directory not found"
+            exit 1
+          fi
+          echo "governance/verticals/vitalis directory found"
+
+      - name: Validate professional_claim schema (valid JSON)
+        run: |
+          python3 -c "
+          import json, sys
+          path = 'governance/verticals/vitalis/schemas/professional_claim.schema.json'
+          with open(path) as f:
+              data = json.load(f)
+          required = data.get('required', [])
+          print(f'professional_claim.schema.json — OK | required fields: {required}')
+          "
+
+      - name: Validate license_check schema (valid JSON + required fields)
+        run: |
+          python3 -c "
+          import json, sys
+          path = 'governance/verticals/vitalis/schemas/license_check.schema.json'
+          with open(path) as f:
+              data = json.load(f)
+          required_fields = {'evidence_type', 'document_class', 'document_quality_score', 'reviewer_decision'}
+          schema_required = set(data.get('required', []))
+          missing = required_fields - schema_required
+          if missing:
+              print(f'FAIL: license_check schema missing required fields: {missing}')
+              sys.exit(1)
+          print(f'license_check.schema.json — OK | required fields present: {required_fields}')
+          "
+
+      - name: Validate verification_decision schema (valid JSON)
+        run: |
+          python3 -c "
+          import json, sys
+          path = 'governance/verticals/vitalis/schemas/verification_decision.schema.json'
+          with open(path) as f:
+              data = json.load(f)
+          required = data.get('required', [])
+          print(f'verification_decision.schema.json — OK | required fields: {required}')
+          "
+
+      - name: Validate moderation_case schema (valid JSON)
+        run: |
+          python3 -c "
+          import json, sys
+          path = 'governance/verticals/vitalis/schemas/moderation_case.schema.json'
+          with open(path) as f:
+              data = json.load(f)
+          required = data.get('required', [])
+          print(f'moderation_case.schema.json — OK | required fields: {required}')
+          "
+
+  badge-server-truth-test:
+    name: Governance — Badge Server-Truth Check
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify VerificationBadge uses trustLevel prop
+        run: |
+          BADGE_FILE="governance/verticals/vitalis/ui/VerificationBadge.tsx"
+          if [ ! -f "$BADGE_FILE" ]; then
+            echo "VerificationBadge.tsx not found at $BADGE_FILE"
+            exit 1
+          fi
+          if grep -q "trustLevel" "$BADGE_FILE"; then
+            echo "VerificationBadge.tsx uses trustLevel prop — OK"
+          else
+            echo "FAIL: VerificationBadge.tsx does not use trustLevel prop"
+            exit 1
+          fi
+
+      - name: Warn if client-side trust_level computation found
+        run: |
+          echo "Scanning components/ for client-side trust_level computation..."
+          MATCHES=$(grep -rn "trust_level\s*=" src/components/ components/ 2>/dev/null | grep -v "\.snap" | grep -v "trustLevel" || true)
+          if [ -n "$MATCHES" ]; then
+            echo "WARNING: Potential client-side trust_level computation found:"
+            echo "$MATCHES"
+            echo "Review these locations to ensure badge level is always sourced from the server."
+          else
+            echo "No client-side trust_level computation found — OK"
+          fi
+
+  pii-event-scan:
+    name: Governance — PII in Analytics Events (warn only)
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan analytics track() calls for PII fields
+        run: |
+          echo "Scanning for PII fields in analytics track() calls..."
+          PII_PATTERN="(email|phone|full_name|document_url|face_embedding)"
+          MATCHES=$(grep -rn --include="*.ts" --include="*.tsx" -E "track\([^)]*($PII_PATTERN)" src/ services/ stores/ components/ 2>/dev/null || true)
+          if [ -n "$MATCHES" ]; then
+            echo "WARNING: Possible PII fields found in analytics track() calls:"
+            echo "$MATCHES"
+            echo ""
+            echo "Review these callsites — PII must not appear as analytics event properties."
+            echo "This check does NOT fail CI; it is a governance warning only."
+          else
+            echo "No PII fields detected in analytics track() calls — OK"
+          fi
+
+  safety-flow-e2e:
+    name: Governance — Safety Flow Static Check
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify ReportFlow.tsx exists in governance UI
+        run: |
+          REPORT_FLOW="governance/verticals/vitalis/ui/ReportFlow.tsx"
+          if [ ! -f "$REPORT_FLOW" ]; then
+            echo "FAIL: ReportFlow.tsx not found at $REPORT_FLOW"
+            exit 1
+          fi
+          echo "ReportFlow.tsx found — OK"
+
+      - name: Check safety_clinical.policy.ts has >= 4 escalating reasons
+        run: |
+          POLICY="governance/verticals/vitalis/policies/safety_clinical.policy.ts"
+          if [ ! -f "$POLICY" ]; then
+            echo "FAIL: safety_clinical.policy.ts not found at $POLICY"
+            exit 1
+          fi
+          COUNT=$(grep -c "escalate: true" "$POLICY" || true)
+          echo "Found $COUNT escalating reasons (escalate: true) in safety_clinical.policy.ts"
+          if [ "$COUNT" -lt 4 ]; then
+            echo "FAIL: Expected >= 4 escalating reasons but found $COUNT"
+            exit 1
+          fi
+          echo "Escalating reason count check passed ($COUNT >= 4) — OK"
+
+  license-schema-validate:
+    name: Governance — License Schema Deep Validate
+    needs: governance-schema-validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate license_check.schema.json required fields in depth
+        run: |
+          python3 -c "
+          import json, sys
+
+          path = 'governance/verticals/vitalis/schemas/license_check.schema.json'
+          with open(path) as f:
+              schema = json.load(f)
+
+          REQUIRED_FIELDS = [
+              'evidence_type',
+              'document_class',
+              'document_quality_score',
+              'reviewer_decision',
+          ]
+
+          schema_required = schema.get('required', [])
+          properties = schema.get('properties', {})
+          errors = []
+
+          for field in REQUIRED_FIELDS:
+              if field not in schema_required:
+                  errors.append(f'  - \"{field}\" missing from top-level required array')
+              if field not in properties:
+                  errors.append(f'  - \"{field}\" missing from properties definition')
+
+          if errors:
+              print('FAIL: license_check.schema.json validation errors:')
+              for e in errors:
+                  print(e)
+              sys.exit(1)
+
+          print('license_check.schema.json deep validation passed — OK')
+          print(f'  required: {schema_required}')
+          dqs = properties.get('document_quality_score', {})
+          print(f'  document_quality_score range: [{dqs.get(\"minimum\", \"?\")}, {dqs.get(\"maximum\", \"?\")}]')
+          rd = properties.get('reviewer_decision', {})
+          print(f'  reviewer_decision enum: {rd.get(\"enum\", [])}')
+          "
+
+  # ─────────────────────────────────────────────
+  # Stage 7: UI/UX Quality Gates  (PDF spec — P0/P1/P2)
+  # ─────────────────────────────────────────────
+
+  a11y-ci:
+    name: "UI/UX — Accessibility (WCAG 2.2 AA axe-core)"
+    needs: [e2e-smoke]
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers (Chromium only)
+        run: npx playwright install --with-deps chromium
+
+      - name: Build app
+        run: npm run build
+
+      - name: Run Accessibility E2E (axe-core WCAG 2.2 AA)
+        run: npx playwright test e2e/a11y/ --project=a11y-chromium
+        env:
+          E2E_PREVIEW: '1'
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: a11y-report
+          path: playwright-report/
+          retention-days: 14
+
+  visual-regression:
+    name: "UI/UX — Visual Regression (2% pixel tolerance)"
+    needs: [e2e-smoke]
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build app
+        run: npm run build
+
+      - name: Restore visual baseline snapshots (from cache)
+        uses: actions/cache@v4
+        with:
+          path: e2e/__snapshots__
+          key: visual-snapshots-${{ github.base_ref || 'main' }}
+          restore-keys: |
+            visual-snapshots-
+
+      - name: Run Visual Regression Tests
+        run: npx playwright test e2e/visual/ --project=visual-desktop-light --project=visual-desktop-dark --project=visual-mobile-light
+        env:
+          E2E_PREVIEW: '1'
+
+      - name: Save snapshots on baseline update
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-snapshots
+          path: e2e/__snapshots__/
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: visual-regression-diffs
+          path: test-results/
+          retention-days: 14
+
+  responsive-reflow:
+    name: "UI/UX — Responsive / Reflow (WCAG 1.4.10 + 1.4.4)"
+    needs: [e2e-smoke]
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers (Chromium only)
+        run: npx playwright install --with-deps chromium
+
+      - name: Build app
+        run: npm run build
+
+      - name: Run Responsive / Reflow Tests (320px–1440px)
+        run: |
+          npx playwright test e2e/responsive/ \
+            --project=responsive-320 \
+            --project=responsive-375 \
+            --project=responsive-768 \
+            --project=responsive-1440
+        env:
+          E2E_PREVIEW: '1'
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: responsive-report
+          path: playwright-report/
+          retention-days: 7
+
+  perf-budget:
+    name: "UI/UX — Performance Budget (Lighthouse CI + CWV)"
+    needs: [build-analysis]
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers (Chromium only — CWV tests)
+        run: npx playwright install --with-deps chromium
+
+      - name: Build app
+        run: npm run build
+
+      - name: Run Core Web Vitals E2E (Playwright)
+        run: npx playwright test e2e/performance/ --project=performance-desktop
+        env:
+          E2E_PREVIEW: '1'
+
+      - name: Start preview server for Lighthouse CI
+        run: npm run preview -- --host 0.0.0.0 --port 4173 --strictPort &
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+
+      - name: Wait for preview server
+        run: npx wait-on http://localhost:4173 --timeout 30000
+
+      - name: Run Lighthouse CI
+        run: npx lhci autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-report
+          path: .lighthouseci/
+          retention-days: 14
+
+  design-token-lint:
+    name: "UI/UX — Design Token Consistency"
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Design Token Lint (8-dp grid)
+        run: node scripts/design-token-lint.mjs
+        continue-on-error: false
+
+      - name: Premium Visual Sweep
+        run: node scripts/premium-visual-sweep.mjs
+        continue-on-error: true
+
+  # ─────────────────────────────────────────────
+  # Stage 8: Evidence Pack
+  # ─────────────────────────────────────────────
+  evidence-pack:
+    name: Evidence Pack
+    needs: [e2e-smoke, build-analysis, governance-schema-validate, badge-server-truth-test, safety-flow-e2e, license-schema-validate, a11y-ci, visual-regression, responsive-reflow, perf-budget, design-token-lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Evidence Pack
+        run: |
+          mkdir -p release/evidence
+          cat > release/evidence/EVIDENCE_PACK.md << EVIDENCE
+          # EVIDENCE PACK — ${{ github.ref_name }}
+
+          ## Meta
+          - Commit: ${{ github.sha }}
+          - Branch: ${{ github.ref_name }}
+          - Date: $(date -u +"%Y-%m-%d %H:%M UTC")
+          - Triggered by: ${{ github.actor }}
+
+          ## CI Results
+          - Preflight (type-check + lint): PASS
+          - Unit Tests: PASS
+          - E2E Smoke Tests: PASS
+          - Security Gates: PASS
+          - Build & Bundle Analysis: PASS
+          - Governance Schema Validation: PASS
+          - Badge Server-Truth Check: PASS
+          - PII Event Scan: WARN (see logs)
+          - Safety Flow Static Check: PASS
+          - License Schema Deep Validate: PASS
+          - Accessibility CI (WCAG 2.2 AA axe-core): PASS
+          - Visual Regression (2% pixel tolerance): PASS
+          - Responsive / Reflow (320px–1440px): PASS
+          - Performance Budget (Lighthouse CI + CWV): PASS
+          - Design Token Consistency (8-dp grid): PASS
+
+          ## Manual Gates Required
+          - [ ] iPhone Safari smoke video uploaded
+          - [ ] Android Chrome smoke video uploaded
+          - [ ] Engineering sign-off
+          - [ ] QA sign-off
+          - [ ] Security sign-off (for release branches with security changes)
+          EVIDENCE
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evidence-pack
+          path: release/evidence/
+          retention-days: 30

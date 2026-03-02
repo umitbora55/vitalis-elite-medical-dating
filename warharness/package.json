@@ -1,0 +1,21 @@
+{
+  "name": "@vitalis/warharness",
+  "version": "3.5.0",
+  "description": "Vitalis WAR MODE — Enterprise Audit Harness v3.5 FINAL++++",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build":   "tsc --project tsconfig.json",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "gate":    "node scripts/parse_outcome.mjs",
+    "test":    "node --experimental-vm-modules node_modules/.bin/vitest run"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

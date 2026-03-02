@@ -6,11 +6,38 @@ export const jsonHeaders = {
   'Content-Type': 'application/json',
 };
 
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+// AUDIT-FIX BE-004: Replace wildcard CORS with env-var-based origin whitelist.
+// Set APP_BASE_URL (e.g. https://vitalis.app) and optionally ALLOWED_ORIGINS
+// (comma-separated, e.g. https://staging.vitalis.app,http://localhost:5173).
+const _normalizeOrigin = (url: string): string => url.replace(/\/+$/, '');
+
+const _getAllowedOrigins = (): Set<string> => {
+  const base = _normalizeOrigin(Deno.env.get('APP_BASE_URL') ?? 'https://vitalis.app');
+  const allowed = new Set<string>([base]);
+  const extra = Deno.env.get('ALLOWED_ORIGINS') ?? '';
+  for (const o of extra.split(',')) {
+    const t = _normalizeOrigin(o.trim());
+    if (t) allowed.add(t);
+  }
+  return allowed;
 };
+
+export const getCorsHeaders = (requestOrigin: string | null): Record<string, string> => {
+  const allowedOrigins = _getAllowedOrigins();
+  const appBaseUrl = _normalizeOrigin(Deno.env.get('APP_BASE_URL') ?? 'https://vitalis.app');
+  const normalized = requestOrigin ? _normalizeOrigin(requestOrigin) : '';
+  const safeOrigin = (normalized && allowedOrigins.has(normalized)) ? normalized : appBaseUrl;
+  return {
+    'Access-Control-Allow-Origin': safeOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
+  };
+};
+
+// Backward-compat static headers (used in OPTIONS preflight handlers).
+// Resolved once at module load; reflects APP_BASE_URL env var.
+export const corsHeaders = getCorsHeaders(null);
 
 const getEnv = (key: string): string => {
   const value = Deno.env.get(key);
@@ -44,8 +71,15 @@ export const getUserClient = (authHeader: string): SupabaseClient => {
   });
 };
 
-export const response = (body: Record<string, unknown>, status = 200): Response =>
-  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, ...jsonHeaders } });
+export const response = (
+  body: Record<string, unknown>,
+  status = 200,
+  requestOrigin?: string | null,
+): Response =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...getCorsHeaders(requestOrigin ?? null), ...jsonHeaders },
+  });
 
 export const readJsonBody = async (req: Request): Promise<Record<string, unknown>> => {
   try {
@@ -68,23 +102,24 @@ export const assertModeratorAccess = async (
   ok: false;
   response: Response;
 }> => {
+  const origin = req.headers.get('origin');
   const authHeader = req.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) {
-    return { ok: false, response: response({ error: 'Missing authorization' }, 401) };
+    return { ok: false, response: response({ error: 'Missing authorization' }, 401, origin) };
   }
 
   const userClient = getUserClient(authHeader);
   const service = getServiceClient();
   const { data: authData, error: authError } = await userClient.auth.getUser();
   if (authError || !authData.user) {
-    return { ok: false, response: response({ error: 'Unauthorized' }, 401) };
+    return { ok: false, response: response({ error: 'Unauthorized' }, 401, origin) };
   }
 
   const token = authHeader.replace(/^Bearer\s+/i, '');
   const payload = decodeJwtPayload(token);
   const aal = payload?.aal;
   if (requireAal2 && aal !== 'aal2') {
-    return { ok: false, response: response({ error: 'MFA aal2 required' }, 403) };
+    return { ok: false, response: response({ error: 'MFA aal2 required' }, 403, origin) };
   }
 
   const { data: profile, error: profileError } = await service
@@ -94,12 +129,12 @@ export const assertModeratorAccess = async (
     .maybeSingle();
 
   if (profileError) {
-    return { ok: false, response: response({ error: 'Failed to read role' }, 500) };
+    return { ok: false, response: response({ error: 'Failed to read role' }, 500, origin) };
   }
 
   const role = (profile?.user_role || 'viewer') as AdminRole;
   if (!['moderator', 'admin', 'superadmin'].includes(role)) {
-    return { ok: false, response: response({ error: 'Forbidden' }, 403) };
+    return { ok: false, response: response({ error: 'Forbidden' }, 403, origin) };
   }
 
   return {

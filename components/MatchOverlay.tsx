@@ -1,14 +1,23 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Match } from '../types';
-import { MessageCircle, Heart, User, Volume2, VolumeX, Sparkles, Loader2 } from 'lucide-react';
+import { MessageCircle, Heart, User, Volume2, VolumeX, Sparkles, Loader2, CalendarPlus, CalendarDays } from 'lucide-react';
 import { USER_PROFILE } from '../constants';
+import { MatchTimerBadge } from './MatchTimerBadge';
+import { DateInvitationFlow } from './DateInvitationFlow';
 
 interface MatchOverlayProps {
   match: Match;
   onClose: () => void;
   onChat: () => void;
   onViewProfile: () => void;
+  onPlanDate?: () => void;
   isPremium?: boolean;
+  /** Set when this match originated from an event match window */
+  eventTitle?: string;
+  /** match row id in Supabase — enables full DateInvitationFlow if provided */
+  matchDbId?: string;
+  /** Current user's Supabase id — needed as inviter_id in DateInvitationFlow */
+  currentUserId?: string;
 }
 
 type Particle = {
@@ -52,9 +61,20 @@ type AnimationStage = 'ENTERING' | 'IMPACT' | 'CELEBRATING' | 'INTERACTIVE' | 'H
 const PREMIUM_HANDOFF_MS = 1200;
 const STANDARD_HANDOFF_MS = 850;
 
-export const MatchOverlay: React.FC<MatchOverlayProps> = ({ match, onClose, onChat, onViewProfile, isPremium = false }) => {
+export const MatchOverlay: React.FC<MatchOverlayProps> = ({
+  match,
+  onClose,
+  onChat,
+  onViewProfile,
+  onPlanDate,
+  isPremium = false,
+  eventTitle,
+  matchDbId,
+  currentUserId,
+}) => {
   const [stage, setStage] = useState<AnimationStage>('ENTERING');
   const [isMuted, setIsMuted] = useState(false);
+  const [showDateFlow, setShowDateFlow] = useState(false);
   const mutedRef = useRef(false);
   const particles = useMemo(() => createParticles(isPremium ? 38 : 28, isPremium), [isPremium, match.profile.id]);
   const isInteractive = stage === 'INTERACTIVE';
@@ -205,6 +225,16 @@ export const MatchOverlay: React.FC<MatchOverlayProps> = ({ match, onClose, onCh
             <p className="text-caption text-slate-400 mt-3 tracking-wide leading-relaxed">
               {isPremium ? 'A high-compatibility connection unlocked.' : 'Start the conversation while the moment is fresh.'}
             </p>
+
+            {/* Event Match Badge */}
+            {eventTitle && (
+              <div className="mt-4 flex items-center justify-center gap-2 bg-gold-500/10 border border-gold-500/25 rounded-full px-4 py-2 mx-auto w-fit">
+                <CalendarDays size={13} className="text-gold-400 flex-shrink-0" />
+                <p className="text-xs font-semibold text-gold-400 leading-tight">
+                  Bu kişiyle <span className="font-bold">{eventTitle}</span>'nda karşılaştınız
+                </p>
+              </div>
+            )}
         </div>
 
         {/* Action Buttons - Agent 4: Premium buttons */}
@@ -219,6 +249,35 @@ export const MatchOverlay: React.FC<MatchOverlayProps> = ({ match, onClose, onCh
                 {isHandoff ? <Loader2 size={20} className="animate-spin" /> : <MessageCircle size={20} fill="currentColor" strokeWidth={0} />}
                 {isHandoff ? (isPremium ? 'Preparing Private Suite...' : 'Opening Chat...') : 'Send Message'}
             </button>
+
+            {/* 72h Match Timer */}
+            {match.expiresAt && (
+              <div className="flex justify-center">
+                <MatchTimerBadge
+                  deadline={match.expiresAt ? new Date(match.expiresAt).toISOString() : null}
+                  compact
+                  className="mx-auto"
+                />
+              </div>
+            )}
+
+            {/* Plan Date CTA — opens DateInvitationFlow if matchDbId available, else legacy callback */}
+            {(onPlanDate || matchDbId) && (
+              <button
+                onClick={() => {
+                  if (matchDbId && currentUserId) {
+                    setShowDateFlow(true);
+                  } else {
+                    onPlanDate?.();
+                  }
+                }}
+                disabled={isHandoff}
+                className="w-full py-3.5 rounded-2xl text-white font-semibold text-sm transition-all flex items-center justify-center gap-2 bg-slate-800/80 border border-gold-500/20 hover:border-gold-500/40 hover:bg-slate-800 disabled:opacity-40"
+              >
+                <CalendarPlus size={18} className="text-gold-400" />
+                Date Daveti Gönder
+              </button>
+            )}
 
             <button
                 onClick={onViewProfile}
@@ -240,19 +299,35 @@ export const MatchOverlay: React.FC<MatchOverlayProps> = ({ match, onClose, onCh
 
       </div>
 
+      {/* DateInvitationFlow — rendered as a portal-style overlay on top of MatchOverlay */}
+      {showDateFlow && matchDbId && currentUserId && (
+        <DateInvitationFlow
+          matchId={matchDbId}
+          inviteeId={match.profile.id}
+          inviteeName={match.profile.name}
+          inviteeAvatar={match.profile.images[0] ?? ''}
+          onClose={() => setShowDateFlow(false)}
+          onSuccess={() => {
+            setShowDateFlow(false);
+            // Allow parent to know a date invitation was sent (optional)
+            onPlanDate?.();
+          }}
+        />
+      )}
+
       {isHandoff && (
         <div className="absolute inset-0 z-40 pointer-events-none">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(251,191,36,0.28),transparent_50%)] animate-fade-in" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-950/20 to-slate-950/70" />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-[280px] max-w-[82vw] px-6 py-4 rounded-2xl border border-gold-400/35 bg-slate-900/70 backdrop-blur-xl shadow-[0_0_35px_rgba(245,158,11,0.35)]">
-              <p className="text-[11px] uppercase tracking-[0.28em] text-gold-300/90 font-semibold text-center">
+              <p className="text-xs uppercase tracking-[0.28em] text-gold-300/90 font-semibold text-center">
                 {isPremium ? 'Entering Private Suite' : 'Entering Private Chat'}
               </p>
               <div className="mt-3 h-[3px] rounded-full bg-slate-800 overflow-hidden">
                 <div className={`h-full rounded-full ${isPremium ? 'bg-gradient-to-r from-amber-300 via-gold-500 to-amber-300' : 'bg-gradient-to-r from-pink-400 via-rose-500 to-pink-400'} animate-handoff-bar`} />
               </div>
-              <p className="mt-2 text-[10px] text-slate-400 text-center tracking-wide">
+              <p className="mt-2 text-xs text-slate-400 text-center tracking-wide">
                 {isPremium ? 'Securing an elevated conversation room...' : 'Connecting your conversation...'}
               </p>
             </div>

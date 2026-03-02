@@ -43,9 +43,10 @@ const mapProfileToRow = (profile: Profile) => {
     updated_at: new Date().toISOString(),
     verification_status: profile.verificationStatus ?? null,
     verification_method: profile.verificationMethod ?? null,
-    user_role: profile.userRole ?? 'viewer',
-    risk_flags: profile.riskFlags ?? {},
-    suspended_until: profile.suspendedUntil ?? null,
+    // AUDIT-FIX BE-032: user_role, risk_flags, suspended_until are admin-only fields.
+    // Excluding them here prevents privilege escalation via client-side profile upsert.
+    // These columns must only be written by service_role (admin edge functions).
+    user_status: profile.userStatus ?? null,
   };
 };
 
@@ -75,6 +76,7 @@ export const mapRowToProfile = (row: Record<string, unknown>, fallback: Profile)
     ...(typeof row.verification_status === 'string' ? { verificationStatus: row.verification_status as Profile['verificationStatus'] } : {}),
     ...(typeof row.verification_method === 'string' ? { verificationMethod: row.verification_method as Profile['verificationMethod'] } : {}),
     ...(typeof row.user_role === 'string' ? { userRole: row.user_role as Profile['userRole'] } : {}),
+    ...(typeof row.user_status === 'string' ? { userStatus: row.user_status as Profile['userStatus'] } : {}),
     ...(typeof row.risk_flags === 'object' && row.risk_flags !== null ? { riskFlags: row.risk_flags as Record<string, unknown> } : {}),
     ...(typeof row.suspended_until === 'string' ? { suspendedUntil: Date.parse(row.suspended_until) } : {}),
     ...(typeof row.is_frozen === 'boolean' ? { isFrozen: row.is_frozen } : {}),

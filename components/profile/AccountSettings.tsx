@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, CheckCheck, Download, FileText, PauseCircle, Settings, Trash2, X } from 'lucide-react';
+import { AlertTriangle, CheckCheck, Download, FileText, LogOut, PauseCircle, Settings, Trash2, X } from 'lucide-react';
 
 interface AccountSettingsProps {
   isOpen: boolean;
@@ -10,6 +10,7 @@ interface AccountSettingsProps {
   onEnablePush: () => void;
   onShowFreezeModal: () => void;
   onShowDeleteConfirm: () => void;
+  onLogout?: () => void;
 }
 
 export const AccountSettings: React.FC<AccountSettingsProps> = ({
@@ -21,6 +22,7 @@ export const AccountSettings: React.FC<AccountSettingsProps> = ({
   onEnablePush,
   onShowFreezeModal,
   onShowDeleteConfirm,
+  onLogout,
 }) => {
   if (!isOpen) return null;
 
@@ -115,6 +117,28 @@ export const AccountSettings: React.FC<AccountSettingsProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Logout */}
+        {onLogout && (
+          <div>
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <LogOut size={14} /> Oturum
+            </h4>
+            <button
+              onClick={onLogout}
+              className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center justify-between hover:bg-slate-800/80 transition-colors group"
+            >
+              <div>
+                <h5 className="text-white font-bold text-sm">Çıkış Yap</h5>
+                <p className="text-slate-400 text-xs mt-1">Hesabından güvenli çıkış yap.</p>
+              </div>
+              <div className="px-4 py-2 bg-slate-800 group-hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5">
+                <LogOut size={14} />
+                Çıkış
+              </div>
+            </button>
+          </div>
+        )}
 
         <div>
           <h4 className="text-xs font-bold text-red-500 uppercase tracking-widest mb-4 flex items-center gap-2">

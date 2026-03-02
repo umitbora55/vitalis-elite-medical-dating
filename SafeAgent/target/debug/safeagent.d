@@ -1,0 +1,1 @@
+/Users/umitboragunaydin/Desktop/Eski\ Masaüstü/vitalis---elite-medical-dating/SafeAgent/target/debug/safeagent: /Users/umitboragunaydin/Desktop/Eski\ Masaüstü/vitalis---elite-medical-dating/SafeAgent/crates/gateway/src/main.rs

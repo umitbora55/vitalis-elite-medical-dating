@@ -1,0 +1,39 @@
+# CODEOWNERS — Vitalis Elite Medical Dating
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Last column wins for overlapping patterns.
+# Reviewers listed here are automatically requested on PRs that touch matching paths.
+
+# ── Default owners ──────────────────────────────────────────────────────────
+*                                           @core-team
+
+# ── Security-critical: authentication & session management ──────────────────
+/services/authService.ts                    @security-team
+/services/blockAndReportService.ts          @security-team
+/services/healthcareVerificationService.ts  @security-team
+
+# ── Security-critical: Supabase Edge Functions shared utilities ──────────────
+/supabase/functions/_shared/               @security-team
+
+# ── Database migrations — any schema change requires DBA review ─────────────
+/supabase/migrations/                      @database-team
+
+# ── Edge Functions ──────────────────────────────────────────────────────────
+/supabase/functions/                       @backend-team @security-team
+
+# ── CI/CD & release infrastructure ──────────────────────────────────────────
+/.github/                                  @devops-team
+/.github/workflows/                        @devops-team @security-team
+
+# ── Frontend security surface ────────────────────────────────────────────────
+/index.html                                @security-team @frontend-team
+
+# ── Stores with sensitive data (see BE-030: matchStore plaintext localStorage) ─
+/stores/                                   @security-team @frontend-team
+
+# ── Types & global contracts ─────────────────────────────────────────────────
+/types.ts                                  @core-team
+
+# ── Governance — trust, safety & compliance ───────────────────────────────────
+/governance/                               @trust-team @security-team
+/governance/verticals/vitalis/             @trust-team @security-team @backend-team
